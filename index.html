@@ -7,20 +7,14 @@
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,500;1,300;1,400&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
       --ink: #1a1209;
       --parchment: #f5edd6;
-      --parchment-dark: #e8d9b8;
       --gold: #c9922a;
       --gold-light: #e8b84b;
       --rust: #8b3a1a;
-      --shadow: rgba(26,18,9,0.18);
-      --glow: rgba(201,146,42,0.15);
     }
-
     html, body { height: 100%; }
-
     body {
       font-family: 'Crimson Pro', Georgia, serif;
       background: var(--ink);
@@ -28,396 +22,216 @@
       min-height: 100vh;
       overflow-x: hidden;
     }
-
-    /* ── BACKGROUND TEXTURE ── */
     body::before {
       content: '';
-      position: fixed;
-      inset: 0;
+      position: fixed; inset: 0;
       background:
         radial-gradient(ellipse at 20% 20%, rgba(139,58,26,0.12) 0%, transparent 50%),
         radial-gradient(ellipse at 80% 80%, rgba(201,146,42,0.08) 0%, transparent 50%),
-        repeating-linear-gradient(
-          45deg,
-          transparent,
-          transparent 2px,
-          rgba(201,146,42,0.015) 2px,
-          rgba(201,146,42,0.015) 4px
-        );
-      pointer-events: none;
-      z-index: 0;
+        repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(201,146,42,0.015) 2px, rgba(201,146,42,0.015) 4px);
+      pointer-events: none; z-index: 0;
     }
 
-    /* ── LOCK SCREEN ── */
+    /* ── LOCK ── */
     #lockScreen {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 100;
-      background: var(--ink);
+      position: fixed; inset: 0; display: flex;
+      align-items: center; justify-content: center;
+      z-index: 100; background: var(--ink);
     }
-
     #lockScreen::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background:
-        radial-gradient(ellipse at 50% 40%, rgba(201,146,42,0.1) 0%, transparent 60%);
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(ellipse at 50% 40%, rgba(201,146,42,0.1) 0%, transparent 60%);
       pointer-events: none;
     }
-
     .lock-box {
-      position: relative;
-      text-align: center;
-      padding: 56px 48px;
-      border: 1px solid rgba(201,146,42,0.3);
-      background: rgba(26,18,9,0.8);
-      max-width: 400px;
-      width: 90%;
+      position: relative; text-align: center;
+      padding: 56px 48px; border: 1px solid rgba(201,146,42,0.3);
+      background: rgba(26,18,9,0.8); max-width: 400px; width: 90%;
     }
-
     .lock-box::before, .lock-box::after {
-      content: '';
-      position: absolute;
-      width: 12px; height: 12px;
-      border-color: var(--gold);
-      border-style: solid;
+      content: ''; position: absolute; width: 12px; height: 12px;
+      border-color: var(--gold); border-style: solid;
     }
-    .lock-box::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
-    .lock-box::after  { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
-
-    .lock-rune {
-      font-size: 2.8rem;
-      margin-bottom: 8px;
-      filter: drop-shadow(0 0 12px rgba(201,146,42,0.5));
-      animation: runeGlow 3s ease-in-out infinite alternate;
-    }
+    .lock-box::before { top:-1px; left:-1px; border-width: 2px 0 0 2px; }
+    .lock-box::after  { bottom:-1px; right:-1px; border-width: 0 2px 2px 0; }
+    .lock-rune { font-size: 2.8rem; margin-bottom: 8px; animation: runeGlow 3s ease-in-out infinite alternate; }
     @keyframes runeGlow {
       from { filter: drop-shadow(0 0 8px rgba(201,146,42,0.3)); }
       to   { filter: drop-shadow(0 0 20px rgba(201,146,42,0.7)); }
     }
-
-    .lock-title {
-      font-family: 'Cinzel', serif;
-      font-size: 1.8rem;
-      font-weight: 700;
-      color: var(--gold-light);
-      letter-spacing: 0.12em;
-      margin-bottom: 4px;
-    }
-
-    .lock-subtitle {
-      font-size: 0.85rem;
-      color: rgba(245,237,214,0.4);
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      margin-bottom: 36px;
-    }
-
-    .lock-divider {
-      width: 60px; height: 1px;
-      background: linear-gradient(90deg, transparent, var(--gold), transparent);
-      margin: 0 auto 36px;
-    }
-
-    .lock-input-wrap { position: relative; margin-bottom: 16px; }
-
+    .lock-title { font-family: 'Cinzel', serif; font-size: 1.8rem; font-weight: 700; color: var(--gold-light); letter-spacing: 0.12em; margin-bottom: 4px; }
+    .lock-subtitle { font-size: 0.85rem; color: rgba(245,237,214,0.4); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 36px; }
+    .lock-divider { width: 60px; height: 1px; background: linear-gradient(90deg, transparent, var(--gold), transparent); margin: 0 auto 36px; }
     .lock-input {
-      width: 100%;
-      background: rgba(245,237,214,0.05);
-      border: 1px solid rgba(201,146,42,0.3);
-      color: var(--parchment);
-      font-family: 'Crimson Pro', serif;
-      font-size: 1.1rem;
-      padding: 12px 20px;
-      text-align: center;
-      letter-spacing: 0.2em;
-      outline: none;
-      transition: border-color 0.2s, background 0.2s;
+      width: 100%; background: rgba(245,237,214,0.05); border: 1px solid rgba(201,146,42,0.3);
+      color: var(--parchment); font-family: 'Crimson Pro', serif; font-size: 1.1rem;
+      padding: 12px 20px; text-align: center; letter-spacing: 0.2em; outline: none;
+      transition: border-color 0.2s, background 0.2s; margin-bottom: 16px;
     }
     .lock-input:focus { border-color: var(--gold); background: rgba(201,146,42,0.08); }
     .lock-input::placeholder { letter-spacing: 0.1em; opacity: 0.3; }
-
     .lock-btn {
-      width: 100%;
-      background: linear-gradient(135deg, var(--rust), var(--gold));
-      color: var(--parchment);
-      font-family: 'Cinzel', serif;
-      font-size: 0.85rem;
-      font-weight: 600;
-      letter-spacing: 0.15em;
-      padding: 13px 24px;
-      border: none;
-      cursor: pointer;
-      text-transform: uppercase;
-      transition: opacity 0.2s, transform 0.15s;
+      width: 100%; background: linear-gradient(135deg, var(--rust), var(--gold));
+      color: var(--parchment); font-family: 'Cinzel', serif; font-size: 0.85rem;
+      font-weight: 600; letter-spacing: 0.15em; padding: 13px 24px; border: none;
+      cursor: pointer; text-transform: uppercase; transition: opacity 0.2s, transform 0.15s;
     }
     .lock-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+    .lock-error { margin-top: 14px; font-size: 0.82rem; color: #c0392b; min-height: 1.2em; font-style: italic; }
 
-    .lock-error {
-      margin-top: 14px;
-      font-size: 0.82rem;
-      color: #c0392b;
-      letter-spacing: 0.05em;
-      min-height: 1.2em;
-      font-style: italic;
-    }
-
-    /* ── MAIN APP ── */
+    /* ── APP ── */
     #app { display: none; position: relative; z-index: 1; min-height: 100vh; }
-
-    /* ── TOP BAR ── */
     #topbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px 32px;
-      border-bottom: 1px solid rgba(201,146,42,0.2);
-      background: rgba(26,18,9,0.7);
-      backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 32px; border-bottom: 1px solid rgba(201,146,42,0.2);
+      background: rgba(26,18,9,0.7); backdrop-filter: blur(8px);
       position: sticky; top: 0; z-index: 50;
     }
-
-    .brand {
-      font-family: 'Cinzel', serif;
-      font-size: 1.1rem;
-      font-weight: 700;
-      color: var(--gold-light);
-      letter-spacing: 0.15em;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
+    .brand { font-family: 'Cinzel', serif; font-size: 1.1rem; font-weight: 700; color: var(--gold-light); letter-spacing: 0.15em; display: flex; align-items: center; gap: 10px; }
     .brand-rune { font-size: 1.3rem; filter: drop-shadow(0 0 6px rgba(201,146,42,0.5)); }
-
     .lock-out-btn {
-      background: none;
-      border: 1px solid rgba(201,146,42,0.25);
-      color: rgba(245,237,214,0.45);
-      font-family: 'Crimson Pro', serif;
-      font-size: 0.8rem;
-      padding: 5px 14px;
-      cursor: pointer;
-      letter-spacing: 0.08em;
-      transition: all 0.2s;
+      background: none; border: 1px solid rgba(201,146,42,0.25); color: rgba(245,237,214,0.45);
+      font-family: 'Crimson Pro', serif; font-size: 0.8rem; padding: 5px 14px;
+      cursor: pointer; letter-spacing: 0.08em; transition: all 0.2s;
     }
     .lock-out-btn:hover { border-color: var(--gold); color: var(--gold-light); }
 
-    /* ── NAV TABS ── */
-    .tab-nav {
-      display: flex;
-      gap: 2px;
-      padding: 20px 32px 0;
-      border-bottom: 1px solid rgba(201,146,42,0.15);
-    }
-
+    .tab-nav { display: flex; gap: 2px; padding: 20px 32px 0; border-bottom: 1px solid rgba(201,146,42,0.15); }
     .tab-btn {
-      font-family: 'Cinzel', serif;
-      font-size: 0.75rem;
-      font-weight: 600;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      padding: 10px 22px;
-      background: none;
-      border: 1px solid transparent;
-      border-bottom: none;
-      color: rgba(245,237,214,0.4);
-      cursor: pointer;
-      transition: all 0.2s;
-      position: relative;
-      top: 1px;
+      font-family: 'Cinzel', serif; font-size: 0.75rem; font-weight: 600;
+      letter-spacing: 0.12em; text-transform: uppercase; padding: 10px 22px;
+      background: none; border: 1px solid transparent; border-bottom: none;
+      color: rgba(245,237,214,0.4); cursor: pointer; transition: all 0.2s; position: relative; top: 1px;
     }
     .tab-btn:hover { color: var(--gold-light); }
-    .tab-btn.active {
-      color: var(--gold-light);
-      background: rgba(26,18,9,0.8);
-      border-color: rgba(201,146,42,0.25);
-      border-bottom: 1px solid rgba(26,18,9,0.9);
-    }
+    .tab-btn.active { color: var(--gold-light); background: rgba(26,18,9,0.8); border-color: rgba(201,146,42,0.25); border-bottom: 1px solid rgba(26,18,9,0.9); }
 
-    /* ── PANELS ── */
-    .panel { display: none; padding: 36px 32px; max-width: 960px; }
+    .panel { display: none; padding: 36px 32px; }
     .panel.active { display: block; }
+    .panel-title { font-family: 'Cinzel', serif; font-size: 1.3rem; font-weight: 600; color: var(--gold-light); letter-spacing: 0.1em; margin-bottom: 6px; }
+    .panel-desc { font-size: 0.95rem; color: rgba(245,237,214,0.5); font-style: italic; margin-bottom: 28px; }
+    .divider { height: 1px; background: linear-gradient(90deg, rgba(201,146,42,0.4), transparent); margin-bottom: 28px; }
 
-    .panel-title {
-      font-family: 'Cinzel', serif;
-      font-size: 1.3rem;
-      font-weight: 600;
-      color: var(--gold-light);
-      letter-spacing: 0.1em;
-      margin-bottom: 6px;
-    }
-    .panel-desc {
-      font-size: 0.95rem;
-      color: rgba(245,237,214,0.5);
-      font-style: italic;
-      margin-bottom: 28px;
-    }
-    .divider {
-      height: 1px;
-      background: linear-gradient(90deg, rgba(201,146,42,0.4), transparent);
-      margin-bottom: 28px;
-    }
+    /* ── LAYOUT ── */
+    .league-layout { display: grid; grid-template-columns: 300px 1fr; gap: 24px; align-items: start; }
+    @media (max-width: 860px) { .league-layout { grid-template-columns: 1fr; } }
 
-    /* ── CSV TOOL ── */
-    .csv-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 24px;
-    }
-    @media (max-width: 700px) { .csv-grid { grid-template-columns: 1fr; } }
+    .card { background: rgba(245,237,214,0.03); border: 1px solid rgba(201,146,42,0.18); padding: 22px; margin-bottom: 14px; }
+    .card-label { font-family: 'Cinzel', serif; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold); margin-bottom: 14px; }
 
-    .csv-card {
-      background: rgba(245,237,214,0.03);
-      border: 1px solid rgba(201,146,42,0.18);
-      padding: 24px;
-    }
-
-    .card-label {
-      font-family: 'Cinzel', serif;
-      font-size: 0.7rem;
-      font-weight: 600;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      color: var(--gold);
-      margin-bottom: 14px;
-    }
-
+    /* Upload */
     .upload-zone {
-      border: 2px dashed rgba(201,146,42,0.25);
-      padding: 32px 20px;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.2s;
-      margin-bottom: 16px;
+      border: 2px dashed rgba(201,146,42,0.25); padding: 24px 16px; text-align: center;
+      cursor: pointer; transition: all 0.2s; margin-bottom: 12px;
     }
-    .upload-zone:hover, .upload-zone.drag-over {
-      border-color: var(--gold);
-      background: rgba(201,146,42,0.06);
-    }
-    .upload-zone .upload-icon { font-size: 2rem; margin-bottom: 10px; opacity: 0.5; }
-    .upload-zone p { font-size: 0.88rem; color: rgba(245,237,214,0.45); line-height: 1.5; }
-    .upload-zone span { color: var(--gold-light); cursor: pointer; }
-
-    #fileInput { display: none; }
-
-    .format-select-wrap { margin-bottom: 16px; }
-    .format-label {
-      font-size: 0.78rem;
-      color: rgba(245,237,214,0.45);
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      margin-bottom: 8px;
-      display: block;
-    }
-    .format-select {
-      width: 100%;
-      background: rgba(245,237,214,0.05);
-      border: 1px solid rgba(201,146,42,0.25);
-      color: var(--parchment);
-      font-family: 'Crimson Pro', serif;
-      font-size: 0.95rem;
-      padding: 9px 14px;
-      outline: none;
-      cursor: pointer;
-      appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23c9922a' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 12px center;
-    }
-    .format-select option { background: #1a1209; }
-
-    .action-btn {
-      width: 100%;
-      background: linear-gradient(135deg, rgba(139,58,26,0.6), rgba(201,146,42,0.6));
-      color: var(--parchment);
-      font-family: 'Cinzel', serif;
-      font-size: 0.75rem;
-      font-weight: 600;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      padding: 11px 20px;
-      border: 1px solid rgba(201,146,42,0.3);
-      cursor: pointer;
-      transition: all 0.2s;
-      margin-bottom: 10px;
-    }
-    .action-btn:hover { background: linear-gradient(135deg, rgba(139,58,26,0.8), rgba(201,146,42,0.8)); }
-    .action-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-
-    /* Preview */
-    .preview-box {
-      background: rgba(0,0,0,0.3);
-      border: 1px solid rgba(201,146,42,0.12);
-      padding: 16px;
-      min-height: 160px;
-      max-height: 300px;
-      overflow: auto;
-      font-family: 'Courier New', monospace;
-      font-size: 0.75rem;
-      color: rgba(245,237,214,0.6);
-      line-height: 1.6;
-      white-space: pre-wrap;
-      word-break: break-all;
-    }
+    .upload-zone:hover, .upload-zone.drag-over { border-color: var(--gold); background: rgba(201,146,42,0.06); }
+    .upload-icon { font-size: 1.6rem; margin-bottom: 6px; opacity: 0.5; }
+    .upload-zone p { font-size: 0.82rem; color: rgba(245,237,214,0.4); line-height: 1.5; }
+    .upload-zone span { color: var(--gold-light); }
 
     .status-bar {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 14px;
-      background: rgba(201,146,42,0.06);
-      border: 1px solid rgba(201,146,42,0.15);
-      margin-bottom: 16px;
-      font-size: 0.82rem;
-      color: rgba(245,237,214,0.6);
-      min-height: 42px;
+      display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+      background: rgba(201,146,42,0.05); border: 1px solid rgba(201,146,42,0.12);
+      margin-bottom: 10px; font-size: 0.78rem; color: rgba(245,237,214,0.5); min-height: 36px;
     }
-    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(201,146,42,0.3); flex-shrink: 0; }
-    .status-dot.active { background: #4caf50; box-shadow: 0 0 6px rgba(76,175,80,0.5); }
-    .status-dot.error { background: #c0392b; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(201,146,42,0.25); flex-shrink: 0; }
+    .dot.ok  { background: #4caf50; box-shadow: 0 0 6px rgba(76,175,80,0.5); }
+    .dot.err { background: #c0392b; }
 
-    /* Delimiter options */
-    .delim-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 16px; }
-    .delim-btn {
-      background: rgba(245,237,214,0.04);
-      border: 1px solid rgba(201,146,42,0.15);
-      color: rgba(245,237,214,0.5);
-      font-family: 'Courier New', monospace;
-      font-size: 0.8rem;
-      padding: 7px 4px;
-      cursor: pointer;
-      text-align: center;
-      transition: all 0.2s;
+    .btn {
+      width: 100%; font-family: 'Cinzel', serif; font-size: 0.7rem; font-weight: 600;
+      letter-spacing: 0.12em; text-transform: uppercase; padding: 10px 14px;
+      border: 1px solid rgba(201,146,42,0.3); cursor: pointer; transition: all 0.2s; margin-bottom: 7px;
+      background: linear-gradient(135deg, rgba(139,58,26,0.6), rgba(201,146,42,0.6)); color: var(--parchment);
     }
-    .delim-btn:hover, .delim-btn.active {
-      border-color: var(--gold);
-      color: var(--gold-light);
-      background: rgba(201,146,42,0.08);
-    }
+    .btn:hover { background: linear-gradient(135deg, rgba(139,58,26,0.85), rgba(201,146,42,0.85)); }
+    .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .btn.ghost { background: rgba(245,237,214,0.04); border-color: rgba(201,146,42,0.18); }
+    .btn.ghost:hover { background: rgba(245,237,214,0.08); }
+    .btn.danger { background: rgba(192,57,43,0.15); border-color: rgba(192,57,43,0.3); }
+    .btn.danger:hover { background: rgba(192,57,43,0.35); }
 
-    /* Stats strip */
-    .stats-strip {
-      display: flex;
-      gap: 16px;
-      flex-wrap: wrap;
-      margin-bottom: 16px;
+    /* Event list */
+    .event-list { max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; }
+    .event-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 7px 10px; background: rgba(201,146,42,0.04); border: 1px solid rgba(201,146,42,0.1); font-size: 0.8rem;
     }
-    .stat-item { font-size: 0.78rem; color: rgba(245,237,214,0.4); }
-    .stat-item strong { color: var(--gold-light); }
+    .event-item-name { color: rgba(245,237,214,0.7); }
+    .event-item-meta { font-size: 0.72rem; color: rgba(245,237,214,0.3); }
+    .ev-remove { background: none; border: none; color: rgba(192,57,43,0.4); cursor: pointer; font-size: 0.85rem; padding: 0 3px; transition: color 0.2s; }
+    .ev-remove:hover { color: #c0392b; }
+    .empty-list { font-size: 0.8rem; color: rgba(245,237,214,0.2); font-style: italic; text-align: center; padding: 10px 0; }
 
-    /* Coming soon panel */
-    .coming-soon {
-      padding: 60px 20px;
-      text-align: center;
-      color: rgba(245,237,214,0.25);
-      font-style: italic;
-      font-size: 1rem;
+    /* Scoring reference */
+    .scoring-ref { font-size: 0.76rem; color: rgba(245,237,214,0.35); line-height: 2; }
+    .scoring-ref strong { color: var(--gold-light); }
+
+    /* Leaderboard */
+    .lb-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+    .lb-meta { font-size: 0.78rem; color: rgba(245,237,214,0.3); font-style: italic; }
+    .lb-search {
+      background: rgba(245,237,214,0.05); border: 1px solid rgba(201,146,42,0.2);
+      color: var(--parchment); font-family: 'Crimson Pro', serif; font-size: 0.88rem;
+      padding: 6px 12px; outline: none; width: 180px; transition: border-color 0.2s;
     }
-    .coming-soon .cs-icon { font-size: 2.5rem; margin-bottom: 16px; opacity: 0.3; }
+    .lb-search:focus { border-color: var(--gold); }
+    .lb-search::placeholder { opacity: 0.3; }
 
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      font-family: 'Cinzel', serif; font-size: 0.62rem; font-weight: 600;
+      letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold);
+      padding: 9px 10px; text-align: left; border-bottom: 1px solid rgba(201,146,42,0.25); white-space: nowrap;
+    }
+    th.r, td.r { text-align: right; }
+    th.c, td.c { text-align: center; }
+    tbody tr.pr { cursor: pointer; transition: background 0.15s; }
+    tbody tr.pr:hover { background: rgba(201,146,42,0.06); }
+    tbody td { padding: 9px 10px; font-size: 0.86rem; border-bottom: 1px solid rgba(201,146,42,0.07); vertical-align: middle; }
+
+    .badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 24px; height: 24px; border-radius: 50%;
+      font-family: 'Cinzel', serif; font-size: 0.68rem; font-weight: 700;
+    }
+    .b1 { background: rgba(201,146,42,0.25); color: var(--gold-light); border: 1px solid rgba(201,146,42,0.5); }
+    .b2 { background: rgba(180,180,180,0.12); color: #bbb; border: 1px solid rgba(180,180,180,0.25); }
+    .b3 { background: rgba(180,100,40,0.18); color: #cd7f32; border: 1px solid rgba(180,100,40,0.3); }
+    .bn { background: rgba(245,237,214,0.04); color: rgba(245,237,214,0.35); border: 1px solid rgba(245,237,214,0.08); }
+
+    .p-disp { font-weight: 500; }
+    .p-real { font-size: 0.75rem; color: rgba(245,237,214,0.38); }
+    .pts-big { font-family: 'Cinzel', serif; font-size: 0.98rem; font-weight: 700; color: var(--gold-light); }
+    .pts-sm  { font-size: 0.7rem; color: rgba(245,237,214,0.28); font-style: italic; }
+
+    .edot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin: 0 2px; vertical-align: middle; }
+    .edot.y { background: rgba(201,146,42,0.65); }
+    .edot.d { background: rgba(245,237,214,0.1); border: 1px solid rgba(245,237,214,0.15); }
+    .edot.n { background: transparent; border: 1px dashed rgba(245,237,214,0.1); }
+
+    /* Detail row */
+    .det-row { display: none; }
+    .det-row.open { display: table-row; }
+    .det-row td { padding: 0 10px 12px; }
+    .det-inner { background: rgba(0,0,0,0.25); border: 1px solid rgba(201,146,42,0.1); padding: 12px 14px; }
+    .det-events { display: flex; flex-wrap: wrap; gap: 8px; }
+    .det-ev { background: rgba(201,146,42,0.05); border: 1px solid rgba(201,146,42,0.14); padding: 8px 12px; min-width: 160px; }
+    .det-ev-name { font-family: 'Cinzel', serif; font-size: 0.62rem; letter-spacing: 0.1em; color: var(--gold); margin-bottom: 4px; }
+    .det-ev-body { font-size: 0.78rem; color: rgba(245,237,214,0.55); line-height: 1.7; }
+    .det-ev-body span { color: var(--parchment); }
+
+    /* Modal */
+    .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 200; display: none; align-items: center; justify-content: center; }
+    .modal-bg.open { display: flex; }
+    .modal-box { background: #1a1209; border: 1px solid rgba(201,146,42,0.3); padding: 32px; max-width: 360px; width: 90%; text-align: center; }
+    .modal-title { font-family: 'Cinzel', serif; color: var(--gold-light); font-size: 1rem; letter-spacing: 0.1em; margin-bottom: 10px; }
+    .modal-body { font-size: 0.86rem; color: rgba(245,237,214,0.55); margin-bottom: 22px; line-height: 1.6; }
+    .modal-btns { display: flex; gap: 10px; }
+    .modal-btns .btn { margin: 0; }
+
+    .coming { padding: 60px 20px; text-align: center; color: rgba(245,237,214,0.2); font-style: italic; }
+    .coming-icon { font-size: 2.5rem; margin-bottom: 14px; opacity: 0.3; }
   </style>
 </head>
 <body>
@@ -429,310 +243,397 @@
     <h1 class="lock-title">RIFTBOUND</h1>
     <p class="lock-subtitle">Restricted Access</p>
     <div class="lock-divider"></div>
-    <div class="lock-input-wrap">
-      <input class="lock-input" type="password" id="passwordInput" placeholder="Enter passphrase" autocomplete="off"/>
-    </div>
+    <input class="lock-input" type="password" id="pwInput" placeholder="Enter passphrase" autocomplete="off"/>
     <button class="lock-btn" onclick="unlock()">Enter the Rift</button>
-    <p class="lock-error" id="lockError"></p>
+    <p class="lock-error" id="lockErr"></p>
   </div>
 </div>
 
-<!-- MAIN APP -->
+<!-- APP -->
 <div id="app">
-
   <div id="topbar">
-    <div class="brand">
-      <span class="brand-rune">⚔️</span>
-      RIFTBOUND
-    </div>
+    <div class="brand"><span class="brand-rune">⚔️</span>RIFTBOUND</div>
     <button class="lock-out-btn" onclick="lockOut()">⚿ Lock</button>
   </div>
 
   <div class="tab-nav">
-    <button class="tab-btn active" onclick="showTab('csv')">CSV Tools</button>
-    <button class="tab-btn" onclick="showTab('more')">More Tools</button>
+    <button class="tab-btn active" onclick="showTab('league',this)">League Standings</button>
+    <button class="tab-btn" onclick="showTab('more',this)">More Tools</button>
   </div>
 
-  <!-- CSV PANEL -->
-  <div class="panel active" id="tab-csv">
-    <div class="panel-title">CSV Conversion Tools</div>
-    <p class="panel-desc">Upload, transform, and export tabular data</p>
+  <!-- LEAGUE -->
+  <div class="panel active" id="tab-league">
+    <div class="panel-title">League Standings</div>
+    <p class="panel-desc">Upload event results to accumulate season points</p>
     <div class="divider"></div>
 
-    <div class="csv-grid">
+    <div class="league-layout">
 
-      <!-- LEFT: Upload & Settings -->
+      <!-- LEFT SIDEBAR -->
       <div>
-        <div class="csv-card">
-          <div class="card-label">⬆ Upload File</div>
-
-          <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+        <!-- Upload -->
+        <div class="card">
+          <div class="card-label">⬆ Upload Event</div>
+          <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileIn').click()">
             <div class="upload-icon">📄</div>
-            <p>Drop a file here or <span>browse</span></p>
-            <p style="font-size:0.75rem; margin-top:6px;">CSV, TSV, TXT, JSON, XLSX</p>
+            <p>Drop CSV here or <span>browse</span></p>
+            <p style="font-size:0.73rem;margin-top:3px;opacity:0.6">Melee standings CSV</p>
           </div>
-          <input type="file" id="fileInput" accept=".csv,.tsv,.txt,.json,.xlsx,.xls"/>
-
-          <div class="status-bar">
-            <div class="status-dot" id="statusDot"></div>
-            <span id="statusText">No file loaded</span>
-          </div>
-
-          <div class="stats-strip" id="statsStrip" style="display:none">
-            <div class="stat-item">Rows: <strong id="statRows">—</strong></div>
-            <div class="stat-item">Cols: <strong id="statCols">—</strong></div>
-            <div class="stat-item">Size: <strong id="statSize">—</strong></div>
-          </div>
+          <input type="file" id="fileIn" accept=".csv" style="display:none"/>
+          <div class="status-bar"><div class="dot" id="sDot"></div><span id="sTxt">No file selected</span></div>
+          <button class="btn" id="addBtn" onclick="importEvent()" disabled>Add to League</button>
         </div>
 
-        <div class="csv-card" style="margin-top:16px;">
-          <div class="card-label">⚙ Input Delimiter</div>
-          <div class="delim-grid">
-            <button class="delim-btn active" data-delim="," onclick="setDelim(this)">Comma ,</button>
-            <button class="delim-btn" data-delim="	" onclick="setDelim(this)">Tab ⇥</button>
-            <button class="delim-btn" data-delim=";" onclick="setDelim(this)">Semi ;</button>
-            <button class="delim-btn" data-delim="|" onclick="setDelim(this)">Pipe |</button>
-          </div>
+        <!-- Events -->
+        <div class="card">
+          <div class="card-label">📅 Events &nbsp;<span id="evCount" style="color:rgba(245,237,214,0.3);font-family:'Crimson Pro',serif;font-weight:400;font-size:0.8rem;letter-spacing:0">(0)</span></div>
+          <div class="event-list" id="evList"><div class="empty-list">No events yet</div></div>
+        </div>
 
-          <label class="format-label">Convert To</label>
-          <select class="format-select" id="outputFormat">
-            <option value="csv">CSV (comma separated)</option>
-            <option value="tsv">TSV (tab separated)</option>
-            <option value="json">JSON (array of objects)</option>
-            <option value="json-array">JSON (array of arrays)</option>
-            <option value="markdown">Markdown table</option>
-            <option value="html">HTML table</option>
-            <option value="sql">SQL INSERT statements</option>
-          </select>
+        <!-- Export / Reset -->
+        <div class="card">
+          <div class="card-label">⬇ Export & Manage</div>
+          <button class="btn ghost" onclick="exportCSV()">Export Standings CSV</button>
+          <button class="btn danger" onclick="openModal()">Reset All Data</button>
+        </div>
+
+        <!-- Scoring ref -->
+        <div class="card">
+          <div class="card-label">📜 Scoring</div>
+          <div class="scoring-ref">
+            Win <strong>+3</strong> &nbsp;·&nbsp; Draw <strong>+1</strong> &nbsp;·&nbsp; Loss <strong>+0</strong><br>
+            Attendance <strong>+2</strong><br>
+            1st <strong>+6</strong> &nbsp;·&nbsp; 2nd <strong>+4</strong> &nbsp;·&nbsp; 3rd–4th <strong>+3</strong><br>
+            5th–8th <strong>+2</strong> &nbsp;·&nbsp; 9th–16th <strong>+1</strong>
+          </div>
         </div>
       </div>
 
-      <!-- RIGHT: Preview & Export -->
+      <!-- LEADERBOARD -->
       <div>
-        <div class="csv-card">
-          <div class="card-label">👁 Preview</div>
-          <div class="preview-box" id="previewBox">Awaiting file upload...</div>
+        <div class="lb-toolbar">
+          <span class="lb-meta" id="lbMeta">—</span>
+          <input class="lb-search" type="text" placeholder="Search player…" oninput="filterLB(this.value)"/>
         </div>
-
-        <div class="csv-card" style="margin-top:16px;">
-          <div class="card-label">⬇ Export</div>
-          <button class="action-btn" id="convertBtn" onclick="convertAndPreview()" disabled>Convert & Preview</button>
-          <button class="action-btn" id="exportBtn" onclick="exportFile()" disabled>Download Converted File</button>
-          <button class="action-btn" id="copyBtn" onclick="copyToClipboard()" disabled style="background: rgba(245,237,214,0.05);">Copy to Clipboard</button>
-        </div>
+        <table>
+          <thead>
+            <tr>
+              <th class="c">#</th>
+              <th>Player</th>
+              <th class="r">Points</th>
+              <th class="c">Events</th>
+              <th class="c" style="white-space:nowrap">Attended</th>
+            </tr>
+          </thead>
+          <tbody id="lbBody">
+            <tr><td colspan="5" style="text-align:center;padding:48px;color:rgba(245,237,214,0.18);font-style:italic;">Upload an event to begin</td></tr>
+          </tbody>
+        </table>
       </div>
-
     </div>
   </div>
 
-  <!-- MORE TOOLS PANEL -->
+  <!-- MORE TOOLS -->
   <div class="panel" id="tab-more">
     <div class="panel-title">More Tools</div>
-    <p class="panel-desc">Additional tools will be added here over time</p>
+    <p class="panel-desc">Additional tools will appear here over time</p>
     <div class="divider"></div>
-    <div class="coming-soon">
-      <div class="cs-icon">🔮</div>
-      <p>More tools coming soon...</p>
+    <div class="coming"><div class="coming-icon">🔮</div><p>Coming soon…</p></div>
+  </div>
+</div>
+
+<!-- RESET MODAL -->
+<div class="modal-bg" id="modal">
+  <div class="modal-box">
+    <div class="modal-title">Reset All Data?</div>
+    <div class="modal-body">This permanently deletes all events and standings and cannot be undone.</div>
+    <div class="modal-btns">
+      <button class="btn ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn danger" onclick="doReset()">Reset Everything</button>
     </div>
   </div>
-
 </div>
 
 <script>
-  // ── PASSWORD ──
-  // Change this to your own password!
-  const PASSWORD = 'R1ftboundUAE';
+// ── PASSWORD ──────────────────────────────────────────
+const PASSWORD = 'riftbound2026'; // ← change this
 
-  function unlock() {
-    const val = document.getElementById('passwordInput').value;
-    if (val === PASSWORD) {
-      document.getElementById('lockScreen').style.display = 'none';
-      document.getElementById('app').style.display = 'block';
-      sessionStorage.setItem('rb_auth', '1');
-    } else {
-      const err = document.getElementById('lockError');
-      err.textContent = 'The rift remains sealed. Try again.';
-      document.getElementById('passwordInput').value = '';
-      setTimeout(() => err.textContent = '', 3000);
-    }
-  }
-
-  function lockOut() {
-    sessionStorage.removeItem('rb_auth');
-    document.getElementById('lockScreen').style.display = 'flex';
-    document.getElementById('app').style.display = 'none';
-    document.getElementById('passwordInput').value = '';
-  }
-
-  // Auto-unlock if already authenticated this session
-  if (sessionStorage.getItem('rb_auth') === '1') {
+function unlock() {
+  if (document.getElementById('pwInput').value === PASSWORD) {
     document.getElementById('lockScreen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
+    sessionStorage.setItem('rb_auth', '1');
+    renderAll();
+  } else {
+    const e = document.getElementById('lockErr');
+    e.textContent = 'The rift remains sealed. Try again.';
+    document.getElementById('pwInput').value = '';
+    setTimeout(() => e.textContent = '', 3000);
   }
+}
+function lockOut() {
+  sessionStorage.removeItem('rb_auth');
+  document.getElementById('lockScreen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('pwInput').value = '';
+}
+document.getElementById('pwInput').addEventListener('keydown', e => { if (e.key === 'Enter') unlock(); });
+if (sessionStorage.getItem('rb_auth') === '1') {
+  document.getElementById('lockScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+}
 
-  document.getElementById('passwordInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') unlock();
-  });
+// ── TABS ──────────────────────────────────────────────
+function showTab(id, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  btn.classList.add('active');
+}
 
-  // ── TABS ──
-  function showTab(id) {
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('tab-' + id).classList.add('active');
-    event.target.classList.add('active');
-  }
+// ── DATA ──────────────────────────────────────────────
+// Schema: { events: [{ id, name, date, players: [{uid,name,display,rank,record,mp,pp,ap,total,dns}] }] }
+function load() {
+  try { return JSON.parse(localStorage.getItem('rb_league') || '{"events":[]}'); }
+  catch { return { events: [] }; }
+}
+function save(d) { localStorage.setItem('rb_league', JSON.stringify(d)); }
 
-  // ── CSV TOOL ──
-  let currentDelim = ',';
-  let rawData = '';
-  let parsedRows = [];
-  let convertedOutput = '';
-  let outputExt = 'csv';
+// ── SCORING ───────────────────────────────────────────
+function placementBonus(rank) {
+  if (rank === 1) return 6;
+  if (rank === 2) return 4;
+  if (rank <= 4)  return 3;
+  if (rank <= 8)  return 2;
+  if (rank <= 16) return 1;
+  return 0;
+}
+function matchPts(record) {
+  const [w,,d] = record.split('-').map(Number);
+  return (w * 3) + (d * 1);
+}
+function isDNS(record) {
+  const [w,l,d] = record.split('-').map(Number);
+  return w === 0 && l === 0 && d === 0;
+}
 
-  function setDelim(btn) {
-    document.querySelectorAll('.delim-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    currentDelim = btn.dataset.delim;
-    if (rawData) parseFile();
-  }
+// ── FILE HANDLING ─────────────────────────────────────
+let pending = null, pendingName = '';
 
-  // Drag & drop
-  const zone = document.getElementById('uploadZone');
-  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
-  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
-  zone.addEventListener('drop', e => {
-    e.preventDefault();
-    zone.classList.remove('drag-over');
-    const file = e.dataTransfer.files[0];
-    if (file) handleFile(file);
-  });
+const zone = document.getElementById('uploadZone');
+zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+zone.addEventListener('drop', e => {
+  e.preventDefault(); zone.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+document.getElementById('fileIn').addEventListener('change', e => {
+  if (e.target.files[0]) handleFile(e.target.files[0]);
+  e.target.value = '';
+});
 
-  document.getElementById('fileInput').addEventListener('change', e => {
-    if (e.target.files[0]) handleFile(e.target.files[0]);
-  });
+function setStatus(msg, type) {
+  document.getElementById('sTxt').textContent = msg;
+  document.getElementById('sDot').className = 'dot' + (type === 'ok' ? ' ok' : type === 'err' ? ' err' : '');
+}
 
-  function setStatus(msg, type) {
-    const dot = document.getElementById('statusDot');
-    document.getElementById('statusText').textContent = msg;
-    dot.className = 'status-dot' + (type === 'ok' ? ' active' : type === 'err' ? ' error' : '');
-  }
-
-  function handleFile(file) {
-    const ext = file.name.split('.').pop().toLowerCase();
-    setStatus(`Loading ${file.name}...`, '');
-
-    if (ext === 'xlsx' || ext === 'xls') {
-      setStatus('XLSX files require SheetJS — use CSV/TSV for now.', 'err');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = e => {
-      rawData = e.target.result;
-      const sizeKB = (file.size / 1024).toFixed(1);
-      parseFile();
-      setStatus(`${file.name} (${sizeKB} KB)`, 'ok');
-    };
-    reader.readAsText(file);
-  }
-
-  function parseCSV(text, delim) {
-    return text.trim().split('\n').map(line => {
-      const cells = [];
-      let inQuote = false, cur = '';
-      for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
-        if (ch === '"') { inQuote = !inQuote; }
-        else if (ch === delim && !inQuote) { cells.push(cur.trim()); cur = ''; }
-        else { cur += ch; }
-      }
-      cells.push(cur.trim());
-      return cells;
-    });
-  }
-
-  function parseFile() {
+function handleFile(file) {
+  pendingName = file.name.replace(/\.csv$/i, '');
+  setStatus('Reading…', '');
+  const reader = new FileReader();
+  reader.onload = e => {
     try {
-      // Try JSON
-      if (rawData.trim().startsWith('[') || rawData.trim().startsWith('{')) {
-        const obj = JSON.parse(rawData);
-        const arr = Array.isArray(obj) ? obj : [obj];
-        const headers = Object.keys(arr[0]);
-        parsedRows = [headers, ...arr.map(r => headers.map(h => String(r[h] ?? '')))];
-      } else {
-        parsedRows = parseCSV(rawData, currentDelim);
-      }
+      const rows = parseCSV(e.target.result);
+      if (!rows.length) { setStatus('File appears empty', 'err'); return; }
+      pending = rows;
+      setStatus(`${rows.length} players found — click "Add to League"`, 'ok');
+      document.getElementById('addBtn').disabled = false;
+    } catch(err) { setStatus('Parse error: ' + err.message, 'err'); }
+  };
+  reader.readAsText(file);
+}
 
-      document.getElementById('statsStrip').style.display = 'flex';
-      document.getElementById('statRows').textContent = parsedRows.length - 1;
-      document.getElementById('statCols').textContent = parsedRows[0]?.length || 0;
-      document.getElementById('statSize').textContent = (rawData.length / 1024).toFixed(1) + ' KB';
-
-      // Show raw preview
-      const preview = parsedRows.slice(0, 8).map(r => r.join(' | ')).join('\n');
-      document.getElementById('previewBox').textContent = preview + (parsedRows.length > 8 ? '\n...' : '');
-
-      document.getElementById('convertBtn').disabled = false;
-    } catch(err) {
-      setStatus('Parse error: ' + err.message, 'err');
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+  return lines.slice(1).filter(l => l.trim()).map(line => {
+    const vals = []; let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { inQ = !inQ; }
+      else if (c === ',' && !inQ) { vals.push(cur.trim()); cur = ''; }
+      else cur += c;
     }
+    vals.push(cur.trim());
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = (vals[i] || '').replace(/^"|"$/g, ''));
+    return obj;
+  });
+}
+
+function importEvent() {
+  if (!pending) return;
+  const data = load();
+
+  // Duplicate check
+  if (data.events.find(e => e.name === pendingName)) {
+    if (!confirm(`"${pendingName}" already exists. Replace it?`)) return;
+    data.events = data.events.filter(e => e.name !== pendingName);
   }
 
-  function convertAndPreview() {
-    const fmt = document.getElementById('outputFormat').value;
-    const rows = parsedRows;
-    const headers = rows[0];
-    const data = rows.slice(1);
-    let out = '';
-    outputExt = fmt === 'tsv' ? 'tsv' : fmt === 'json' || fmt === 'json-array' ? 'json' : fmt === 'markdown' ? 'md' : fmt === 'html' ? 'html' : fmt === 'sql' ? 'sql' : 'csv';
+  const players = pending.map(row => {
+    const uid    = row['User ID'];
+    const name   = row['Player'];
+    const disp   = row['Display Name'];
+    const rank   = parseInt(row['Rank']) || 999;
+    const record = (row['Record (W-L-D)'] || '0-0-0').trim();
+    const dns    = isDNS(record);
+    const mp     = dns ? 0 : matchPts(record);
+    const pp     = dns ? 0 : placementBonus(rank);
+    const ap     = dns ? 0 : 2;
+    return { uid, name, display: disp, rank, record, mp, pp, ap, total: mp + pp + ap, dns };
+  });
 
-    if (fmt === 'csv') {
-      out = rows.map(r => r.map(c => c.includes(',') || c.includes('"') ? `"${c.replace(/"/g,'""')}"` : c).join(',')).join('\n');
-    } else if (fmt === 'tsv') {
-      out = rows.map(r => r.join('\t')).join('\n');
-    } else if (fmt === 'json') {
-      out = JSON.stringify(data.map(r => Object.fromEntries(headers.map((h,i) => [h, r[i]]))), null, 2);
-    } else if (fmt === 'json-array') {
-      out = JSON.stringify(rows, null, 2);
-    } else if (fmt === 'markdown') {
-      const widths = headers.map((h,i) => Math.max(h.length, ...data.map(r => (r[i]||'').length)));
-      const pad = (s, w) => String(s||'').padEnd(w);
-      out = '| ' + headers.map((h,i) => pad(h, widths[i])).join(' | ') + ' |\n';
-      out += '| ' + widths.map(w => '-'.repeat(w)).join(' | ') + ' |\n';
-      out += data.map(r => '| ' + headers.map((_,i) => pad(r[i]||'', widths[i])).join(' | ') + ' |').join('\n');
-    } else if (fmt === 'html') {
-      out = '<table>\n  <thead>\n    <tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>\n  </thead>\n  <tbody>\n';
-      out += data.map(r => '    <tr>' + r.map(c => `<td>${c}</td>`).join('') + '</tr>').join('\n');
-      out += '\n  </tbody>\n</table>';
-    } else if (fmt === 'sql') {
-      const tbl = 'table_name';
-      out = data.map(r => `INSERT INTO ${tbl} (${headers.join(', ')}) VALUES (${r.map(c => `'${c.replace(/'/g,"''")}'`).join(', ')});`).join('\n');
-    }
+  data.events.push({ id: Date.now().toString(), name: pendingName, date: new Date().toLocaleDateString('en-GB'), players });
+  save(data);
+  pending = null; pendingName = '';
+  document.getElementById('addBtn').disabled = true;
+  setStatus('Event added!', 'ok');
+  renderAll();
+}
 
-    convertedOutput = out;
-    document.getElementById('previewBox').textContent = out.slice(0, 2000) + (out.length > 2000 ? '\n...(truncated for preview)' : '');
-    document.getElementById('exportBtn').disabled = false;
-    document.getElementById('copyBtn').disabled = false;
-  }
-
-  function exportFile() {
-    const fmt = document.getElementById('outputFormat').value;
-    const mimeMap = { csv: 'text/csv', tsv: 'text/tab-separated-values', json: 'application/json', 'json-array': 'application/json', markdown: 'text/markdown', html: 'text/html', sql: 'text/plain' };
-    const mime = mimeMap[fmt] || 'text/plain';
-    const blob = new Blob([convertedOutput], { type: mime });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `converted.${outputExt}`;
-    a.click();
-  }
-
-  function copyToClipboard() {
-    navigator.clipboard.writeText(convertedOutput).then(() => {
-      const btn = document.getElementById('copyBtn');
-      btn.textContent = '✓ Copied!';
-      setTimeout(() => btn.textContent = 'Copy to Clipboard', 2000);
+// ── STANDINGS ─────────────────────────────────────────
+function buildStandings(events) {
+  const map = {};
+  events.forEach(ev => {
+    ev.players.forEach(p => {
+      if (!map[p.uid]) map[p.uid] = { uid: p.uid, name: p.name, display: p.display, total: 0, results: {} };
+      map[p.uid].total += p.total;
+      map[p.uid].results[ev.id] = p;
+      map[p.uid].name    = p.name;
+      map[p.uid].display = p.display;
     });
+  });
+  return Object.values(map).sort((a, b) => b.total - a.total);
+}
+
+// ── RENDER ────────────────────────────────────────────
+function renderAll() { const d = load(); renderEvents(d); renderLB(d); }
+
+function renderEvents(data) {
+  document.getElementById('evCount').textContent = `(${data.events.length})`;
+  const el = document.getElementById('evList');
+  if (!data.events.length) { el.innerHTML = '<div class="empty-list">No events yet</div>'; return; }
+  el.innerHTML = data.events.map(ev => `
+    <div class="event-item">
+      <div>
+        <div class="event-item-name">${ev.name}</div>
+        <div class="event-item-meta">${ev.date} · ${ev.players.length} players</div>
+      </div>
+      <button class="ev-remove" onclick="removeEvent('${ev.id}')" title="Remove">✕</button>
+    </div>`).join('');
+}
+
+function renderLB(data, filter = '') {
+  const standings = buildStandings(data.events);
+  const shown = filter
+    ? standings.filter(p => p.display.toLowerCase().includes(filter.toLowerCase()) || p.name.toLowerCase().includes(filter.toLowerCase()))
+    : standings;
+
+  document.getElementById('lbMeta').textContent = data.events.length
+    ? `${standings.length} players · ${data.events.length} event${data.events.length !== 1 ? 's' : ''}`
+    : '—';
+
+  const tbody = document.getElementById('lbBody');
+  if (!shown.length) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:40px;color:rgba(245,237,214,0.18);font-style:italic;">${data.events.length ? 'No match' : 'Upload an event to begin'}</td></tr>`;
+    return;
   }
+
+  tbody.innerHTML = shown.map(p => {
+    const rank = standings.indexOf(p) + 1;
+    const bc = rank === 1 ? 'b1' : rank === 2 ? 'b2' : rank === 3 ? 'b3' : 'bn';
+    const attended = data.events.filter(ev => { const r = p.results[ev.id]; return r && !r.dns; }).length;
+
+    const dots = data.events.map(ev => {
+      const r = p.results[ev.id];
+      if (!r)      return `<span class="edot n" title="${ev.name}: absent"></span>`;
+      if (r.dns)   return `<span class="edot d" title="${ev.name}: DNS"></span>`;
+      return `<span class="edot y" title="${ev.name}: ${r.total}pts (rank #${r.rank})"></span>`;
+    }).join('');
+
+    const bkdn = data.events.map(ev => {
+      const r = p.results[ev.id];
+      if (!r) return null;
+      if (r.dns) return 'DNS';
+      return `${r.mp}+${r.pp}+${r.ap}`;
+    }).filter(Boolean).join(' / ');
+
+    const detailEvs = data.events.map(ev => {
+      const r = p.results[ev.id];
+      if (!r) return `<div class="det-ev"><div class="det-ev-name">${ev.name}</div><div class="det-ev-body" style="color:rgba(245,237,214,0.2)">Did not attend</div></div>`;
+      if (r.dns) return `<div class="det-ev"><div class="det-ev-name">${ev.name}</div><div class="det-ev-body">DNS — 0 pts</div></div>`;
+      return `<div class="det-ev">
+        <div class="det-ev-name">${ev.name}</div>
+        <div class="det-ev-body">
+          Rank <span>#${r.rank}</span> · ${r.record}<br>
+          Match <span>+${r.mp}</span> · Placement <span>+${r.pp}</span> · Attend <span>+${r.ap}</span><br>
+          Total <span>${r.total} pts</span>
+        </div>
+      </div>`;
+    }).join('');
+
+    return `
+      <tr class="pr" onclick="toggleDet('${p.uid}')">
+        <td class="c"><span class="badge ${bc}">${rank}</span></td>
+        <td><div class="p-disp">${p.display}</div><div class="p-real">${p.name}</div></td>
+        <td class="r"><div class="pts-big">${p.total}</div><div class="pts-sm">${bkdn}</div></td>
+        <td class="c">${dots}</td>
+        <td class="c" style="font-size:0.8rem;color:rgba(245,237,214,0.4)">${attended}/${data.events.length}</td>
+      </tr>
+      <tr class="det-row" id="det-${p.uid}">
+        <td colspan="5"><div class="det-inner"><div class="det-events">${detailEvs}</div></div></td>
+      </tr>`;
+  }).join('');
+}
+
+function toggleDet(uid) {
+  document.getElementById('det-' + uid)?.classList.toggle('open');
+}
+function filterLB(val) { renderLB(load(), val); }
+
+function removeEvent(id) {
+  const data = load();
+  const ev = data.events.find(e => e.id === id);
+  if (!ev || !confirm(`Remove "${ev.name}" from the league?`)) return;
+  data.events = data.events.filter(e => e.id !== id);
+  save(data); renderAll();
+}
+
+// ── EXPORT ────────────────────────────────────────────
+function exportCSV() {
+  const data = load();
+  const standings = buildStandings(data.events);
+  const headers = ['Rank', 'Display Name', 'Player', ...data.events.map(e => e.name), 'Total'];
+  const rows = standings.map((p, i) => [
+    i + 1, p.display, p.name,
+    ...data.events.map(ev => { const r = p.results[ev.id]; return r ? (r.dns ? 'DNS' : r.total) : ''; }),
+    p.total
+  ]);
+  const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = 'riftbound-standings.csv';
+  a.click();
+}
+
+// ── MODAL ─────────────────────────────────────────────
+function openModal()  { document.getElementById('modal').classList.add('open'); }
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+function doReset()    { localStorage.removeItem('rb_league'); closeModal(); renderAll(); setStatus('All data cleared', ''); }
+
+// Init
+if (sessionStorage.getItem('rb_auth') === '1') renderAll();
 </script>
 </body>
 </html>
