@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Riftbound</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,500;1,300;1,400&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ink: #1a1209;
+      --parchment: #f5edd6;
+      --parchment-dark: #e8d9b8;
+      --gold: #c9922a;
+      --gold-light: #e8b84b;
+      --rust: #8b3a1a;
+      --shadow: rgba(26,18,9,0.18);
+      --glow: rgba(201,146,42,0.15);
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      font-family: 'Crimson Pro', Georgia, serif;
+      background: var(--ink);
+      color: var(--parchment);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── BACKGROUND TEXTURE ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 20% 20%, rgba(139,58,26,0.12) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 80%, rgba(201,146,42,0.08) 0%, transparent 50%),
+        repeating-linear-gradient(
+          45deg,
+          transparent,
+          transparent 2px,
+          rgba(201,146,42,0.015) 2px,
+          rgba(201,146,42,0.015) 4px
+        );
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── LOCK SCREEN ── */
+    #lockScreen {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      background: var(--ink);
+    }
+
+    #lockScreen::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 50% 40%, rgba(201,146,42,0.1) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .lock-box {
+      position: relative;
+      text-align: center;
+      padding: 56px 48px;
+      border: 1px solid rgba(201,146,42,0.3);
+      background: rgba(26,18,9,0.8);
+      max-width: 400px;
+      width: 90%;
+    }
+
+    .lock-box::before, .lock-box::after {
+      content: '';
+      position: absolute;
+      width: 12px; height: 12px;
+      border-color: var(--gold);
+      border-style: solid;
+    }
+    .lock-box::before { top: -1px; left: -1px; border-width: 2px 0 0 2px; }
+    .lock-box::after  { bottom: -1px; right: -1px; border-width: 0 2px 2px 0; }
+
+    .lock-rune {
+      font-size: 2.8rem;
+      margin-bottom: 8px;
+      filter: drop-shadow(0 0 12px rgba(201,146,42,0.5));
+      animation: runeGlow 3s ease-in-out infinite alternate;
+    }
+    @keyframes runeGlow {
+      from { filter: drop-shadow(0 0 8px rgba(201,146,42,0.3)); }
+      to   { filter: drop-shadow(0 0 20px rgba(201,146,42,0.7)); }
+    }
+
+    .lock-title {
+      font-family: 'Cinzel', serif;
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--gold-light);
+      letter-spacing: 0.12em;
+      margin-bottom: 4px;
+    }
+
+    .lock-subtitle {
+      font-size: 0.85rem;
+      color: rgba(245,237,214,0.4);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 36px;
+    }
+
+    .lock-divider {
+      width: 60px; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      margin: 0 auto 36px;
+    }
+
+    .lock-input-wrap { position: relative; margin-bottom: 16px; }
+
+    .lock-input {
+      width: 100%;
+      background: rgba(245,237,214,0.05);
+      border: 1px solid rgba(201,146,42,0.3);
+      color: var(--parchment);
+      font-family: 'Crimson Pro', serif;
+      font-size: 1.1rem;
+      padding: 12px 20px;
+      text-align: center;
+      letter-spacing: 0.2em;
+      outline: none;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .lock-input:focus { border-color: var(--gold); background: rgba(201,146,42,0.08); }
+    .lock-input::placeholder { letter-spacing: 0.1em; opacity: 0.3; }
+
+    .lock-btn {
+      width: 100%;
+      background: linear-gradient(135deg, var(--rust), var(--gold));
+      color: var(--parchment);
+      font-family: 'Cinzel', serif;
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      padding: 13px 24px;
+      border: none;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: opacity 0.2s, transform 0.15s;
+    }
+    .lock-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+
+    .lock-error {
+      margin-top: 14px;
+      font-size: 0.82rem;
+      color: #c0392b;
+      letter-spacing: 0.05em;
+      min-height: 1.2em;
+      font-style: italic;
+    }
+
+    /* ── MAIN APP ── */
+    #app { display: none; position: relative; z-index: 1; min-height: 100vh; }
+
+    /* ── TOP BAR ── */
+    #topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 32px;
+      border-bottom: 1px solid rgba(201,146,42,0.2);
+      background: rgba(26,18,9,0.7);
+      backdrop-filter: blur(8px);
+      position: sticky; top: 0; z-index: 50;
+    }
+
+    .brand {
+      font-family: 'Cinzel', serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--gold-light);
+      letter-spacing: 0.15em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand-rune { font-size: 1.3rem; filter: drop-shadow(0 0 6px rgba(201,146,42,0.5)); }
+
+    .lock-out-btn {
+      background: none;
+      border: 1px solid rgba(201,146,42,0.25);
+      color: rgba(245,237,214,0.45);
+      font-family: 'Crimson Pro', serif;
+      font-size: 0.8rem;
+      padding: 5px 14px;
+      cursor: pointer;
+      letter-spacing: 0.08em;
+      transition: all 0.2s;
+    }
+    .lock-out-btn:hover { border-color: var(--gold); color: var(--gold-light); }
+
+    /* ── NAV TABS ── */
+    .tab-nav {
+      display: flex;
+      gap: 2px;
+      padding: 20px 32px 0;
+      border-bottom: 1px solid rgba(201,146,42,0.15);
+    }
+
+    .tab-btn {
+      font-family: 'Cinzel', serif;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 10px 22px;
+      background: none;
+      border: 1px solid transparent;
+      border-bottom: none;
+      color: rgba(245,237,214,0.4);
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+      top: 1px;
+    }
+    .tab-btn:hover { color: var(--gold-light); }
+    .tab-btn.active {
+      color: var(--gold-light);
+      background: rgba(26,18,9,0.8);
+      border-color: rgba(201,146,42,0.25);
+      border-bottom: 1px solid rgba(26,18,9,0.9);
+    }
+
+    /* ── PANELS ── */
+    .panel { display: none; padding: 36px 32px; max-width: 960px; }
+    .panel.active { display: block; }
+
+    .panel-title {
+      font-family: 'Cinzel', serif;
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--gold-light);
+      letter-spacing: 0.1em;
+      margin-bottom: 6px;
+    }
+    .panel-desc {
+      font-size: 0.95rem;
+      color: rgba(245,237,214,0.5);
+      font-style: italic;
+      margin-bottom: 28px;
+    }
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, rgba(201,146,42,0.4), transparent);
+      margin-bottom: 28px;
+    }
+
+    /* ── CSV TOOL ── */
+    .csv-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    @media (max-width: 700px) { .csv-grid { grid-template-columns: 1fr; } }
+
+    .csv-card {
+      background: rgba(245,237,214,0.03);
+      border: 1px solid rgba(201,146,42,0.18);
+      padding: 24px;
+    }
+
+    .card-label {
+      font-family: 'Cinzel', serif;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 14px;
+    }
+
+    .upload-zone {
+      border: 2px dashed rgba(201,146,42,0.25);
+      padding: 32px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 16px;
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: var(--gold);
+      background: rgba(201,146,42,0.06);
+    }
+    .upload-zone .upload-icon { font-size: 2rem; margin-bottom: 10px; opacity: 0.5; }
+    .upload-zone p { font-size: 0.88rem; color: rgba(245,237,214,0.45); line-height: 1.5; }
+    .upload-zone span { color: var(--gold-light); cursor: pointer; }
+
+    #fileInput { display: none; }
+
+    .format-select-wrap { margin-bottom: 16px; }
+    .format-label {
+      font-size: 0.78rem;
+      color: rgba(245,237,214,0.45);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      display: block;
+    }
+    .format-select {
+      width: 100%;
+      background: rgba(245,237,214,0.05);
+      border: 1px solid rgba(201,146,42,0.25);
+      color: var(--parchment);
+      font-family: 'Crimson Pro', serif;
+      font-size: 0.95rem;
+      padding: 9px 14px;
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23c9922a' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+    }
+    .format-select option { background: #1a1209; }
+
+    .action-btn {
+      width: 100%;
+      background: linear-gradient(135deg, rgba(139,58,26,0.6), rgba(201,146,42,0.6));
+      color: var(--parchment);
+      font-family: 'Cinzel', serif;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 11px 20px;
+      border: 1px solid rgba(201,146,42,0.3);
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 10px;
+    }
+    .action-btn:hover { background: linear-gradient(135deg, rgba(139,58,26,0.8), rgba(201,146,42,0.8)); }
+    .action-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* Preview */
+    .preview-box {
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(201,146,42,0.12);
+      padding: 16px;
+      min-height: 160px;
+      max-height: 300px;
+      overflow: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 0.75rem;
+      color: rgba(245,237,214,0.6);
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: rgba(201,146,42,0.06);
+      border: 1px solid rgba(201,146,42,0.15);
+      margin-bottom: 16px;
+      font-size: 0.82rem;
+      color: rgba(245,237,214,0.6);
+      min-height: 42px;
+    }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(201,146,42,0.3); flex-shrink: 0; }
+    .status-dot.active { background: #4caf50; box-shadow: 0 0 6px rgba(76,175,80,0.5); }
+    .status-dot.error { background: #c0392b; }
+
+    /* Delimiter options */
+    .delim-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 16px; }
+    .delim-btn {
+      background: rgba(245,237,214,0.04);
+      border: 1px solid rgba(201,146,42,0.15);
+      color: rgba(245,237,214,0.5);
+      font-family: 'Courier New', monospace;
+      font-size: 0.8rem;
+      padding: 7px 4px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .delim-btn:hover, .delim-btn.active {
+      border-color: var(--gold);
+      color: var(--gold-light);
+      background: rgba(201,146,42,0.08);
+    }
+
+    /* Stats strip */
+    .stats-strip {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .stat-item { font-size: 0.78rem; color: rgba(245,237,214,0.4); }
+    .stat-item strong { color: var(--gold-light); }
+
+    /* Coming soon panel */
+    .coming-soon {
+      padding: 60px 20px;
+      text-align: center;
+      color: rgba(245,237,214,0.25);
+      font-style: italic;
+      font-size: 1rem;
+    }
+    .coming-soon .cs-icon { font-size: 2.5rem; margin-bottom: 16px; opacity: 0.3; }
+
+  </style>
+</head>
+<body>
+
+<!-- LOCK SCREEN -->
+<div id="lockScreen">
+  <div class="lock-box">
+    <div class="lock-rune">⚔️</div>
+    <h1 class="lock-title">RIFTBOUND</h1>
+    <p class="lock-subtitle">Restricted Access</p>
+    <div class="lock-divider"></div>
+    <div class="lock-input-wrap">
+      <input class="lock-input" type="password" id="passwordInput" placeholder="Enter passphrase" autocomplete="off"/>
+    </div>
+    <button class="lock-btn" onclick="unlock()">Enter the Rift</button>
+    <p class="lock-error" id="lockError"></p>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+
+  <div id="topbar">
+    <div class="brand">
+      <span class="brand-rune">⚔️</span>
+      RIFTBOUND
+    </div>
+    <button class="lock-out-btn" onclick="lockOut()">⚿ Lock</button>
+  </div>
+
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="showTab('csv')">CSV Tools</button>
+    <button class="tab-btn" onclick="showTab('more')">More Tools</button>
+  </div>
+
+  <!-- CSV PANEL -->
+  <div class="panel active" id="tab-csv">
+    <div class="panel-title">CSV Conversion Tools</div>
+    <p class="panel-desc">Upload, transform, and export tabular data</p>
+    <div class="divider"></div>
+
+    <div class="csv-grid">
+
+      <!-- LEFT: Upload & Settings -->
+      <div>
+        <div class="csv-card">
+          <div class="card-label">⬆ Upload File</div>
+
+          <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+            <div class="upload-icon">📄</div>
+            <p>Drop a file here or <span>browse</span></p>
+            <p style="font-size:0.75rem; margin-top:6px;">CSV, TSV, TXT, JSON, XLSX</p>
+          </div>
+          <input type="file" id="fileInput" accept=".csv,.tsv,.txt,.json,.xlsx,.xls"/>
+
+          <div class="status-bar">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">No file loaded</span>
+          </div>
+
+          <div class="stats-strip" id="statsStrip" style="display:none">
+            <div class="stat-item">Rows: <strong id="statRows">—</strong></div>
+            <div class="stat-item">Cols: <strong id="statCols">—</strong></div>
+            <div class="stat-item">Size: <strong id="statSize">—</strong></div>
+          </div>
+        </div>
+
+        <div class="csv-card" style="margin-top:16px;">
+          <div class="card-label">⚙ Input Delimiter</div>
+          <div class="delim-grid">
+            <button class="delim-btn active" data-delim="," onclick="setDelim(this)">Comma ,</button>
+            <button class="delim-btn" data-delim="	" onclick="setDelim(this)">Tab ⇥</button>
+            <button class="delim-btn" data-delim=";" onclick="setDelim(this)">Semi ;</button>
+            <button class="delim-btn" data-delim="|" onclick="setDelim(this)">Pipe |</button>
+          </div>
+
+          <label class="format-label">Convert To</label>
+          <select class="format-select" id="outputFormat">
+            <option value="csv">CSV (comma separated)</option>
+            <option value="tsv">TSV (tab separated)</option>
+            <option value="json">JSON (array of objects)</option>
+            <option value="json-array">JSON (array of arrays)</option>
+            <option value="markdown">Markdown table</option>
+            <option value="html">HTML table</option>
+            <option value="sql">SQL INSERT statements</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- RIGHT: Preview & Export -->
+      <div>
+        <div class="csv-card">
+          <div class="card-label">👁 Preview</div>
+          <div class="preview-box" id="previewBox">Awaiting file upload...</div>
+        </div>
+
+        <div class="csv-card" style="margin-top:16px;">
+          <div class="card-label">⬇ Export</div>
+          <button class="action-btn" id="convertBtn" onclick="convertAndPreview()" disabled>Convert & Preview</button>
+          <button class="action-btn" id="exportBtn" onclick="exportFile()" disabled>Download Converted File</button>
+          <button class="action-btn" id="copyBtn" onclick="copyToClipboard()" disabled style="background: rgba(245,237,214,0.05);">Copy to Clipboard</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MORE TOOLS PANEL -->
+  <div class="panel" id="tab-more">
+    <div class="panel-title">More Tools</div>
+    <p class="panel-desc">Additional tools will be added here over time</p>
+    <div class="divider"></div>
+    <div class="coming-soon">
+      <div class="cs-icon">🔮</div>
+      <p>More tools coming soon...</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ── PASSWORD ──
+  // Change this to your own password!
+  const PASSWORD = 'R1ftboundUAE';
+
+  function unlock() {
+    const val = document.getElementById('passwordInput').value;
+    if (val === PASSWORD) {
+      document.getElementById('lockScreen').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      sessionStorage.setItem('rb_auth', '1');
+    } else {
+      const err = document.getElementById('lockError');
+      err.textContent = 'The rift remains sealed. Try again.';
+      document.getElementById('passwordInput').value = '';
+      setTimeout(() => err.textContent = '', 3000);
+    }
+  }
+
+  function lockOut() {
+    sessionStorage.removeItem('rb_auth');
+    document.getElementById('lockScreen').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('passwordInput').value = '';
+  }
+
+  // Auto-unlock if already authenticated this session
+  if (sessionStorage.getItem('rb_auth') === '1') {
+    document.getElementById('lockScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+  }
+
+  document.getElementById('passwordInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') unlock();
+  });
+
+  // ── TABS ──
+  function showTab(id) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + id).classList.add('active');
+    event.target.classList.add('active');
+  }
+
+  // ── CSV TOOL ──
+  let currentDelim = ',';
+  let rawData = '';
+  let parsedRows = [];
+  let convertedOutput = '';
+  let outputExt = 'csv';
+
+  function setDelim(btn) {
+    document.querySelectorAll('.delim-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentDelim = btn.dataset.delim;
+    if (rawData) parseFile();
+  }
+
+  // Drag & drop
+  const zone = document.getElementById('uploadZone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  });
+
+  document.getElementById('fileInput').addEventListener('change', e => {
+    if (e.target.files[0]) handleFile(e.target.files[0]);
+  });
+
+  function setStatus(msg, type) {
+    const dot = document.getElementById('statusDot');
+    document.getElementById('statusText').textContent = msg;
+    dot.className = 'status-dot' + (type === 'ok' ? ' active' : type === 'err' ? ' error' : '');
+  }
+
+  function handleFile(file) {
+    const ext = file.name.split('.').pop().toLowerCase();
+    setStatus(`Loading ${file.name}...`, '');
+
+    if (ext === 'xlsx' || ext === 'xls') {
+      setStatus('XLSX files require SheetJS — use CSV/TSV for now.', 'err');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = e => {
+      rawData = e.target.result;
+      const sizeKB = (file.size / 1024).toFixed(1);
+      parseFile();
+      setStatus(`${file.name} (${sizeKB} KB)`, 'ok');
+    };
+    reader.readAsText(file);
+  }
+
+  function parseCSV(text, delim) {
+    return text.trim().split('\n').map(line => {
+      const cells = [];
+      let inQuote = false, cur = '';
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') { inQuote = !inQuote; }
+        else if (ch === delim && !inQuote) { cells.push(cur.trim()); cur = ''; }
+        else { cur += ch; }
+      }
+      cells.push(cur.trim());
+      return cells;
+    });
+  }
+
+  function parseFile() {
+    try {
+      // Try JSON
+      if (rawData.trim().startsWith('[') || rawData.trim().startsWith('{')) {
+        const obj = JSON.parse(rawData);
+        const arr = Array.isArray(obj) ? obj : [obj];
+        const headers = Object.keys(arr[0]);
+        parsedRows = [headers, ...arr.map(r => headers.map(h => String(r[h] ?? '')))];
+      } else {
+        parsedRows = parseCSV(rawData, currentDelim);
+      }
+
+      document.getElementById('statsStrip').style.display = 'flex';
+      document.getElementById('statRows').textContent = parsedRows.length - 1;
+      document.getElementById('statCols').textContent = parsedRows[0]?.length || 0;
+      document.getElementById('statSize').textContent = (rawData.length / 1024).toFixed(1) + ' KB';
+
+      // Show raw preview
+      const preview = parsedRows.slice(0, 8).map(r => r.join(' | ')).join('\n');
+      document.getElementById('previewBox').textContent = preview + (parsedRows.length > 8 ? '\n...' : '');
+
+      document.getElementById('convertBtn').disabled = false;
+    } catch(err) {
+      setStatus('Parse error: ' + err.message, 'err');
+    }
+  }
+
+  function convertAndPreview() {
+    const fmt = document.getElementById('outputFormat').value;
+    const rows = parsedRows;
+    const headers = rows[0];
+    const data = rows.slice(1);
+    let out = '';
+    outputExt = fmt === 'tsv' ? 'tsv' : fmt === 'json' || fmt === 'json-array' ? 'json' : fmt === 'markdown' ? 'md' : fmt === 'html' ? 'html' : fmt === 'sql' ? 'sql' : 'csv';
+
+    if (fmt === 'csv') {
+      out = rows.map(r => r.map(c => c.includes(',') || c.includes('"') ? `"${c.replace(/"/g,'""')}"` : c).join(',')).join('\n');
+    } else if (fmt === 'tsv') {
+      out = rows.map(r => r.join('\t')).join('\n');
+    } else if (fmt === 'json') {
+      out = JSON.stringify(data.map(r => Object.fromEntries(headers.map((h,i) => [h, r[i]]))), null, 2);
+    } else if (fmt === 'json-array') {
+      out = JSON.stringify(rows, null, 2);
+    } else if (fmt === 'markdown') {
+      const widths = headers.map((h,i) => Math.max(h.length, ...data.map(r => (r[i]||'').length)));
+      const pad = (s, w) => String(s||'').padEnd(w);
+      out = '| ' + headers.map((h,i) => pad(h, widths[i])).join(' | ') + ' |\n';
+      out += '| ' + widths.map(w => '-'.repeat(w)).join(' | ') + ' |\n';
+      out += data.map(r => '| ' + headers.map((_,i) => pad(r[i]||'', widths[i])).join(' | ') + ' |').join('\n');
+    } else if (fmt === 'html') {
+      out = '<table>\n  <thead>\n    <tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>\n  </thead>\n  <tbody>\n';
+      out += data.map(r => '    <tr>' + r.map(c => `<td>${c}</td>`).join('') + '</tr>').join('\n');
+      out += '\n  </tbody>\n</table>';
+    } else if (fmt === 'sql') {
+      const tbl = 'table_name';
+      out = data.map(r => `INSERT INTO ${tbl} (${headers.join(', ')}) VALUES (${r.map(c => `'${c.replace(/'/g,"''")}'`).join(', ')});`).join('\n');
+    }
+
+    convertedOutput = out;
+    document.getElementById('previewBox').textContent = out.slice(0, 2000) + (out.length > 2000 ? '\n...(truncated for preview)' : '');
+    document.getElementById('exportBtn').disabled = false;
+    document.getElementById('copyBtn').disabled = false;
+  }
+
+  function exportFile() {
+    const fmt = document.getElementById('outputFormat').value;
+    const mimeMap = { csv: 'text/csv', tsv: 'text/tab-separated-values', json: 'application/json', 'json-array': 'application/json', markdown: 'text/markdown', html: 'text/html', sql: 'text/plain' };
+    const mime = mimeMap[fmt] || 'text/plain';
+    const blob = new Blob([convertedOutput], { type: mime });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `converted.${outputExt}`;
+    a.click();
+  }
+
+  function copyToClipboard() {
+    navigator.clipboard.writeText(convertedOutput).then(() => {
+      const btn = document.getElementById('copyBtn');
+      btn.textContent = '✓ Copied!';
+      setTimeout(() => btn.textContent = 'Copy to Clipboard', 2000);
+    });
+  }
+</script>
+</body>
+</html>
