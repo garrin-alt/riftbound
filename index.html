@@ -931,10 +931,10 @@ function removeEvent(id) {
 function exportCSV() {
   const data = load();
   const standings = buildStandings(data.events, data.roster);
-  const headers = ['Rank', 'Display Name', 'Player', ...data.events.map(e => e.name)];
+  const headers = ['Rank', 'Display Name', 'Player', ...data.events.map(e => e.name), 'Total'];
   const rows = standings.map((p, i) => [
     i + 1, p.display, p.name,
-    ...data.events.map(ev => { const r = p.results[ev.id]; return r ? (r.dns ? 'DNS' : r.total) : ''; })
+    ...data.events.map(ev => { const r = p.results[ev.id]; return r ? (r.dns ? 'DNS' : r.total) : ''; }), p.total
   ]);
   const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
   const a = document.createElement('a');
