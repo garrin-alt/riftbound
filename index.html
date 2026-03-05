@@ -232,6 +232,42 @@
 
     .coming { padding: 60px 20px; text-align: center; color: rgba(245,237,214,0.2); font-style: italic; }
     .coming-icon { font-size: 2.5rem; margin-bottom: 14px; opacity: 0.3; }
+
+    /* ── RAFFLE ── */
+    .raffle-layout { display: grid; grid-template-columns: 280px 1fr; gap: 24px; align-items: start; }
+    @media (max-width: 860px) { .raffle-layout { grid-template-columns: 1fr; } }
+
+    .ticket-pool { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+    .ticket-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 7px 10px; background: rgba(201,146,42,0.04); border: 1px solid rgba(201,146,42,0.1); font-size: 0.8rem;
+    }
+    .ticket-name { color: rgba(245,237,214,0.7); }
+    .ticket-count {
+      font-family: 'Cinzel', serif; font-size: 0.68rem; font-weight: 600;
+      color: var(--gold); background: rgba(201,146,42,0.12);
+      padding: 2px 8px; border: 1px solid rgba(201,146,42,0.2);
+    }
+
+    .wheel-side { display: flex; flex-direction: column; align-items: center; gap: 24px; }
+    .wheel-wrap { position: relative; display: inline-block; }
+    .wheel-pointer {
+      position: absolute; top: -18px; left: 50%; transform: translateX(-50%);
+      font-size: 1.6rem; color: var(--gold-light); z-index: 10;
+      filter: drop-shadow(0 0 8px rgba(201,146,42,0.6));
+    }
+    #wheelCanvas { border-radius: 50%; display: block; cursor: pointer; box-shadow: 0 0 40px rgba(201,146,42,0.15), 0 0 0 3px rgba(201,146,42,0.2); }
+
+    .winner-box {
+      text-align: center; padding: 24px 32px;
+      background: rgba(201,146,42,0.07); border: 1px solid rgba(201,146,42,0.3);
+      animation: winnerFade 0.5s ease;
+    }
+    @keyframes winnerFade { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .winner-label { font-family: 'Cinzel', serif; font-size: 0.75rem; letter-spacing: 0.15em; color: var(--gold); margin-bottom: 8px; }
+    .winner-name  { font-family: 'Cinzel', serif; font-size: 1.6rem; font-weight: 700; color: var(--gold-light); margin-bottom: 4px; }
+    .winner-tickets { font-size: 0.82rem; color: rgba(245,237,214,0.4); font-style: italic; }
+
   </style>
 </head>
 <body>
@@ -253,11 +289,14 @@
 <div id="app">
   <div id="topbar">
     <div class="brand"><span class="brand-rune">⚔️</span>RIFTBOUND</div>
+    <span id="syncStatus" style="font-size:0.72rem;color:rgba(245,237,214,0.3);font-style:italic;letter-spacing:0.05em"></span>
     <button class="lock-out-btn" onclick="lockOut()">⚿ Lock</button>
   </div>
 
   <div class="tab-nav">
     <button class="tab-btn active" onclick="showTab('league',this)">League Standings</button>
+    <button class="tab-btn" onclick="showTab('raffle',this)">Raffle</button>
+    <button class="tab-btn" onclick="showTab('settings',this)">Settings</button>
     <button class="tab-btn" onclick="showTab('more',this)">More Tools</button>
   </div>
 
@@ -281,7 +320,7 @@
           </div>
           <input type="file" id="fileIn" accept=".csv" style="display:none"/>
           <div class="status-bar"><div class="dot" id="sDot"></div><span id="sTxt">No file selected</span></div>
-          <button class="btn" id="addBtn" onclick="importEvent()" disabled>Add to League</button>
+          <button class="btn" id="addBtn" onclick="adminGate('import')" disabled>Add to League</button>
         </div>
 
         <!-- Events -->
@@ -294,7 +333,7 @@
         <div class="card">
           <div class="card-label">⬇ Export & Manage</div>
           <button class="btn ghost" onclick="exportCSV()">Export Standings CSV</button>
-          <button class="btn danger" onclick="openModal()">Reset All Data</button>
+          <button class="btn danger" onclick="adminGate('reset')">Reset All Data</button>
         </div>
 
         <!-- Scoring ref -->
@@ -333,6 +372,91 @@
     </div>
   </div>
 
+
+  <!-- RAFFLE -->
+  <div class="panel" id="tab-raffle">
+    <div class="panel-title">Raffle</div>
+    <p class="panel-desc">Weighted draw — each event attended earns one ticket</p>
+    <div class="divider"></div>
+
+    <div class="raffle-layout">
+
+      <!-- LEFT: Ticket list & controls -->
+      <div>
+        <div class="card">
+          <div class="card-label">🎟 Ticket Pool</div>
+          <div class="ticket-pool" id="ticketPool">
+            <div class="empty-list">No eligible players yet</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-label">⚙ Controls</div>
+          <button class="btn" onclick="spinWheel()">🎰 Spin the Wheel</button>
+          <button class="btn danger" onclick="adminGate('raffleReset')">Reset All Tickets</button>
+        </div>
+        <div class="card" style="font-size:0.76rem;color:rgba(245,237,214,0.35);line-height:1.9;">
+          <div class="card-label">📜 Rules</div>
+          Each attended event = <strong style="color:var(--gold-light)">1 ticket</strong><br>
+          DNS events = <strong style="color:var(--gold-light)">0 tickets</strong><br>
+          Bigger slice = higher chance to win
+        </div>
+      </div>
+
+      <!-- RIGHT: Wheel -->
+      <div class="wheel-side">
+        <div class="wheel-wrap">
+          <div class="wheel-pointer">▼</div>
+          <canvas id="wheelCanvas" width="420" height="420"></canvas>
+        </div>
+        <div class="winner-box" id="winnerBox" style="display:none">
+          <div class="winner-label">🏆 Winner!</div>
+          <div class="winner-name" id="winnerName">—</div>
+          <div class="winner-tickets" id="winnerTickets">—</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="panel" id="tab-settings">
+    <div class="panel-title">Settings</div>
+    <p class="panel-desc">Configure Gist sync — your token is stored locally on this device only</p>
+    <div class="divider"></div>
+
+    <div style="max-width:480px">
+      <div class="card">
+        <div class="card-label">🔑 GitHub Gist Token</div>
+        <p style="font-size:0.82rem;color:rgba(245,237,214,0.4);margin-bottom:14px;line-height:1.6;">
+          Paste your GitHub Personal Access Token with <strong style="color:var(--gold-light)">gist</strong> scope.
+          It is saved only in this browser's localStorage — never sent to GitHub inside the HTML file.
+        </p>
+        <input
+          type="password"
+          id="tokenInput"
+          class="lock-input"
+          placeholder="ghp_..."
+          autocomplete="off"
+          style="text-align:left;letter-spacing:0.05em;margin-bottom:12px;font-size:0.9rem"
+        />
+        <div style="display:flex;gap:8px">
+          <button class="btn" onclick="saveToken()" style="flex:1">Save Token</button>
+          <button class="btn danger" onclick="clearToken()" style="flex:1">Clear Token</button>
+        </div>
+        <p id="tokenStatus" style="margin-top:10px;font-size:0.8rem;min-height:1.2em;font-style:italic;color:rgba(245,237,214,0.4)"></p>
+      </div>
+
+      <div class="card">
+        <div class="card-label">☁ Gist Info</div>
+        <div style="font-size:0.8rem;color:rgba(245,237,214,0.35);line-height:2">
+          Gist ID: <strong style="color:var(--gold-light);font-family:monospace;font-size:0.75rem">9963bf3fce242d108eab3f0b5a6a416e</strong><br>
+          File: <strong style="color:var(--gold-light)">riftbound.json</strong><br>
+          Data syncs automatically on every change.
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- MORE TOOLS -->
   <div class="panel" id="tab-more">
     <div class="panel-title">More Tools</div>
@@ -340,6 +464,7 @@
     <div class="divider"></div>
     <div class="coming"><div class="coming-icon">🔮</div><p>Coming soon…</p></div>
   </div>
+
 </div>
 
 <!-- RESET MODAL -->
@@ -354,16 +479,31 @@
   </div>
 </div>
 
+<!-- ADMIN AUTH MODAL -->
+<div class="modal-bg" id="adminModal">
+  <div class="modal-box">
+    <div class="modal-title">&#x1F510; Admin Required</div>
+    <div class="modal-body" id="adminModalDesc">Enter the admin password to continue.</div>
+    <input class="lock-input" type="password" id="adminPwInput" placeholder="Admin password" autocomplete="off" style="margin-bottom:16px;letter-spacing:0.15em"/>
+    <div class="modal-btns">
+      <button class="btn ghost" onclick="closeAdminModal()">Cancel</button>
+      <button class="btn" onclick="submitAdminPw()">Confirm</button>
+    </div>
+    <p class="lock-error" id="adminErr" style="margin-top:10px"></p>
+  </div>
+</div>
+
 <script>
 // ── PASSWORD ──────────────────────────────────────────
 const PASSWORD = 'riftbound2026'; // ← change this
+const ADMIN_PASSWORD = 'ZenithBlade'; // ← admin password for write actions
 
 function unlock() {
   if (document.getElementById('pwInput').value === PASSWORD) {
     document.getElementById('lockScreen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     sessionStorage.setItem('rb_auth', '1');
-    renderAll();
+    initApp();
   } else {
     const e = document.getElementById('lockErr');
     e.textContent = 'The rift remains sealed. Try again.';
@@ -391,13 +531,69 @@ function showTab(id, btn) {
   btn.classList.add('active');
 }
 
+// ── GIST CONFIG ───────────────────────────────────────
+const GIST_ID   = '9963bf3fce242d108eab3f0b5a6a416e';
+const GIST_FILE = 'riftbound.json';
+function getToken() { return localStorage.getItem('rb_gist_token') || ''; }
+
 // ── DATA ──────────────────────────────────────────────
 // Schema: { events: [{ id, name, date, players: [{uid,name,display,rank,record,mp,pp,ap,total,dns}] }] }
 function load() {
   try { return JSON.parse(localStorage.getItem('rb_league') || '{"events":[]}'); }
   catch { return { events: [] }; }
 }
-function save(d) { localStorage.setItem('rb_league', JSON.stringify(d)); }
+function save(d) {
+  localStorage.setItem('rb_league', JSON.stringify(d));
+  syncToGist(d);
+}
+
+function setSyncStatus(msg, color) {
+  const el = document.getElementById('syncStatus');
+  if (el) { el.textContent = msg; el.style.color = color || 'rgba(245,237,214,0.3)'; }
+}
+
+async function syncToGist(data) {
+  if (!getToken()) { setSyncStatus('⚠ No token set', '#c0392b'); return; }
+  setSyncStatus('⟳ Saving…', 'rgba(201,146,42,0.7)');
+  try {
+    const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `token ${getToken()}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ files: { [GIST_FILE]: { content: JSON.stringify(data, null, 2) } } })
+    });
+    if (!res.ok) throw new Error(res.status);
+    setSyncStatus('✓ Saved to Gist', '#4caf50');
+    setTimeout(() => setSyncStatus('', ''), 3000);
+  } catch(e) {
+    setSyncStatus('✗ Gist sync failed', '#c0392b');
+  }
+}
+
+async function loadFromGist() {
+  if (!getToken()) { setSyncStatus('⚠ Enter token in Settings', '#c0392b'); return load(); }
+  setSyncStatus('⟳ Loading…', 'rgba(201,146,42,0.7)');
+  try {
+    const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+      headers: { 'Authorization': `token ${getToken()}` }
+    });
+    if (!res.ok) throw new Error(res.status);
+    const gist = await res.json();
+    const raw = gist.files[GIST_FILE]?.content;
+    if (raw && raw.trim() !== '{}' && raw.trim() !== '') {
+      const data = JSON.parse(raw);
+      localStorage.setItem('rb_league', JSON.stringify(data));
+      setSyncStatus('✓ Loaded from Gist', '#4caf50');
+      setTimeout(() => setSyncStatus('', ''), 3000);
+      return data;
+    }
+  } catch(e) {
+    setSyncStatus('✗ Gist load failed — using local', '#c0392b');
+  }
+  return load();
+}
 
 // ── SCORING ───────────────────────────────────────────
 function placementBonus(rank) {
@@ -518,7 +714,7 @@ function buildStandings(events) {
 }
 
 // ── RENDER ────────────────────────────────────────────
-function renderAll() { const d = load(); renderEvents(d); renderLB(d); }
+function renderAll() { const d = load(); renderEvents(d); renderLB(d); renderTicketPool(); drawWheel(wheelAngle); }
 
 function renderEvents(data) {
   document.getElementById('evCount').textContent = `(${data.events.length})`;
@@ -530,7 +726,7 @@ function renderEvents(data) {
         <div class="event-item-name">${ev.name}</div>
         <div class="event-item-meta">${ev.date} · ${ev.players.length} players</div>
       </div>
-      <button class="ev-remove" onclick="removeEvent('${ev.id}')" title="Remove">✕</button>
+      <button class="ev-remove" onclick="adminGate('remove','${ev.id}')" title="Remove">✕</button>
     </div>`).join('');
 }
 
@@ -627,13 +823,287 @@ function exportCSV() {
   a.click();
 }
 
+// ── ADMIN GATE ────────────────────────────────────────
+let adminAction = null;
+let adminActionArg = null;
+
+function adminGate(action, arg) {
+  // For import, check file is ready first
+  if (action === 'import' && !pending) return;
+  adminAction = action;
+  adminActionArg = arg || null;
+  const descs = {
+    import: 'Confirm admin password to add this event to the league.',
+    remove: 'Confirm admin password to remove this event.',
+    reset:  'Confirm admin password to reset all league data.'
+  };
+  document.getElementById('adminModalDesc').textContent = descs[action] || 'Enter admin password.';
+  document.getElementById('adminPwInput').value = '';
+  document.getElementById('adminErr').textContent = '';
+  document.getElementById('adminModal').classList.add('open');
+  setTimeout(() => document.getElementById('adminPwInput').focus(), 100);
+}
+
+function submitAdminPw() {
+  const val = document.getElementById('adminPwInput').value;
+  if (val !== ADMIN_PASSWORD) {
+    document.getElementById('adminErr').textContent = 'Incorrect password.';
+    document.getElementById('adminPwInput').value = '';
+    setTimeout(() => document.getElementById('adminErr').textContent = '', 2500);
+    return;
+  }
+  closeAdminModal();
+  if (adminAction === 'import') importEvent();
+  else if (adminAction === 'remove') removeEvent(adminActionArg);
+  else if (adminAction === 'reset') openModal();
+  else if (adminAction === 'raffleReset') raffleReset();
+  adminAction = null; adminActionArg = null;
+}
+
+function closeAdminModal() {
+  document.getElementById('adminModal').classList.remove('open');
+  document.getElementById('adminPwInput').value = '';
+  document.getElementById('adminErr').textContent = '';
+}
+
+document.getElementById('adminPwInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitAdminPw();
+  if (e.key === 'Escape') closeAdminModal();
+});
+
 // ── MODAL ─────────────────────────────────────────────
 function openModal()  { document.getElementById('modal').classList.add('open'); }
 function closeModal() { document.getElementById('modal').classList.remove('open'); }
 function doReset()    { localStorage.removeItem('rb_league'); closeModal(); renderAll(); setStatus('All data cleared', ''); }
 
 // Init
-if (sessionStorage.getItem('rb_auth') === '1') renderAll();
+async function initApp() {
+  const data = await loadFromGist();
+  if (data) {
+    localStorage.setItem('rb_league', JSON.stringify(data));
+  }
+  renderAll();
+}
+if (sessionStorage.getItem('rb_auth') === '1') initApp();
+// ── RAFFLE ────────────────────────────────────────────
+const WHEEL_COLORS = [
+  '#8b3a1a','#c9922a','#5a2d0c','#e8b84b','#6b2e14',
+  '#a07030','#3d1a08','#d4a035','#7a3518','#b08428',
+  '#4a2010','#c09030','#2d1206','#e0b040','#602a10'
+];
+
+function renderTicketPool() {
+  const entrants = getRaffleEntrants();
+  const el = document.getElementById('ticketPool');
+  if (!entrants.length) {
+    el.innerHTML = '<div class="empty-list">No eligible players yet</div>';
+    return;
+  }
+  const total = entrants.reduce((s, p) => s + p.tickets, 0);
+  el.innerHTML = entrants.map(p => {
+    const pct = ((p.tickets / total) * 100).toFixed(1);
+    return `<div class="ticket-item">
+      <span class="ticket-name">${p.display}</span>
+      <span class="ticket-count">${p.tickets} 🎟 &nbsp;<span style="color:rgba(245,237,214,0.3);font-size:0.65rem">${pct}%</span></span>
+    </div>`;
+  }).join('');
+}
+
+let wheelSpinning = false;
+let wheelAngle = 0;
+
+function drawWheel(angle) {
+  const canvas = document.getElementById('wheelCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const cx = canvas.width / 2, cy = canvas.height / 2, r = cx - 4;
+  const entrants = getRaffleEntrants();
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (!entrants.length) {
+    ctx.fillStyle = 'rgba(245,237,214,0.08)';
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(245,237,214,0.2)';
+    ctx.font = '14px Crimson Pro, serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('No entrants', cx, cy);
+    return;
+  }
+
+  const total = entrants.reduce((s, p) => s + p.tickets, 0);
+  let startAngle = angle;
+
+  entrants.forEach((p, i) => {
+    const slice = (p.tickets / total) * Math.PI * 2;
+    const endAngle = startAngle + slice;
+
+    // Slice
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, startAngle, endAngle);
+    ctx.closePath();
+    ctx.fillStyle = WHEEL_COLORS[i % WHEEL_COLORS.length];
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(26,18,9,0.6)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Label
+    const midAngle = startAngle + slice / 2;
+    const labelR = r * 0.65;
+    const lx = cx + labelR * Math.cos(midAngle);
+    const ly = cy + labelR * Math.sin(midAngle);
+
+    ctx.save();
+    ctx.translate(lx, ly);
+    ctx.rotate(midAngle + Math.PI / 2);
+    ctx.fillStyle = 'rgba(245,237,214,0.92)';
+    ctx.font = `bold ${Math.min(13, Math.max(9, 260 / entrants.length))}px Cinzel, serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    // Truncate long names
+    let label = p.display.length > 10 ? p.display.slice(0, 9) + '…' : p.display;
+    ctx.fillText(label, 0, 0);
+    ctx.restore();
+
+    startAngle = endAngle;
+  });
+
+  // Centre cap
+  ctx.beginPath(); ctx.arc(cx, cy, 18, 0, Math.PI * 2);
+  ctx.fillStyle = '#1a1209'; ctx.fill();
+  ctx.strokeStyle = 'rgba(201,146,42,0.5)'; ctx.lineWidth = 2; ctx.stroke();
+}
+
+function spinWheel() {
+  if (wheelSpinning) return;
+  const entrants = getRaffleEntrants();
+  if (!entrants.length) return;
+
+  document.getElementById('winnerBox').style.display = 'none';
+  wheelSpinning = true;
+
+  const total = entrants.reduce((s, p) => s + p.tickets, 0);
+
+  // Pick winner weighted by tickets
+  let rand = Math.random() * total, winner = entrants[entrants.length - 1];
+  for (const p of entrants) { rand -= p.tickets; if (rand <= 0) { winner = p; break; } }
+
+  // Calculate target angle so winner lands under pointer (top = -PI/2)
+  // Find winner's slice start/end
+  let cumAngle = 0;
+  let winStart = 0, winSlice = 0;
+  for (const p of entrants) {
+    const slice = (p.tickets / total) * Math.PI * 2;
+    if (p.uid === winner.uid) { winStart = cumAngle; winSlice = slice; break; }
+    cumAngle += slice;
+  }
+
+  // Pointer is at top (-PI/2). We want winStart + winSlice/2 to land at top after spin.
+  const winMid = winStart + winSlice / 2;
+  const targetStop = -Math.PI / 2 - winMid;
+  const spins = (Math.floor(Math.random() * 4) + 6) * Math.PI * 2; // 6-9 full rotations
+  const targetAngle = targetStop + spins;
+
+  const duration = 5000 + Math.random() * 1500;
+  const startTime = performance.now();
+  const startAngle = wheelAngle;
+
+  function easeOut(t) { return 1 - Math.pow(1 - t, 4); }
+
+  function animate(now) {
+    const elapsed = now - startTime;
+    const t = Math.min(elapsed / duration, 1);
+    wheelAngle = startAngle + (targetAngle - startAngle) * easeOut(t);
+    drawWheel(wheelAngle);
+    if (t < 1) {
+      requestAnimationFrame(animate);
+    } else {
+      wheelAngle = targetAngle % (Math.PI * 2);
+      wheelSpinning = false;
+      showWinner(winner, total);
+    }
+  }
+
+  requestAnimationFrame(animate);
+}
+
+function showWinner(winner, total) {
+  const pct = ((winner.tickets / total) * 100).toFixed(1);
+  document.getElementById('winnerName').textContent = winner.display;
+  document.getElementById('winnerTickets').textContent = `${winner.tickets} ticket${winner.tickets !== 1 ? 's' : ''} · ${pct}% chance`;
+  const wb = document.getElementById('winnerBox');
+  wb.style.display = 'block';
+  wb.style.animation = 'none';
+  void wb.offsetWidth;
+  wb.style.animation = 'winnerFade 0.5s ease';
+}
+
+function raffleReset() {
+  // Tickets are derived from attendance, so "reset" means we store an override
+  const data = load();
+  data.raffleResetDate = new Date().toISOString();
+  data.raffleBaseline = {};
+  // Store current attendance counts as baseline so future uploads add on top
+  const standings = buildStandings(data.events);
+  standings.forEach(p => {
+    const tickets = data.events.filter(ev => { const r = p.results[ev.id]; return r && !r.dns; }).length;
+    data.raffleBaseline[p.uid] = tickets;
+  });
+  save(data);
+  renderTicketPool();
+  drawWheel(wheelAngle);
+  document.getElementById('winnerBox').style.display = 'none';
+}
+
+function getRaffleEntrants() {
+  const data = load();
+  const standings = buildStandings(data.events);
+  const baseline = data.raffleBaseline || {};
+  return standings
+    .map(p => {
+      const total = data.events.filter(ev => { const r = p.results[ev.id]; return r && !r.dns; }).length;
+      const base  = baseline[p.uid] || 0;
+      const tickets = Math.max(0, total - base);
+      return { display: p.display, uid: p.uid, tickets };
+    })
+    .filter(p => p.tickets > 0)
+    .sort((a, b) => b.tickets - a.tickets);
+}
+
+// ── SETTINGS ──────────────────────────────────────────
+function initSettingsPanel() {
+  const t = getToken();
+  const input = document.getElementById('tokenInput');
+  if (input) input.value = t ? '••••••••••••••••••••' : '';
+  setTokenStatus(t ? '✓ Token is set' : '⚠ No token saved — sync disabled', t ? '#4caf50' : '#c0392b');
+}
+function setTokenStatus(msg, color) {
+  const el = document.getElementById('tokenStatus');
+  if (el) { el.textContent = msg; el.style.color = color; }
+}
+function saveToken() {
+  const val = document.getElementById('tokenInput').value.trim();
+  if (!val || val.startsWith('•')) { setTokenStatus('Please paste a real token first', '#c0392b'); return; }
+  localStorage.setItem('rb_gist_token', val);
+  document.getElementById('tokenInput').value = '••••••••••••••••••••';
+  setTokenStatus('✓ Token saved — syncing now…', '#4caf50');
+  // Immediately test by syncing current data
+  syncToGist(load());
+}
+function clearToken() {
+  localStorage.removeItem('rb_gist_token');
+  document.getElementById('tokenInput').value = '';
+  setTokenStatus('Token cleared — sync disabled', '#c0392b');
+}
+
+// Init settings when tab is opened
+const origShowTab = showTab;
+function showTab(id, btn) {
+  origShowTab(id, btn);
+  if (id === 'settings') initSettingsPanel();
+}
+
 </script>
 </body>
 </html>
