@@ -352,6 +352,29 @@
 
     @keyframes winnerFade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
+
+    /* ── ROSTER ── */
+    .roster-list { display: flex; flex-direction: column; gap: 4px; max-height: 340px; overflow-y: auto; }
+    .roster-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 6px 10px; border: 1px solid rgba(201,146,42,0.1);
+      background: rgba(201,146,42,0.03); cursor: pointer;
+      transition: background 0.15s;
+    }
+    .roster-item:hover { background: rgba(201,146,42,0.08); }
+    .roster-item.active { border-color: rgba(201,146,42,0.3); background: rgba(201,146,42,0.07); }
+    .roster-toggle {
+      width: 14px; height: 14px; border: 1px solid rgba(201,146,42,0.4);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.65rem; color: var(--gold); flex-shrink: 0;
+    }
+    .roster-item.active .roster-toggle { background: rgba(201,146,42,0.2); }
+    .roster-item.active .roster-toggle::after { content: '✓'; }
+    .roster-pname { font-size: 0.8rem; color: rgba(245,237,214,0.7); flex: 1; }
+    .roster-item.active .roster-pname { color: var(--parchment); }
+    .roster-actions { display: flex; gap: 6px; margin-top: 8px; }
+    .roster-actions button { flex: 1; font-size: 0.72rem; padding: 5px 0; }
+
   </style>
 </head>
 <body>
@@ -411,6 +434,16 @@
         <div class="card">
           <div class="card-label">📅 Events &nbsp;<span id="evCount" style="color:rgba(245,237,214,0.3);font-family:'Crimson Pro',serif;font-weight:400;font-size:0.8rem;letter-spacing:0">(0)</span></div>
           <div class="event-list" id="evList"><div class="empty-list">No events yet</div></div>
+        </div>
+
+        <!-- Roster -->
+        <div class="card">
+          <div class="card-label">👥 Roster &nbsp;<span id="rosterCount" style="color:rgba(245,237,214,0.3);font-family:'Crimson Pro',serif;font-weight:400;font-size:0.8rem;letter-spacing:0">(0)</span></div>
+          <div class="roster-list" id="rosterList"><div class="empty-list">Upload an event to populate</div></div>
+          <div class="roster-actions">
+            <button class="btn ghost" onclick="adminGate('rosterAll')">All In</button>
+            <button class="btn ghost" onclick="adminGate('rosterNone')">All Out</button>
+          </div>
         </div>
 
         <!-- Export / Reset -->
@@ -784,7 +817,7 @@ function importEvent() {
 }
 
 // ── STANDINGS ─────────────────────────────────────────
-function buildStandings(events) {
+function buildStandings(events, roster) {
   const map = {};
   events.forEach(ev => {
     ev.players.forEach(p => {
@@ -795,11 +828,13 @@ function buildStandings(events) {
       map[p.uid].display = p.display;
     });
   });
-  return Object.values(map).sort((a, b) => b.total - a.total);
+  let result = Object.values(map).sort((a, b) => b.total - a.total);
+  if (roster) result = result.filter(p => roster[p.uid] !== false);
+  return result;
 }
 
 // ── RENDER ────────────────────────────────────────────
-function renderAll() { const d = load(); renderEvents(d); renderLB(d); renderTicketPool(); }
+function renderAll() { const d = load(); renderEvents(d); renderLB(d); renderTicketPool(); renderRoster(); }
 
 function renderEvents(data) {
   document.getElementById('evCount').textContent = `(${data.events.length})`;
@@ -816,11 +851,12 @@ function renderEvents(data) {
 }
 
 function renderLB(data, filter = '') {
-  const standings = buildStandings(data.events);
+  const standings = buildStandings(data.events, data.roster);
   const shown = filter
     ? standings.filter(p => p.display.toLowerCase().includes(filter.toLowerCase()) || p.name.toLowerCase().includes(filter.toLowerCase()))
     : standings;
 
+  const rosterActive = data.roster ? Object.values(data.roster).filter(v => v !== false).length : standings.length;
   document.getElementById('lbMeta').textContent = data.events.length
     ? `${standings.length} players · ${data.events.length} event${data.events.length !== 1 ? 's' : ''}`
     : '—';
@@ -894,12 +930,11 @@ function removeEvent(id) {
 // ── EXPORT ────────────────────────────────────────────
 function exportCSV() {
   const data = load();
-  const standings = buildStandings(data.events);
-  const headers = ['Rank', 'Display Name', 'Player', ...data.events.map(e => e.name), 'Total'];
+  const standings = buildStandings(data.events, data.roster);
+  const headers = ['Rank', 'Display Name', 'Player', ...data.events.map(e => e.name)];
   const rows = standings.map((p, i) => [
     i + 1, p.display, p.name,
-    ...data.events.map(ev => { const r = p.results[ev.id]; return r ? (r.dns ? 'DNS' : r.total) : ''; }),
-    p.total
+    ...data.events.map(ev => { const r = p.results[ev.id]; return r ? (r.dns ? 'DNS' : r.total) : ''; })
   ]);
   const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
   const a = document.createElement('a');
@@ -942,6 +977,9 @@ function submitAdminPw() {
   else if (adminAction === 'remove') removeEvent(adminActionArg);
   else if (adminAction === 'reset') openModal();
   else if (adminAction === 'raffleReset') raffleReset();
+  else if (adminAction === 'rosterToggle') rosterToggle(adminActionArg);
+  else if (adminAction === 'rosterAll') rosterSetAll(true);
+  else if (adminAction === 'rosterNone') rosterSetAll(false);
   adminAction = null; adminActionArg = null;
 }
 
@@ -1107,7 +1145,7 @@ function raffleReset() {
 
 function getRaffleEntrants() {
   const data = load();
-  const standings = buildStandings(data.events);
+  const standings = buildStandings(data.events, data.roster);
   const baseline = data.raffleBaseline || {};
   return standings
     .map(p => {
@@ -1147,6 +1185,65 @@ function clearToken() {
 }
 
 
+
+// ── ROSTER ────────────────────────────────────────────
+function getAllPlayers(data) {
+  // Collect all unique players across all events
+  const map = {};
+  (data.events || []).forEach(ev => {
+    ev.players.forEach(p => {
+      if (!map[p.uid]) map[p.uid] = { uid: p.uid, display: p.display, name: p.name };
+    });
+  });
+  return Object.values(map).sort((a, b) => a.display.localeCompare(b.display));
+}
+
+function renderRoster() {
+  const data = load();
+  const players = getAllPlayers(data);
+  const roster = data.roster || {};
+  const el = document.getElementById('rosterList');
+  const countEl = document.getElementById('rosterCount');
+
+  if (!players.length) {
+    el.innerHTML = '<div class="empty-list">Upload an event to populate</div>';
+    if (countEl) countEl.textContent = '(0)';
+    return;
+  }
+
+  // Default: all players are IN unless explicitly set to false
+  const activeCount = players.filter(p => roster[p.uid] !== false).length;
+  if (countEl) countEl.textContent = `(${activeCount}/${players.length})`;
+
+  el.innerHTML = players.map(p => {
+    const isIn = roster[p.uid] !== false;
+    return `<div class="roster-item ${isIn ? 'active' : ''}" onclick="adminGate('rosterToggle','${p.uid}')">
+      <div class="roster-toggle"></div>
+      <span class="roster-pname">${p.display}</span>
+    </div>`;
+  }).join('');
+}
+
+function rosterToggle(uid) {
+  const data = load();
+  if (!data.roster) data.roster = {};
+  data.roster[uid] = data.roster[uid] === false ? true : false;
+  save(data);
+  renderRoster();
+  renderLB(data);
+  renderTicketPool();
+}
+
+function rosterSetAll(value) {
+  const data = load();
+  const players = getAllPlayers(data);
+  if (!data.roster) data.roster = {};
+  players.forEach(p => { data.roster[p.uid] = value; });
+  save(data);
+  renderRoster();
+  renderLB(data);
+  renderTicketPool();
+}
 
 </script>
 </body>
