@@ -96,15 +96,62 @@
     }
     .lock-out-btn:hover { border-color: var(--gold); color: var(--gold-light); }
 
-    .tab-nav { display: flex; gap: 2px; padding: 20px 32px 0; border-bottom: 1px solid rgba(201,146,42,0.15); }
-    .tab-btn {
-      font-family: 'Cinzel', serif; font-size: 0.75rem; font-weight: 600;
-      letter-spacing: 0.12em; text-transform: uppercase; padding: 10px 22px;
-      background: none; border: 1px solid transparent; border-bottom: none;
-      color: rgba(245,237,214,0.4); cursor: pointer; transition: all 0.2s; position: relative; top: 1px;
+    /* ── SIDEBAR DRAWER ── */
+    .sidebar-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 200;
+      opacity: 0; pointer-events: none; transition: opacity 0.25s;
+      backdrop-filter: blur(2px);
     }
-    .tab-btn:hover { color: var(--gold-light); }
-    .tab-btn.active { color: var(--gold-light); background: rgba(26,18,9,0.8); border-color: rgba(201,146,42,0.25); border-bottom: 1px solid rgba(26,18,9,0.9); }
+    .sidebar-overlay.open { opacity: 1; pointer-events: all; }
+
+    .sidebar-drawer {
+      position: fixed; top: 0; left: 0; bottom: 0; width: 280px; z-index: 201;
+      background: linear-gradient(180deg, #1e1408 0%, #140f06 100%);
+      border-right: 1px solid rgba(201,146,42,0.25);
+      transform: translateX(-100%); transition: transform 0.28s cubic-bezier(0.4,0,0.2,1);
+      display: flex; flex-direction: column;
+      box-shadow: 4px 0 40px rgba(0,0,0,0.5);
+    }
+    .sidebar-drawer.open { transform: translateX(0); }
+
+    .sidebar-header {
+      padding: 24px 20px 18px;
+      border-bottom: 1px solid rgba(201,146,42,0.15);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .sidebar-brand { font-family: 'Cinzel', serif; font-size: 1rem; font-weight: 700; color: var(--gold-light); letter-spacing: 0.18em; }
+    .sidebar-close {
+      background: none; border: none; color: rgba(245,237,214,0.3); font-size: 1.2rem;
+      cursor: pointer; padding: 4px 8px; transition: color 0.2s; line-height: 1;
+    }
+    .sidebar-close:hover { color: var(--gold-light); }
+
+    .sidebar-nav { flex: 1; padding: 12px 0; overflow-y: auto; }
+    .sidebar-nav-item {
+      display: flex; align-items: center; gap: 14px;
+      padding: 13px 24px; cursor: pointer;
+      font-family: 'Cinzel', serif; font-size: 0.78rem; letter-spacing: 0.1em;
+      color: rgba(245,237,214,0.45); transition: all 0.15s;
+      border-left: 3px solid transparent; text-transform: uppercase;
+    }
+    .sidebar-nav-item:hover { color: var(--parchment); background: rgba(201,146,42,0.05); }
+    .sidebar-nav-item.active { color: var(--gold-light); border-left-color: var(--gold); background: rgba(201,146,42,0.07); }
+    .sidebar-nav-icon { font-size: 1rem; width: 20px; text-align: center; }
+    .sidebar-divider { height: 1px; background: rgba(201,146,42,0.1); margin: 8px 20px; }
+
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid rgba(201,146,42,0.12);
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .sidebar-sync { font-size: 0.7rem; color: rgba(245,237,214,0.25); font-style: italic; min-height: 1em; }
+
+    /* Hamburger button in topbar */
+    .menu-btn {
+      background: none; border: 1px solid rgba(201,146,42,0.2); color: rgba(245,237,214,0.5);
+      font-size: 1rem; padding: 6px 12px; cursor: pointer; transition: all 0.2s; line-height: 1;
+    }
+    .menu-btn:hover { border-color: var(--gold); color: var(--gold-light); }
 
     .panel { display: none; padding: 36px 32px; }
     .panel.active { display: block; }
@@ -375,6 +422,107 @@
     .roster-actions { display: flex; gap: 6px; margin-top: 8px; }
     .roster-actions button { flex: 1; font-size: 0.72rem; padding: 5px 0; }
 
+
+    /* ── TCG RAFFLE ── */
+    .tcg-layout { display: grid; grid-template-columns: 1fr 320px; gap: 24px; align-items: start; }
+    @media (max-width: 860px) { .tcg-layout { grid-template-columns: 1fr; } }
+
+    .tcg-phase-nav { display: flex; gap: 4px; margin-bottom: 20px; }
+    .tcg-phase-dot { flex: 1; height: 3px; background: rgba(201,146,42,0.15); transition: background 0.3s; }
+    .tcg-phase-dot.active { background: var(--gold); }
+    .tcg-phase-dot.done   { background: rgba(201,146,42,0.35); }
+
+    .tcg-phase-badge {
+      font-family: 'Cinzel', serif; font-size: 0.72rem; letter-spacing: 0.15em;
+      color: var(--gold); border: 1px solid rgba(201,146,42,0.3);
+      padding: 4px 14px; display: inline-block; margin-bottom: 16px;
+    }
+
+    /* Player input with autocomplete */
+    .tcg-player-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; margin-bottom: 12px; }
+    .tcg-input-wrap { position: relative; }
+    .tcg-player-input {
+      width: 100%; background: rgba(26,18,9,0.6); border: 1px solid rgba(201,146,42,0.2);
+      color: var(--parchment); font-family: 'Crimson Pro', serif; font-size: 0.9rem;
+      padding: 7px 10px; outline: none; transition: border-color 0.2s;
+    }
+    .tcg-player-input:focus { border-color: rgba(201,146,42,0.5); }
+    .tcg-player-input::placeholder { color: rgba(245,237,214,0.2); font-style: italic; }
+    .tcg-autocomplete {
+      position: absolute; top: 100%; left: 0; right: 0; z-index: 50;
+      background: #1a1209; border: 1px solid rgba(201,146,42,0.3); border-top: none;
+      max-height: 160px; overflow-y: auto; display: none;
+    }
+    .tcg-autocomplete.open { display: block; }
+    .tcg-ac-item {
+      padding: 6px 10px; font-size: 0.82rem; cursor: pointer;
+      color: rgba(245,237,214,0.7); border-bottom: 1px solid rgba(201,146,42,0.08);
+    }
+    .tcg-ac-item:hover { background: rgba(201,146,42,0.1); color: var(--parchment); }
+
+    /* Player table */
+    .tcg-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .tcg-table th {
+      font-family: 'Cinzel', serif; font-size: 0.65rem; letter-spacing: 0.12em;
+      color: rgba(245,237,214,0.35); text-align: left; padding: 8px 10px;
+      border-bottom: 1px solid rgba(201,146,42,0.15); text-transform: uppercase;
+    }
+    .tcg-table td { padding: 8px 10px; border-bottom: 1px solid rgba(201,146,42,0.06); vertical-align: middle; }
+    .tcg-row.ineligible td { opacity: 0.3; }
+    .tcg-row.ineligible .tcg-pname { text-decoration: line-through; }
+    .tcg-pname { color: var(--parchment); }
+    .tcg-tickets {
+      font-family: 'Cinzel', serif; font-size: 1.1rem; color: var(--gold);
+    }
+    .tcg-tickets.zero { color: rgba(245,237,214,0.2); }
+
+    .tcg-outcome-btns { display: flex; gap: 4px; }
+    .tcg-outcome-btn {
+      font-size: 0.68rem; padding: 3px 8px; border: 1px solid rgba(201,146,42,0.15);
+      background: rgba(26,18,9,0.4); color: rgba(245,237,214,0.35); cursor: pointer;
+      font-family: 'Cinzel', serif; letter-spacing: 0.05em; transition: all 0.15s;
+    }
+    .tcg-outcome-btn:hover { border-color: rgba(201,146,42,0.4); color: var(--parchment); }
+    .tcg-outcome-btn.aw { background: rgba(64,192,128,0.2); color: #40c080; border-color: #40c080; }
+    .tcg-outcome-btn.al { background: rgba(224,80,96,0.2); color: #e05060; border-color: #e05060; }
+
+    /* Raffle sidebar */
+    .tcg-pack-display {
+      display: flex; align-items: center; gap: 14px; padding: 14px;
+      background: rgba(201,146,42,0.04); border: 1px solid rgba(201,146,42,0.15); margin-bottom: 14px;
+    }
+    .tcg-pack-num { font-family: 'Cinzel', serif; font-size: 1.8rem; color: var(--gold); line-height: 1; }
+    .tcg-pack-label { font-size: 0.7rem; color: rgba(245,237,214,0.3); letter-spacing: 0.1em; text-transform: uppercase; margin-top: 2px; }
+
+    .tcg-winner-box {
+      background: rgba(201,146,42,0.07); border: 1px solid rgba(201,146,42,0.35);
+      padding: 16px; text-align: center; margin-bottom: 12px;
+      animation: winnerFade 0.4s ease;
+    }
+    .tcg-winner-label { font-family: 'Cinzel', serif; font-size: 0.65rem; letter-spacing: 0.18em; color: var(--gold); margin-bottom: 6px; }
+    .tcg-winner-name  { font-family: 'Cinzel', serif; font-size: 1.4rem; font-weight: 700; color: var(--gold-light); }
+    .tcg-winner-sub   { font-size: 0.75rem; color: rgba(245,237,214,0.35); margin-top: 4px; font-style: italic; }
+
+    .tcg-log { max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; margin-top: 8px; }
+    .tcg-log-entry {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 0.78rem; padding: 5px 8px;
+      background: rgba(201,146,42,0.03); border: 1px solid rgba(201,146,42,0.08);
+    }
+    .tcg-log-name { color: var(--gold-light); font-family: 'Cinzel', serif; font-size: 0.72rem; }
+    .tcg-log-meta { color: rgba(245,237,214,0.3); font-size: 0.7rem; font-style: italic; }
+
+    .tcg-milestone-row {
+      display: flex; align-items: center; gap: 10px; padding: 7px 10px; margin-bottom: 4px;
+      border: 1px solid rgba(201,146,42,0.1); font-size: 0.75rem; transition: all 0.3s;
+    }
+    .tcg-milestone-row.current { border-color: rgba(201,146,42,0.4); background: rgba(201,146,42,0.06); }
+    .tcg-milestone-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .tcg-milestone-label { flex: 1; color: rgba(245,237,214,0.4); font-family: 'Cinzel', serif; font-size: 0.65rem; letter-spacing: 0.05em; }
+    .tcg-milestone-row.active .tcg-milestone-label { color: var(--parchment); }
+    .tcg-milestone-packs { font-family: 'Cinzel', serif; font-size: 0.75rem; color: rgba(245,237,214,0.3); }
+    .tcg-milestone-row.active .tcg-milestone-packs { color: var(--gold); }
+
   </style>
 </head>
 <body>
@@ -394,17 +542,43 @@
 
 <!-- APP -->
 <div id="app">
-  <div id="topbar">
-    <div class="brand"><span class="brand-rune">⚔️</span>RIFTBOUND</div>
-    <span id="syncStatus" style="font-size:0.72rem;color:rgba(245,237,214,0.3);font-style:italic;letter-spacing:0.05em"></span>
-    <button class="lock-out-btn" onclick="lockOut()">⚿ Lock</button>
+  <!-- SIDEBAR OVERLAY -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+  <!-- SIDEBAR DRAWER -->
+  <div class="sidebar-drawer" id="sidebarDrawer">
+    <div class="sidebar-header">
+      <div class="sidebar-brand">⚔️ RIFTBOUND</div>
+      <button class="sidebar-close" onclick="closeSidebar()">✕</button>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-nav-item active" id="snav-league" onclick="showTab('league'); closeSidebar()">
+        <span class="sidebar-nav-icon">🏆</span> League Standings
+      </div>
+      <div class="sidebar-nav-item" id="snav-raffle" onclick="showTab('raffle'); closeSidebar()">
+        <span class="sidebar-nav-icon">🃏</span> Raffle
+      </div>
+      <div class="sidebar-nav-item" id="snav-tcg" onclick="showTab('tcg'); closeSidebar()">
+        <span class="sidebar-nav-icon">🎲</span> TCG Raffle
+      </div>
+      <div class="sidebar-divider"></div>
+      <div class="sidebar-nav-item" id="snav-settings" onclick="showTab('settings'); closeSidebar()">
+        <span class="sidebar-nav-icon">⚙</span> Settings
+      </div>
+      <div class="sidebar-nav-item" id="snav-more" onclick="showTab('more'); closeSidebar()">
+        <span class="sidebar-nav-icon">🔮</span> More Tools
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="sidebar-sync" id="syncStatus"></div>
+      <button class="lock-out-btn" onclick="lockOut()">⚿ Lock</button>
+    </div>
   </div>
 
-  <div class="tab-nav">
-    <button class="tab-btn active" onclick="showTab('league',this)">League Standings</button>
-    <button class="tab-btn" onclick="showTab('raffle',this)">Raffle</button>
-    <button class="tab-btn" onclick="showTab('settings',this)">Settings</button>
-    <button class="tab-btn" onclick="showTab('more',this)">More Tools</button>
+  <div id="topbar">
+    <button class="menu-btn" onclick="openSidebar()">☰</button>
+    <div class="brand"><span class="brand-rune">⚔️</span>RIFTBOUND</div>
+    <div style="width:60px"></div>
   </div>
 
   <!-- LEAGUE -->
@@ -543,6 +717,23 @@
 
     <div style="max-width:480px">
       <div class="card">
+        <div class="card-label">🔒 Passwords</div>
+        <p style="font-size:0.82rem;color:rgba(245,237,214,0.4);margin-bottom:14px;line-height:1.6;">
+          Saved to your Gist — overrides the hardcoded defaults in the HTML file.
+        </p>
+        <label style="font-size:0.75rem;color:rgba(245,237,214,0.35);letter-spacing:0.08em;text-transform:uppercase;display:block;margin-bottom:4px">Entry Password</label>
+        <input type="password" id="pwSettingInput" class="lock-input"
+          placeholder="Leave blank to keep current"
+          autocomplete="off" style="text-align:left;letter-spacing:0.05em;margin-bottom:10px;font-size:0.9rem"/>
+        <label style="font-size:0.75rem;color:rgba(245,237,214,0.35);letter-spacing:0.08em;text-transform:uppercase;display:block;margin-bottom:4px">Admin Password</label>
+        <input type="password" id="adminPwSettingInput" class="lock-input"
+          placeholder="Leave blank to keep current"
+          autocomplete="off" style="text-align:left;letter-spacing:0.05em;margin-bottom:12px;font-size:0.9rem"/>
+        <button class="btn" onclick="savePasswords()" style="width:100%">Save Passwords</button>
+        <p id="pwSettingStatus" style="margin-top:8px;font-size:0.8rem;min-height:1.2em;font-style:italic;color:rgba(245,237,214,0.4)"></p>
+      </div>
+
+      <div class="card">
         <div class="card-label">🔑 GitHub Gist Token</div>
         <p style="font-size:0.82rem;color:rgba(245,237,214,0.4);margin-bottom:14px;line-height:1.6;">
           Paste your GitHub Personal Access Token with <strong style="color:var(--gold-light)">gist</strong> scope.
@@ -572,6 +763,21 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- TCG RAFFLE -->
+  <div class="panel" id="tab-tcg">
+    <div class="panel-title">TCG Raffle</div>
+    <p class="panel-desc">In-event pack raffle — door prize + round-by-round draws</p>
+    <div class="divider"></div>
+    <div class="tcg-phase-nav" id="tcgPhaseNav">
+      <div class="tcg-phase-dot active" id="tcgdot-setup"></div>
+      <div class="tcg-phase-dot" id="tcgdot-door"></div>
+      <div class="tcg-phase-dot" id="tcgdot-r1"></div>
+      <div class="tcg-phase-dot" id="tcgdot-r2"></div>
+      <div class="tcg-phase-dot" id="tcgdot-r3"></div>
+    </div>
+    <div id="tcgApp"></div>
   </div>
 
   <!-- MORE TOOLS -->
@@ -611,12 +817,16 @@
 </div>
 
 <script>
-// ── PASSWORD ──────────────────────────────────────────
-const PASSWORD = 'riftbound2026'; // ← change this
-const ADMIN_PASSWORD = 'ZenithBlade'; // ← admin password for write actions
+// ── PASSWORDS ─────────────────────────────────────────
+// Hardcoded fallbacks — override by saving in Settings (stored in Gist)
+const PW_DEFAULT       = 'riftbound2026';
+const ADMIN_PW_DEFAULT = 'ZenithBlade';
+
+function getPassword()      { return load().config?.password      || PW_DEFAULT; }
+function getAdminPassword() { return load().config?.adminPassword || ADMIN_PW_DEFAULT; }
 
 function unlock() {
-  if (document.getElementById('pwInput').value === PASSWORD) {
+  if (document.getElementById('pwInput').value === getPassword()) {
     document.getElementById('lockScreen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     sessionStorage.setItem('rb_auth', '1');
@@ -640,13 +850,26 @@ if (sessionStorage.getItem('rb_auth') === '1') {
   document.getElementById('app').style.display = 'block';
 }
 
+// ── SIDEBAR ───────────────────────────────────────────
+function openSidebar() {
+  document.getElementById('sidebarDrawer').classList.add('open');
+  document.getElementById('sidebarOverlay').classList.add('open');
+}
+function closeSidebar() {
+  document.getElementById('sidebarDrawer').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSidebar(); });
+
 // ── TABS ──────────────────────────────────────────────
-function showTab(id, btn) {
+function showTab(id) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.sidebar-nav-item').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-' + id).classList.add('active');
-  btn.classList.add('active');
+  const snavEl = document.getElementById('snav-' + id);
+  if (snavEl) snavEl.classList.add('active');
   if (id === 'settings') initSettingsPanel();
+  if (id === 'tcg') tcgRender();
 }
 
 // ── GIST CONFIG ───────────────────────────────────────
@@ -966,7 +1189,7 @@ function adminGate(action, arg) {
 
 function submitAdminPw() {
   const val = document.getElementById('adminPwInput').value;
-  if (val !== ADMIN_PASSWORD) {
+  if (val !== getAdminPassword()) {
     document.getElementById('adminErr').textContent = 'Incorrect password.';
     document.getElementById('adminPwInput').value = '';
     setTimeout(() => document.getElementById('adminErr').textContent = '', 2500);
@@ -1159,6 +1382,25 @@ function getRaffleEntrants() {
 }
 
 // ── SETTINGS ──────────────────────────────────────────
+function savePasswords() {
+  const pw    = document.getElementById('pwSettingInput').value.trim();
+  const adminPw = document.getElementById('adminPwSettingInput').value.trim();
+  if (!pw && !adminPw) {
+    document.getElementById('pwSettingStatus').textContent = 'No changes entered.';
+    return;
+  }
+  const data = load();
+  if (!data.config) data.config = {};
+  if (pw)      data.config.password      = pw;
+  if (adminPw) data.config.adminPassword = adminPw;
+  save(data);
+  document.getElementById('pwSettingInput').value = '';
+  document.getElementById('adminPwSettingInput').value = '';
+  document.getElementById('pwSettingStatus').textContent = '✓ Passwords saved to Gist';
+  document.getElementById('pwSettingStatus').style.color = '#4caf50';
+  setTimeout(() => document.getElementById('pwSettingStatus').textContent = '', 3000);
+}
+
 function initSettingsPanel() {
   const t = getToken();
   const input = document.getElementById('tokenInput');
@@ -1244,6 +1486,303 @@ function rosterSetAll(value) {
   renderLB(data);
   renderTicketPool();
 }
+
+// ── TCG RAFFLE ────────────────────────────────────────
+const TCG_PHASES = ['setup','door','r1','r2','r3'];
+const TCG_PHASE_LABELS = { setup:'Setup', door:'Door Prize', r1:'Round 1', r2:'Round 2', r3:'Round 3' };
+const TCG_MILESTONE_SPLITS = {
+  0: {r1:0,r2:0,r3:0}, 3: {r1:1,r2:1,r3:1},
+  5: {r1:1,r2:2,r3:2}, 7: {r1:2,r2:2,r3:3}
+};
+
+let tcg = {
+  phase: 'setup', players: ['','','',''],
+  winners: [], currentWinner: null,
+  roundOutcomes: {}, packsDrawn: {door:0,r1:0,r2:0,r3:0},
+  lockedPacks: null, spinning: false
+};
+
+function tcgGetMilestone(n) {
+  if (n >= 16) return 7; if (n >= 12) return 5; if (n >= 8) return 3; return 0;
+}
+function tcgGetPacksPerPhase() {
+  const n = tcg.players.filter(p=>p.trim()).length;
+  const m = tcgGetMilestone(n); const s = TCG_MILESTONE_SPLITS[m];
+  return { door:1, r1:s.r1, r2:s.r2, r3:s.r3 };
+}
+function tcgGetTickets(name, phase) {
+  if (phase === 'door') return 1;
+  const outcome = (tcg.roundOutcomes[phase]||{})[name];
+  return outcome === 'win' ? 2 : 1;
+}
+function tcgIsEligible(name) { return !tcg.winners.find(w => w.name === name); }
+function tcgGetPool(phase) {
+  const pool = [];
+  tcg.players.forEach(p => {
+    if (!p.trim() || !tcgIsEligible(p)) return;
+    const t = tcgGetTickets(p, phase);
+    for (let i=0;i<t;i++) pool.push(p);
+  });
+  return pool;
+}
+
+// Autocomplete helpers
+function tcgGetRosterNames() {
+  const data = load();
+  const all = [];
+  (data.events||[]).forEach(ev => ev.players.forEach(p => {
+    if (!all.includes(p.display)) all.push(p.display);
+  }));
+  return all.sort();
+}
+
+function tcgShowAC(idx, val) {
+  const ac = document.getElementById('tcgac-'+idx);
+  if (!ac) return;
+  if (!val.trim()) { ac.classList.remove('open'); return; }
+  const names = tcgGetRosterNames().filter(n => n.toLowerCase().includes(val.toLowerCase()) && n !== val);
+  if (!names.length) { ac.classList.remove('open'); return; }
+  ac.innerHTML = names.slice(0,8).map(n => `<div class="tcg-ac-item" onmousedown="tcgPickAC(${idx},'${n.replace(/'/g,"\\'")}'')">${n}</div>`).join('');
+  ac.classList.add('open');
+}
+
+function tcgPickAC(idx, name) {
+  tcg.players[idx] = name;
+  const input = document.getElementById('tcginput-'+idx);
+  if (input) input.value = name;
+  const ac = document.getElementById('tcgac-'+idx);
+  if (ac) ac.classList.remove('open');
+  tcgRenderSetup();
+}
+
+function tcgUpdatePlayer(idx, val) {
+  tcg.players[idx] = val;
+  tcgRenderSetup();
+}
+
+function tcgRender() {
+  // Update phase dots
+  TCG_PHASES.forEach((p,i) => {
+    const dot = document.getElementById('tcgdot-'+p);
+    if (!dot) return;
+    const pi = TCG_PHASES.indexOf(tcg.phase);
+    dot.className = 'tcg-phase-dot' + (i < pi ? ' done' : i === pi ? ' active' : '');
+  });
+  if (tcg.phase === 'setup') tcgRenderSetup();
+  else tcgRenderEvent();
+}
+
+function tcgRenderSetup() {
+  const app = document.getElementById('tcgApp');
+  if (!app) return;
+  const filledPlayers = tcg.players.filter(p=>p.trim()).length;
+  const milestone = tcgGetMilestone(filledPlayers);
+  const splits = TCG_MILESTONE_SPLITS[milestone];
+  const totalPacks = 1 + 1 + milestone;
+
+  const tiers = [
+    {label:'<8 players', players:0,  packs:0, color:'rgba(245,237,214,0.2)'},
+    {label:'8+ players', players:8,  packs:3, color:'#e05060'},
+    {label:'12+ players',players:12, packs:5, color:'#6090e0'},
+    {label:'16+ players',players:16, packs:7, color:'#40c080'},
+  ];
+
+  const milestoneRows = tiers.map(t => {
+    const active = t.players === 0 ? milestone === 0 : filledPlayers >= t.players;
+    const current = milestone === t.packs;
+    return `<div class="tcg-milestone-row ${active?'active':''} ${current?'current':''}">
+      <div class="tcg-milestone-dot" style="background:${active?t.color:'rgba(245,237,214,0.1)'}"></div>
+      <div class="tcg-milestone-label">${t.label}</div>
+      <div class="tcg-milestone-packs">${t.packs} milestone packs</div>
+    </div>`;
+  }).join('');
+
+  const count = Math.max(tcg.players.length, 4);
+  let inputs = '';
+  for (let i=0; i<count; i++) {
+    inputs += `<div class="tcg-input-wrap">
+      <input id="tcginput-${i}" class="tcg-player-input" placeholder="Player ${i+1}"
+        value="${(tcg.players[i]||'').replace(/"/g,'&quot;')}"
+        oninput="tcg.players[${i}]=this.value;tcgShowAC(${i},this.value);tcgRenderSetup()"
+        onblur="setTimeout(()=>{const a=document.getElementById('tcgac-${i}');if(a)a.classList.remove('open')},150)"
+      />
+      <div class="tcg-autocomplete" id="tcgac-${i}"></div>
+    </div>`;
+  }
+
+  app.innerHTML = `
+    <div class="tcg-phase-badge">Setup</div>
+    <div class="tcg-layout">
+      <div>
+        <div class="card">
+          <div class="card-label">👥 Players <span style="color:rgba(245,237,214,0.3);font-size:0.8rem">(${filledPlayers} entered)</span></div>
+          <div class="tcg-player-grid" id="tcgPlayerGrid">${inputs}</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+            <button class="btn ghost" onclick="tcgAddPlayer()">+ Add Player</button>
+            <button class="btn ghost" onclick="tcgRemovePlayer()">− Remove</button>
+            <button class="btn" onclick="tcgStart()" ${filledPlayers < 2 ? 'disabled' : ''}>Start Event →</button>
+            <button class="btn danger" onclick="tcgReset()" style="margin-left:auto">Reset</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-label">📦 Attendance Milestones</div>
+          ${milestoneRows}
+          <div style="margin-top:12px;padding:12px;background:rgba(201,146,42,0.04);border:1px solid rgba(201,146,42,0.12)">
+            <div style="font-size:0.7rem;color:rgba(245,237,214,0.3);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px">Pack Breakdown — ${filledPlayers} players</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:0.78rem;font-family:'Cinzel',serif">
+              <div style="color:rgba(245,237,214,0.4)">TO Pack: <span style="color:var(--gold)">1</span></div>
+              <div style="color:rgba(245,237,214,0.4)">Door Prize: <span style="color:var(--gold)">1</span></div>
+              <div style="color:rgba(245,237,214,0.4)">Round 1: <span style="color:var(--gold)">${splits.r1}</span></div>
+              <div style="color:rgba(245,237,214,0.4)">Round 2: <span style="color:var(--gold)">${splits.r2}</span></div>
+              <div style="color:rgba(245,237,214,0.4)">Round 3: <span style="color:var(--gold)">${splits.r3}</span></div>
+              <div style="color:var(--parchment)">Total: <span style="color:var(--gold);font-size:1rem">${totalPacks}</span></div>
+            </div>
+          </div>
+          <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(201,146,42,0.1);font-size:0.75rem;color:rgba(245,237,214,0.35);line-height:2">
+            🏆 Win → <span style="color:#40c080">2 tickets</span> &nbsp;·&nbsp;
+            ❌ Loss → <span style="color:#e05060">1 ticket</span> &nbsp;·&nbsp;
+            🚪 Door → <span style="color:var(--gold)">1 ticket (flat)</span>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function tcgRenderEvent() {
+  const app = document.getElementById('tcgApp');
+  if (!app) return;
+  const phase = tcg.phase;
+  const packsPerPhase = tcg.lockedPacks || tcgGetPacksPerPhase();
+  const packsTotal = packsPerPhase[phase];
+  const packsLeft = packsTotal - tcg.packsDrawn[phase];
+  const pool = tcgGetPool(phase);
+  const canDraw = packsLeft > 0 && pool.length > 0 && !tcg.spinning;
+  const isLastPhase = phase === 'r3';
+
+  const rows = tcg.players.filter(p=>p.trim()).map(p => {
+    const eligible = tcgIsEligible(p);
+    const tickets = eligible ? tcgGetTickets(p, phase) : 0;
+    const outcome = (tcg.roundOutcomes[phase]||{})[p] || null;
+    let outcomeBtns = '';
+    if (['r1','r2','r3'].includes(phase)) {
+      outcomeBtns = `
+        <button class="tcg-outcome-btn ${outcome==='win'?'aw':''}" onclick="tcgSetOutcome('${phase}','${p.replace(/'/g,"\\'")}','win')">Win</button>
+        <button class="tcg-outcome-btn ${outcome==='loss'?'al':''}" onclick="tcgSetOutcome('${phase}','${p.replace(/'/g,"\\'")}','loss')">Loss</button>`;
+    }
+    return `<tr class="tcg-row ${!eligible?'ineligible':''}">
+      <td class="tcg-pname">${p}${!eligible?' 🎉':''}</td>
+      <td><div class="tcg-outcome-btns">${outcomeBtns || (phase==='door'?'<span style="font-size:0.72rem;color:rgba(245,237,214,0.25);font-style:italic">flat draw</span>':'—')}</div></td>
+      <td><span class="tcg-tickets ${tickets===0?'zero':''}">${eligible?tickets:'—'}</span></td>
+    </tr>`;
+  }).join('');
+
+  const phaseWinners = tcg.winners.filter(w=>w.phase===phase);
+  const logEntries = phaseWinners.length ? phaseWinners.map(w =>
+    `<div class="tcg-log-entry"><span class="tcg-log-name">${w.name}</span><span class="tcg-log-meta">${w.tickets} ticket${w.tickets!==1?'s':''}</span></div>`
+  ).join('') : '<div style="padding:12px;text-align:center;font-size:0.75rem;color:rgba(245,237,214,0.2);font-style:italic">No winners yet</div>';
+
+  app.innerHTML = `
+    <div class="tcg-phase-badge">${TCG_PHASE_LABELS[phase]}</div>
+    <div class="tcg-layout">
+      <div>
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div class="card-label" style="margin:0">${TCG_PHASE_LABELS[phase]}</div>
+            <div style="display:flex;gap:6px">
+              <span style="font-size:0.72rem;padding:3px 10px;border:1px solid rgba(201,146,42,0.2);color:rgba(245,237,214,0.4)">
+                Eligible: <span style="color:var(--gold)">${tcg.players.filter(p=>p.trim()&&tcgIsEligible(p)).length}</span>
+              </span>
+              <span style="font-size:0.72rem;padding:3px 10px;border:1px solid rgba(201,146,42,0.2);color:rgba(245,237,214,0.4)">
+                Pool: <span style="color:var(--gold)">${pool.length}</span>
+              </span>
+            </div>
+          </div>
+          <table class="tcg-table">
+            <thead><tr><th>Player</th><th>${['r1','r2','r3'].includes(phase)?'Result':'Draw'}</th><th>Tickets</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-label">🃏 Raffle Draw</div>
+          <div class="tcg-pack-display">
+            <div>
+              <div class="tcg-pack-num">${packsLeft}</div>
+              <div class="tcg-pack-label">Packs Left</div>
+            </div>
+            <div style="margin-left:auto;text-align:right">
+              <div class="tcg-pack-num" style="color:rgba(245,237,214,0.25)">${packsTotal}</div>
+              <div class="tcg-pack-label">Total</div>
+            </div>
+          </div>
+          ${tcg.currentWinner && tcg.currentWinner.phase===phase ? `
+          <div class="tcg-winner-box">
+            <div class="tcg-winner-label">🎉 Pack Winner</div>
+            <div class="tcg-winner-name">${tcg.currentWinner.name}</div>
+            <div class="tcg-winner-sub">${tcg.currentWinner.tickets} ticket${tcg.currentWinner.tickets!==1?'s':''} in pool</div>
+          </div>` : ''}
+          <button class="btn" style="width:100%;margin-bottom:8px" onclick="tcgDraw()" ${!canDraw?'disabled':''}>
+            ${tcg.spinning ? '⟳ Drawing…' : packsLeft===0 ? 'No Packs Left' : pool.length===0 ? 'No Eligible Players' : '🎲 Draw Winner'}
+          </button>
+          ${packsLeft===0 && !isLastPhase ? `<button class="btn ghost" style="width:100%;margin-bottom:6px" onclick="tcgNextPhase()">Next Phase →</button>` : ''}
+          ${isLastPhase && packsLeft===0 ? `<button class="btn danger" style="width:100%" onclick="tcgReset()">End Event / Reset</button>` : ''}
+          <div style="display:flex;justify-content:space-between;gap:8px;margin-top:8px">
+            ${phase!=='door'?`<button class="btn ghost" style="font-size:0.75rem;padding:5px 10px" onclick="tcgPrevPhase()">← Back</button>`:''}
+            ${packsLeft>0?`<button class="btn ghost" style="font-size:0.75rem;padding:5px 10px;margin-left:auto" onclick="tcgNextPhase()">Skip →</button>`:''}
+          </div>
+          <div class="card-label" style="margin-top:14px">Winners This Phase</div>
+          <div class="tcg-log">${logEntries}</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function tcgAddPlayer() { tcg.players.push(''); tcgRender(); }
+function tcgRemovePlayer() { if (tcg.players.length > 1) { tcg.players.pop(); tcgRender(); } }
+function tcgStart() {
+  tcg.players = tcg.players.filter(p=>p.trim());
+  if (tcg.players.length < 2) return;
+  tcg.lockedPacks = tcgGetPacksPerPhase();
+  tcg.phase = 'door'; tcgRender();
+}
+function tcgSetOutcome(round, player, outcome) {
+  if (!tcg.roundOutcomes[round]) tcg.roundOutcomes[round] = {};
+  tcg.roundOutcomes[round][player] = outcome; tcgRender();
+}
+function tcgDraw() {
+  if (tcg.spinning) return;
+  tcg.spinning = true; tcg.currentWinner = null; tcgRender();
+  setTimeout(() => {
+    const phase = tcg.phase;
+    const pool = tcgGetPool(phase);
+    if (pool.length) {
+      const winner = pool[Math.floor(Math.random() * pool.length)];
+      const tickets = tcgGetTickets(winner, phase);
+      tcg.winners.push({name:winner, phase, tickets});
+      tcg.currentWinner = {name:winner, phase, tickets};
+      tcg.packsDrawn[phase]++;
+    }
+    tcg.spinning = false; tcgRender();
+  }, 500);
+}
+function tcgNextPhase() {
+  const idx = TCG_PHASES.indexOf(tcg.phase);
+  if (idx < TCG_PHASES.length-1) { tcg.phase = TCG_PHASES[idx+1]; tcg.currentWinner = null; tcgRender(); }
+}
+function tcgPrevPhase() {
+  const idx = TCG_PHASES.indexOf(tcg.phase);
+  if (idx > 1) { tcg.phase = TCG_PHASES[idx-1]; tcg.currentWinner = null; tcgRender(); }
+}
+function tcgReset() {
+  tcg = { phase:'setup', players:['','','',''], winners:[], currentWinner:null,
+    roundOutcomes:{}, packsDrawn:{door:0,r1:0,r2:0,r3:0}, lockedPacks:null, spinning:false };
+  tcgRender();
+}
+
+
 
 </script>
 </body>
