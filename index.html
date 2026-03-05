@@ -1572,6 +1572,49 @@ function tcgRender() {
   else tcgRenderEvent();
 }
 
+function tcgUpdateSummary() {
+  // Update pack summary without re-rendering inputs (preserves focus)
+  const filledPlayers = tcg.players.filter(p=>p.trim()).length;
+  const milestone = tcgGetMilestone(filledPlayers);
+  const splits = TCG_MILESTONE_SPLITS[milestone];
+  const totalPacks = 1 + 1 + milestone;
+  const tiers = [
+    {label:'<8 players', players:0,  packs:0, color:'rgba(245,237,214,0.2)'},
+    {label:'8+ players', players:8,  packs:3, color:'#e05060'},
+    {label:'12+ players',players:12, packs:5, color:'#6090e0'},
+    {label:'16+ players',players:16, packs:7, color:'#40c080'},
+  ];
+  const milestoneEl = document.getElementById('tcgMilestones');
+  if (milestoneEl) {
+    milestoneEl.innerHTML = tiers.map(t => {
+      const active = t.players === 0 ? milestone === 0 : filledPlayers >= t.players;
+      const current = milestone === t.packs;
+      return `<div class="tcg-milestone-row ${active?'active':''} ${current?'current':''}">
+        <div class="tcg-milestone-dot" style="background:${active?t.color:'rgba(245,237,214,0.1)'}"></div>
+        <div class="tcg-milestone-label">${t.label}</div>
+        <div class="tcg-milestone-packs">${t.packs} milestone packs</div>
+      </div>`;
+    }).join('');
+  }
+  const summaryEl = document.getElementById('tcgPackSummary');
+  if (summaryEl) {
+    summaryEl.innerHTML = `
+      <div style="font-size:0.7rem;color:rgba(245,237,214,0.3);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px">Pack Breakdown — ${filledPlayers} players</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:0.78rem;font-family:'Cinzel',serif">
+        <div style="color:rgba(245,237,214,0.4)">TO Pack: <span style="color:var(--gold)">1</span></div>
+        <div style="color:rgba(245,237,214,0.4)">Door Prize: <span style="color:var(--gold)">1</span></div>
+        <div style="color:rgba(245,237,214,0.4)">Round 1: <span style="color:var(--gold)">${splits.r1}</span></div>
+        <div style="color:rgba(245,237,214,0.4)">Round 2: <span style="color:var(--gold)">${splits.r2}</span></div>
+        <div style="color:rgba(245,237,214,0.4)">Round 3: <span style="color:var(--gold)">${splits.r3}</span></div>
+        <div style="color:var(--parchment)">Total: <span style="color:var(--gold);font-size:1rem">${totalPacks}</span></div>
+      </div>`;
+  }
+  const startBtn = document.getElementById('tcgStartBtn');
+  if (startBtn) startBtn.disabled = filledPlayers < 2;
+  const countEl = document.getElementById('tcgPlayerCount');
+  if (countEl) countEl.textContent = `(${filledPlayers} entered)`;
+}
+
 function tcgRenderSetup() {
   const app = document.getElementById('tcgApp');
   if (!app) return;
@@ -1603,7 +1646,7 @@ function tcgRenderSetup() {
     inputs += `<div class="tcg-input-wrap">
       <input id="tcginput-${i}" class="tcg-player-input" placeholder="Player ${i+1}"
         value="${(tcg.players[i]||'').replace(/"/g,'&quot;')}"
-        oninput="tcg.players[${i}]=this.value;tcgShowAC(${i},this.value);tcgRenderSetup()"
+        oninput="tcg.players[${i}]=this.value;tcgShowAC(${i},this.value);tcgUpdateSummary()"
         onblur="setTimeout(()=>{const a=document.getElementById('tcgac-${i}');if(a)a.classList.remove('open')},150)"
       />
       <div class="tcg-autocomplete" id="tcgac-${i}"></div>
@@ -1615,12 +1658,12 @@ function tcgRenderSetup() {
     <div class="tcg-layout">
       <div>
         <div class="card">
-          <div class="card-label">👥 Players <span style="color:rgba(245,237,214,0.3);font-size:0.8rem">(${filledPlayers} entered)</span></div>
+          <div class="card-label">👥 Players <span id="tcgPlayerCount" style="color:rgba(245,237,214,0.3);font-size:0.8rem">(${filledPlayers} entered)</span></div>
           <div class="tcg-player-grid" id="tcgPlayerGrid">${inputs}</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
             <button class="btn ghost" onclick="tcgAddPlayer()">+ Add Player</button>
             <button class="btn ghost" onclick="tcgRemovePlayer()">− Remove</button>
-            <button class="btn" onclick="tcgStart()" ${filledPlayers < 2 ? 'disabled' : ''}>Start Event →</button>
+            <button class="btn" id="tcgStartBtn" onclick="tcgStart()" ${filledPlayers < 2 ? 'disabled' : ''}>Start Event →</button>
             <button class="btn danger" onclick="tcgReset()" style="margin-left:auto">Reset</button>
           </div>
         </div>
@@ -1628,8 +1671,8 @@ function tcgRenderSetup() {
       <div>
         <div class="card">
           <div class="card-label">📦 Attendance Milestones</div>
-          ${milestoneRows}
-          <div style="margin-top:12px;padding:12px;background:rgba(201,146,42,0.04);border:1px solid rgba(201,146,42,0.12)">
+          <div id="tcgMilestones">${milestoneRows}</div>
+          <div id="tcgPackSummary" style="margin-top:12px;padding:12px;background:rgba(201,146,42,0.04);border:1px solid rgba(201,146,42,0.12)">
             <div style="font-size:0.7rem;color:rgba(245,237,214,0.3);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px">Pack Breakdown — ${filledPlayers} players</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:0.78rem;font-family:'Cinzel',serif">
               <div style="color:rgba(245,237,214,0.4)">TO Pack: <span style="color:var(--gold)">1</span></div>
