@@ -523,6 +523,60 @@
     .tcg-milestone-packs { font-family: 'Cinzel', serif; font-size: 0.75rem; color: rgba(245,237,214,0.3); }
     .tcg-milestone-row.active .tcg-milestone-packs { color: var(--gold); }
 
+
+    /* ── INFRACTIONS ── */
+    .warn-layout { display: grid; grid-template-columns: 300px 1fr; gap: 24px; align-items: start; }
+    @media (max-width: 860px) { .warn-layout { grid-template-columns: 1fr; } }
+
+    .warn-field { margin-bottom: 12px; }
+    .warn-field label { display: block; font-size: 0.72rem; color: rgba(245,237,214,0.35); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; font-family: 'Cinzel', serif; }
+    .warn-select, .warn-input, .warn-textarea {
+      width: 100%; background: rgba(26,18,9,0.6); border: 1px solid rgba(201,146,42,0.2);
+      color: var(--parchment); font-family: 'Crimson Pro', serif; font-size: 0.9rem;
+      padding: 7px 10px; outline: none; transition: border-color 0.2s;
+    }
+    .warn-select:focus, .warn-input:focus, .warn-textarea:focus { border-color: rgba(201,146,42,0.5); }
+    .warn-textarea { resize: vertical; min-height: 72px; }
+
+    .sev-btns { display: flex; gap: 6px; }
+    .sev-btn {
+      flex: 1; padding: 7px; font-family: 'Cinzel', serif; font-size: 0.65rem; letter-spacing: 0.08em;
+      border: 1px solid rgba(201,146,42,0.15); background: rgba(26,18,9,0.4);
+      color: rgba(245,237,214,0.3); cursor: pointer; transition: all 0.15s; text-transform: uppercase;
+    }
+    .sev-btn:hover { border-color: rgba(201,146,42,0.4); color: var(--parchment); }
+    .sev-btn.sel-warning  { border-color: #e8b84b; color: #e8b84b; background: rgba(232,184,75,0.1); }
+    .sev-btn.sel-gameloss { border-color: #e05060; color: #e05060; background: rgba(224,80,96,0.1); }
+    .sev-btn.sel-dq       { border-color: #c0392b; color: #c0392b; background: rgba(139,58,26,0.15); }
+
+    .warn-stats { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+    .warn-stat  { padding: 5px 14px; border: 1px solid rgba(201,146,42,0.15); font-family: 'Cinzel', serif; font-size: 0.68rem; color: rgba(245,237,214,0.35); letter-spacing: 0.08em; }
+    .warn-stat span { color: var(--gold-light); }
+
+    .warn-filters { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+    .warn-filters select { background: rgba(26,18,9,0.6); border: 1px solid rgba(201,146,42,0.15); color: rgba(245,237,214,0.5); font-family: 'Crimson Pro', serif; font-size: 0.85rem; padding: 5px 10px; outline: none; }
+
+    .warn-log { display: flex; flex-direction: column; gap: 8px; }
+    .warn-entry { border: 1px solid rgba(201,146,42,0.12); padding: 14px 16px; background: rgba(201,146,42,0.03); position: relative; }
+    .warn-entry.sev-warning  { border-left: 3px solid #e8b84b; }
+    .warn-entry.sev-gameloss { border-left: 3px solid #e05060; }
+    .warn-entry.sev-dq       { border-left: 3px solid #c0392b; background: rgba(139,58,26,0.06); }
+    .warn-entry-top { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
+
+    .warn-badge { font-family: 'Cinzel', serif; font-size: 0.58rem; letter-spacing: 0.1em; padding: 2px 8px; text-transform: uppercase; font-weight: 600; }
+    .warn-badge.sev-warning  { background: rgba(232,184,75,0.1);  color: #e8b84b; border: 1px solid rgba(232,184,75,0.3); }
+    .warn-badge.sev-gameloss { background: rgba(224,80,96,0.1);   color: #e05060; border: 1px solid rgba(224,80,96,0.3); }
+    .warn-badge.sev-dq       { background: rgba(139,58,26,0.15);  color: #c0392b; border: 1px solid rgba(139,58,26,0.35); }
+
+    .warn-player { font-family: 'Cinzel', serif; font-size: 0.85rem; color: var(--parchment); font-weight: 600; }
+    .warn-event  { font-size: 0.75rem; color: rgba(245,237,214,0.3); font-style: italic; }
+    .warn-type   { font-size: 0.78rem; color: var(--gold); font-family: 'Cinzel', serif; font-size: 0.72rem; }
+    .warn-note   { font-size: 0.85rem; color: rgba(245,237,214,0.55); line-height: 1.5; margin-top: 4px; }
+    .warn-meta   { font-size: 0.68rem; color: rgba(245,237,214,0.2); margin-top: 6px; }
+    .warn-del    { position: absolute; top: 10px; right: 10px; background: none; border: none; color: rgba(245,237,214,0.12); cursor: pointer; font-size: 0.85rem; transition: color 0.15s; }
+    .warn-del:hover { color: #e05060; }
+    .warn-empty  { text-align: center; padding: 40px; font-size: 0.85rem; color: rgba(245,237,214,0.18); font-style: italic; }
+
   </style>
 </head>
 <body>
@@ -560,6 +614,9 @@
       </div>
       <div class="sidebar-nav-item" id="snav-tcg" onclick="showTab('tcg'); closeSidebar()">
         <span class="sidebar-nav-icon">🎲</span> TCG Raffle
+      </div>
+      <div class="sidebar-nav-item" id="snav-infractions" onclick="showTab('infractions'); closeSidebar()">
+        <span class="sidebar-nav-icon">⚠</span> Infractions
       </div>
       <div class="sidebar-divider"></div>
       <div class="sidebar-nav-item" id="snav-settings" onclick="showTab('settings'); closeSidebar()">
@@ -780,6 +837,77 @@
     <div id="tcgApp"></div>
   </div>
 
+  <!-- INFRACTIONS -->
+  <div class="panel" id="tab-infractions">
+    <div class="panel-title">Infractions</div>
+    <p class="panel-desc">Record warnings and penalties tied to players and events</p>
+    <div class="divider"></div>
+    <div class="warn-layout">
+
+      <!-- LEFT: Form -->
+      <div>
+        <div class="card">
+          <div class="card-label">⚠ Issue Infraction</div>
+
+          <div class="warn-field">
+            <label>Player</label>
+            <select class="warn-select" id="warnPlayer">
+              <option value="">— Select player —</option>
+            </select>
+          </div>
+
+          <div class="warn-field">
+            <label>Event</label>
+            <select class="warn-select" id="warnEvent">
+              <option value="">— Select event —</option>
+            </select>
+          </div>
+
+          <div class="warn-field">
+            <label>Infraction Type</label>
+            <input class="warn-input" id="warnType" placeholder="e.g. Slow play, Marked cards…"/>
+          </div>
+
+          <div class="warn-field">
+            <label>Severity</label>
+            <div class="sev-btns" id="warnSevBtns">
+              <button class="sev-btn" onclick="warnSelectSev('warning')">Warning</button>
+              <button class="sev-btn" onclick="warnSelectSev('gameloss')">Game Loss</button>
+              <button class="sev-btn" onclick="warnSelectSev('dq')">DQ</button>
+            </div>
+          </div>
+
+          <div class="warn-field">
+            <label>Notes (optional)</label>
+            <textarea class="warn-textarea" id="warnNotes" placeholder="Additional details…"></textarea>
+          </div>
+
+          <button class="btn" onclick="adminGate('warnSubmit')">Record Infraction</button>
+          <p id="warnFormStatus" style="margin-top:8px;font-size:0.8rem;min-height:1em;font-style:italic;color:rgba(245,237,214,0.35)"></p>
+        </div>
+      </div>
+
+      <!-- RIGHT: Log -->
+      <div>
+        <div class="warn-stats" id="warnStats"></div>
+        <div class="warn-filters">
+          <select id="warnFilterPlayer" onchange="renderWarnLog()"><option value="">All Players</option></select>
+          <select id="warnFilterEvent"  onchange="renderWarnLog()"><option value="">All Events</option></select>
+          <select id="warnFilterSev"    onchange="renderWarnLog()">
+            <option value="">All Severities</option>
+            <option value="warning">Warning</option>
+            <option value="gameloss">Game Loss</option>
+            <option value="dq">DQ</option>
+          </select>
+        </div>
+        <div class="warn-log" id="warnLog">
+          <div class="warn-empty">No infractions recorded</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <!-- MORE TOOLS -->
   <div class="panel" id="tab-more">
     <div class="panel-title">More Tools</div>
@@ -870,6 +998,7 @@ function showTab(id) {
   if (snavEl) snavEl.classList.add('active');
   if (id === 'settings') initSettingsPanel();
   if (id === 'tcg') tcgRender();
+  if (id === 'infractions') initInfractionsPanel();
 }
 
 // ── GIST CONFIG ───────────────────────────────────────
@@ -1201,6 +1330,8 @@ function submitAdminPw() {
   else if (adminAction === 'reset') openModal();
   else if (adminAction === 'raffleReset') raffleReset();
   else if (adminAction === 'rosterToggle') rosterToggle(adminActionArg);
+  else if (adminAction === 'warnSubmit') warnSubmit();
+  else if (adminAction === 'warnDelete') warnDelete(adminActionArg);
   else if (adminAction === 'rosterAll') rosterSetAll(true);
   else if (adminAction === 'rosterNone') rosterSetAll(false);
   adminAction = null; adminActionArg = null;
@@ -1826,6 +1957,149 @@ function tcgReset() {
 }
 
 
+
+// ── INFRACTIONS ───────────────────────────────────────
+let warnSeverity = '';
+
+function warnSelectSev(sev) {
+  warnSeverity = sev;
+  document.querySelectorAll('#warnSevBtns .sev-btn').forEach(b => {
+    b.className = 'sev-btn';
+  });
+  const labels = { warning: 'Warning', gameloss: 'Game Loss', dq: 'DQ' };
+  const btns = document.querySelectorAll('#warnSevBtns .sev-btn');
+  const idx = { warning: 0, gameloss: 1, dq: 2 };
+  if (btns[idx[sev]]) btns[idx[sev]].classList.add('sel-' + sev);
+}
+
+function warnPopulateForm() {
+  const data = load();
+  const players = getAllPlayers(data);
+  const playerSel = document.getElementById('warnPlayer');
+  const eventSel  = document.getElementById('warnEvent');
+  const fpSel     = document.getElementById('warnFilterPlayer');
+  const feSel     = document.getElementById('warnFilterEvent');
+  if (!playerSel || !eventSel) return;
+
+  const prevP = playerSel.value, prevE = eventSel.value;
+  playerSel.innerHTML = '<option value="">— Select player —</option>' +
+    players.map(p => `<option value="${p.uid}">${p.display}</option>`).join('');
+  eventSel.innerHTML = '<option value="">— Select event —</option>' +
+    (data.events||[]).map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+  if (prevP) playerSel.value = prevP;
+  if (prevE) eventSel.value  = prevE;
+
+  fpSel.innerHTML = '<option value="">All Players</option>' +
+    players.map(p => `<option value="${p.uid}">${p.display}</option>`).join('');
+  feSel.innerHTML = '<option value="">All Events</option>' +
+    (data.events||[]).map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+}
+
+function warnSubmit() {
+  const playerEl = document.getElementById('warnPlayer');
+  const eventEl  = document.getElementById('warnEvent');
+  const typeEl   = document.getElementById('warnType');
+  const notesEl  = document.getElementById('warnNotes');
+  const status   = document.getElementById('warnFormStatus');
+
+  const playerUid = playerEl?.value;
+  const eventId   = eventEl?.value;
+  const type      = typeEl?.value.trim();
+
+  if (!playerUid || !eventId || !type || !warnSeverity) {
+    status.textContent = 'Please fill in all fields and select a severity.';
+    status.style.color = '#e05060';
+    setTimeout(() => status.textContent = '', 3000);
+    return;
+  }
+
+  const data = load();
+  if (!data.infractions) data.infractions = [];
+
+  const playerName = getAllPlayers(data).find(p => p.uid === playerUid)?.display || playerUid;
+  const eventName  = (data.events||[]).find(e => e.id === eventId)?.name || eventId;
+
+  data.infractions.push({
+    id: Date.now().toString(),
+    playerUid, playerName, eventId, eventName,
+    type, severity: warnSeverity,
+    notes: notesEl?.value.trim() || '',
+    date: new Date().toLocaleDateString('en-GB')
+  });
+
+  save(data);
+
+  // Reset form
+  if (typeEl)  typeEl.value  = '';
+  if (notesEl) notesEl.value = '';
+  warnSeverity = '';
+  document.querySelectorAll('#warnSevBtns .sev-btn').forEach(b => b.className = 'sev-btn');
+  status.textContent = '✓ Infraction recorded';
+  status.style.color = '#4caf50';
+  setTimeout(() => status.textContent = '', 3000);
+
+  renderWarnLog();
+}
+
+function warnDelete(id) {
+  const data = load();
+  data.infractions = (data.infractions || []).filter(i => i.id !== id);
+  save(data);
+  renderWarnLog();
+}
+
+function renderWarnLog() {
+  const data = load();
+  const infractions = data.infractions || [];
+
+  // Stats
+  const statsEl = document.getElementById('warnStats');
+  if (statsEl) {
+    const w  = infractions.filter(i => i.severity === 'warning').length;
+    const gl = infractions.filter(i => i.severity === 'gameloss').length;
+    const dq = infractions.filter(i => i.severity === 'dq').length;
+    statsEl.innerHTML = `
+      <div class="warn-stat">Total <span>${infractions.length}</span></div>
+      <div class="warn-stat">Warnings <span>${w}</span></div>
+      <div class="warn-stat">Game Loss <span>${gl}</span></div>
+      <div class="warn-stat">DQ <span>${dq}</span></div>`;
+  }
+
+  // Filter
+  const fp  = document.getElementById('warnFilterPlayer')?.value || '';
+  const fe  = document.getElementById('warnFilterEvent')?.value  || '';
+  const fs  = document.getElementById('warnFilterSev')?.value    || '';
+  let shown = infractions
+    .filter(i => (!fp || i.playerUid === fp) && (!fe || i.eventId === fe) && (!fs || i.severity === fs))
+    .slice().reverse();
+
+  const log = document.getElementById('warnLog');
+  if (!log) return;
+
+  if (!shown.length) {
+    log.innerHTML = `<div class="warn-empty">${infractions.length ? 'No matching infractions' : 'No infractions recorded'}</div>`;
+    return;
+  }
+
+  const sevLabels = { warning: 'Warning', gameloss: 'Game Loss', dq: 'DQ' };
+  log.innerHTML = shown.map(i => `
+    <div class="warn-entry sev-${i.severity}">
+      <button class="warn-del" onclick="adminGate('warnDelete','${i.id}')">✕</button>
+      <div class="warn-entry-top">
+        <span class="warn-badge sev-${i.severity}">${sevLabels[i.severity]}</span>
+        <span class="warn-player">${i.playerName}</span>
+        <span class="warn-event">${i.eventName}</span>
+      </div>
+      <div class="warn-type">${i.type}</div>
+      ${i.notes ? `<div class="warn-note">${i.notes}</div>` : ''}
+      <div class="warn-meta">Recorded ${i.date}</div>
+    </div>`).join('');
+}
+
+function initInfractionsPanel() {
+  warnPopulateForm();
+  renderWarnLog();
+}
 
 </script>
 </body>
