@@ -1499,7 +1499,7 @@ function raffleReset() {
 
 function getRaffleEntrants() {
   const data = load();
-  const standings = buildStandings(data.events, data.roster);
+  const standings = buildStandings(data.events); // no roster filter — all attendees eligible
   const baseline = data.raffleBaseline || {};
   return standings
     .map(p => {
