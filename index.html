@@ -89,6 +89,7 @@
     }
     .brand { font-family: 'Cinzel', serif; font-size: 1.1rem; font-weight: 700; color: var(--gold-light); letter-spacing: 0.15em; display: flex; align-items: center; gap: 10px; }
     .brand-rune { font-size: 1.3rem; filter: drop-shadow(0 0 6px rgba(201,146,42,0.5)); }
+    .city-label { font-size: 0.7rem; color: rgba(245,237,214,0.45); letter-spacing: 0.18em; text-transform: uppercase; margin-left: 6px; align-self: flex-end; padding-bottom: 1px; }
     .lock-out-btn {
       background: none; border: 1px solid rgba(201,146,42,0.25); color: rgba(245,237,214,0.45);
       font-family: 'Crimson Pro', serif; font-size: 0.8rem; padding: 5px 14px;
@@ -602,7 +603,7 @@
   <!-- SIDEBAR DRAWER -->
   <div class="sidebar-drawer" id="sidebarDrawer">
     <div class="sidebar-header">
-      <div class="sidebar-brand">⚔️ RIFTBOUND</div>
+      <div class="sidebar-brand">⚔️ RIFTBOUND<div style="font-size:0.65rem;letter-spacing:0.15em;opacity:0.5;margin-top:2px;" class="city-label"></div></div>
       <button class="sidebar-close" onclick="closeSidebar()">✕</button>
     </div>
     <nav class="sidebar-nav">
@@ -634,7 +635,7 @@
 
   <div id="topbar">
     <button class="menu-btn" onclick="openSidebar()">☰</button>
-    <div class="brand"><span class="brand-rune">⚔️</span>RIFTBOUND</div>
+    <div class="brand"><span class="brand-rune">⚔️</span>RIFTBOUND<span class="city-label"></span></div>
     <div style="width:60px"></div>
   </div>
 
@@ -774,9 +775,16 @@
 
     <div style="max-width:480px">
       <div class="card">
+        <div class="card-label">🏙️ Active City</div>
+        <p style="font-size:0.82rem;color:rgba(245,237,214,0.4);margin-bottom:14px;line-height:1.6;">
+          Each city has its own data, Gist, and passwords. Log out and use the other city's passphrase to switch.
+        </p>
+        <div id="activeCityDisplay" style="font-family:'Cinzel',serif;font-size:1.1rem;color:var(--gold-light);letter-spacing:0.12em;padding:10px 0 4px;"></div>
+      </div>
+      <div class="card">
         <div class="card-label">🔒 Passwords</div>
         <p style="font-size:0.82rem;color:rgba(245,237,214,0.4);margin-bottom:14px;line-height:1.6;">
-          Saved to your Gist — overrides the hardcoded defaults in the HTML file.
+          Saved to this city's Gist — applies only to the active city.
         </p>
         <label style="font-size:0.75rem;color:rgba(245,237,214,0.35);letter-spacing:0.08em;text-transform:uppercase;display:block;margin-bottom:4px">Entry Password</label>
         <input type="password" id="pwSettingInput" class="lock-input"
@@ -947,17 +955,59 @@
 <script>
 // ── PASSWORDS ─────────────────────────────────────────
 // Hardcoded fallbacks — override by saving in Settings (stored in Gist)
-const PW_DEFAULT       = 'riftbound2026';
-const ADMIN_PW_DEFAULT = 'ZenithBlade';
+// ── CITY CONFIG ───────────────────────────────────────
+const CITIES = {
+  abudhabi: {
+    label:       'Abu Dhabi',
+    gistId:      '9963bf3fce242d108eab3f0b5a6a416e',
+    gistFile:    'riftbound.json',
+    localKey:    'rb_league_abudhabi',
+    pwDefault:   'riftbound2026',
+    adminDefault:'ZenithBlade',
+  },
+  dubai: {
+    label:       'Dubai',
+    gistId:      '60edd70404e9200848085d8fd3f8d157',
+    gistFile:    'riftbound_dubai.json',
+    localKey:    'rb_league_dubai',
+    pwDefault:   'riftbounddubai2026',
+    adminDefault:'IcathianRain',
+  },
+};
 
-function getPassword()      { return load().config?.password      || PW_DEFAULT; }
-function getAdminPassword() { return load().config?.adminPassword || ADMIN_PW_DEFAULT; }
+let activeCity = null; // set on unlock
+
+function getCityConfig()    { return CITIES[activeCity]; }
+function getPassword()      { return load().config?.password      || getCityConfig().pwDefault; }
+function getAdminPassword() { return load().config?.adminPassword || getCityConfig().adminDefault; }
+
+function detectCity(pw) {
+  // Check against stored passwords for each city (checking local data first)
+  for (const [key, cfg] of Object.entries(CITIES)) {
+    let stored;
+    try { stored = JSON.parse(localStorage.getItem(cfg.localKey) || '{}'); } catch { stored = {}; }
+    const match = stored.config?.password || cfg.pwDefault;
+    if (pw === match) return key;
+  }
+  return null;
+}
+
+function setCityLabel() {
+  const cfg = getCityConfig();
+  const label = cfg ? cfg.label : '';
+  document.querySelectorAll('.city-label').forEach(el => el.textContent = label);
+}
 
 function unlock() {
-  if (document.getElementById('pwInput').value === getPassword()) {
+  const pw = document.getElementById('pwInput').value;
+  const city = detectCity(pw);
+  if (city) {
+    activeCity = city;
+    sessionStorage.setItem('rb_auth', '1');
+    sessionStorage.setItem('rb_city', city);
     document.getElementById('lockScreen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
-    sessionStorage.setItem('rb_auth', '1');
+    setCityLabel();
     initApp();
   } else {
     const e = document.getElementById('lockErr');
@@ -968,14 +1018,18 @@ function unlock() {
 }
 function lockOut() {
   sessionStorage.removeItem('rb_auth');
+  sessionStorage.removeItem('rb_city');
+  activeCity = null;
   document.getElementById('lockScreen').style.display = 'flex';
   document.getElementById('app').style.display = 'none';
   document.getElementById('pwInput').value = '';
 }
 document.getElementById('pwInput').addEventListener('keydown', e => { if (e.key === 'Enter') unlock(); });
 if (sessionStorage.getItem('rb_auth') === '1') {
+  activeCity = sessionStorage.getItem('rb_city') || 'abudhabi';
   document.getElementById('lockScreen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
+  setCityLabel();
 }
 
 // ── SIDEBAR ───────────────────────────────────────────
@@ -1002,18 +1056,19 @@ function showTab(id) {
 }
 
 // ── GIST CONFIG ───────────────────────────────────────
-const GIST_ID   = '9963bf3fce242d108eab3f0b5a6a416e';
-const GIST_FILE = 'riftbound.json';
+// ── GIST CONFIG (city-aware) ─────────────────────────
 function getToken() { return localStorage.getItem('rb_gist_token') || ''; }
 
 // ── DATA ──────────────────────────────────────────────
 // Schema: { events: [{ id, name, date, players: [{uid,name,display,rank,record,mp,pp,ap,total,dns}] }] }
 function load() {
-  try { return JSON.parse(localStorage.getItem('rb_league') || '{"events":[]}'); }
+  const key = getCityConfig()?.localKey || 'rb_league_abudhabi';
+  try { return JSON.parse(localStorage.getItem(key) || '{"events":[]}'); }
   catch { return { events: [] }; }
 }
 function save(d) {
-  localStorage.setItem('rb_league', JSON.stringify(d));
+  const key = getCityConfig()?.localKey || 'rb_league_abudhabi';
+  localStorage.setItem(key, JSON.stringify(d));
   syncToGist(d);
 }
 
@@ -1023,16 +1078,18 @@ function setSyncStatus(msg, color) {
 }
 
 async function syncToGist(data) {
+  const cfg = getCityConfig();
+  if (!cfg) return;
   if (!getToken()) { setSyncStatus('⚠ No token set', '#c0392b'); return; }
   setSyncStatus('⟳ Saving…', 'rgba(201,146,42,0.7)');
   try {
-    const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+    const res = await fetch(`https://api.github.com/gists/${cfg.gistId}`, {
       method: 'PATCH',
       headers: {
         'Authorization': `token ${getToken()}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ files: { [GIST_FILE]: { content: JSON.stringify(data, null, 2) } } })
+      body: JSON.stringify({ files: { [cfg.gistFile]: { content: JSON.stringify(data, null, 2) } } })
     });
     if (!res.ok) throw new Error(res.status);
     setSyncStatus('✓ Saved to Gist', '#4caf50');
@@ -1046,15 +1103,16 @@ async function loadFromGist() {
   if (!getToken()) { setSyncStatus('⚠ Enter token in Settings', '#c0392b'); return load(); }
   setSyncStatus('⟳ Loading…', 'rgba(201,146,42,0.7)');
   try {
-    const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+    const cfg2 = getCityConfig();
+    const res = await fetch(`https://api.github.com/gists/${cfg2.gistId}`, {
       headers: { 'Authorization': `token ${getToken()}` }
     });
     if (!res.ok) throw new Error(res.status);
     const gist = await res.json();
-    const raw = gist.files[GIST_FILE]?.content;
+    const raw = gist.files[cfg2.gistFile]?.content;
     if (raw && raw.trim() !== '{}' && raw.trim() !== '') {
       const data = JSON.parse(raw);
-      localStorage.setItem('rb_league', JSON.stringify(data));
+      localStorage.setItem(cfg2.localKey, JSON.stringify(data));
       setSyncStatus('✓ Loaded from Gist', '#4caf50');
       setTimeout(() => setSyncStatus('', ''), 3000);
       return data;
@@ -1351,13 +1409,13 @@ document.getElementById('adminPwInput').addEventListener('keydown', e => {
 // ── MODAL ─────────────────────────────────────────────
 function openModal()  { document.getElementById('modal').classList.add('open'); }
 function closeModal() { document.getElementById('modal').classList.remove('open'); }
-function doReset()    { localStorage.removeItem('rb_league'); closeModal(); renderAll(); setStatus('All data cleared', ''); }
+function doReset()    { const key = getCityConfig()?.localKey || 'rb_league_abudhabi'; localStorage.removeItem(key); closeModal(); renderAll(); setStatus('All data cleared', ''); }
 
 // Init
 async function initApp() {
   const data = await loadFromGist();
   if (data) {
-    localStorage.setItem('rb_league', JSON.stringify(data));
+    localStorage.setItem(getCityConfig()?.localKey || 'rb_league_abudhabi', JSON.stringify(data));
   }
   renderAll();
 }
@@ -1537,6 +1595,8 @@ function initSettingsPanel() {
   const input = document.getElementById('tokenInput');
   if (input) input.value = t ? '••••••••••••••••••••' : '';
   setTokenStatus(t ? '✓ Token is set' : '⚠ No token saved — sync disabled', t ? '#4caf50' : '#c0392b');
+  const cityEl = document.getElementById('activeCityDisplay');
+  if (cityEl) cityEl.textContent = getCityConfig()?.label || '—';
 }
 function setTokenStatus(msg, color) {
   const el = document.getElementById('tokenStatus');
