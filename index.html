@@ -1105,7 +1105,10 @@ async function loadFromGist() {
   try {
     const cfg2 = getCityConfig();
     const res = await fetch(`https://api.github.com/gists/${cfg2.gistId}`, {
-      headers: { 'Authorization': `token ${getToken()}` }
+      headers: {
+        'Authorization': `token ${getToken()}`,
+        'Cache-Control': 'no-cache'
+      }
     });
     if (!res.ok) throw new Error(res.status);
     const gist = await res.json();
