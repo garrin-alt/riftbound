@@ -1104,20 +1104,10 @@ async function loadFromGist() {
   setSyncStatus('⟳ Loading…', 'rgba(201,146,42,0.7)');
   try {
     const cfg2 = getCityConfig();
-    const res = await fetch(`https://api.github.com/gists/${cfg2.gistId}`, {
-      headers: {
-        'Authorization': `token ${getToken()}`,
-        'Cache-Control': 'no-cache',
-        'If-None-Match': '',
-        'If-Modified-Since': ''
-      }
+    const res = await fetch(`https://api.github.com/gists/${cfg2.gistId}?_=${Date.now()}`, {
+      headers: { 'Authorization': `token ${getToken()}` }
     });
-    if (!res.ok && res.status !== 304) throw new Error(res.status);
-    if (res.status === 304) {
-      setSyncStatus('⚠ Gist cache hit — forcing reload', '#c0392b');
-      setTimeout(() => setSyncStatus('', ''), 3000);
-      return load();
-    }
+    if (!res.ok) throw new Error(res.status);
     const gist = await res.json();
     const raw = gist.files[cfg2.gistFile]?.content;
     if (raw && raw.trim() !== '{}' && raw.trim() !== '') {
