@@ -827,6 +827,16 @@
           Data syncs automatically on every change.
         </div>
       </div>
+      <div class="card">
+        <div class="card-label">💾 Backup & Restore</div>
+        <p style="font-size:0.82rem;color:rgba(245,237,214,0.4);margin-bottom:14px;line-height:1.6;">
+          Download a local backup of your Gist data, or restore from a previous backup file.
+        </p>
+        <button class="btn ghost" onclick="downloadBackup()" style="width:100%;margin-bottom:8px">⬇ Download Backup</button>
+        <button class="btn ghost" onclick="document.getElementById('restoreFileIn').click()" style="width:100%">⬆ Restore from Backup</button>
+        <input type="file" id="restoreFileIn" accept=".json" style="display:none" onchange="restoreBackup(this)"/>
+        <p id="backupStatus" style="margin-top:8px;font-size:0.8rem;min-height:1.2em;font-style:italic;color:rgba(245,237,214,0.4)"></p>
+      </div>
     </div>
   </div>
 
@@ -1057,7 +1067,8 @@ function showTab(id) {
 
 // ── GIST CONFIG ───────────────────────────────────────
 // ── GIST CONFIG (city-aware) ─────────────────────────
-function getToken() { return localStorage.getItem('rb_gist_token') || ''; }
+const GIST_TOKEN = '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';
+function getToken() { return localStorage.getItem('rb_gist_token') || GIST_TOKEN; }
 
 // ── DATA ──────────────────────────────────────────────
 // Schema: { events: [{ id, name, date, players: [{uid,name,display,rank,record,mp,pp,ap,total,dns}] }] }
@@ -1104,9 +1115,7 @@ async function loadFromGist() {
   setSyncStatus('⟳ Loading…', 'rgba(201,146,42,0.7)');
   try {
     const cfg2 = getCityConfig();
-    const res = await fetch(`https://api.github.com/gists/${cfg2.gistId}?_=${Date.now()}`, {
-      headers: { 'Authorization': `token ${getToken()}` }
-    });
+    const res = await fetch(`https://api.github.com/gists/${cfg2.gistId}?_=${Date.now()}`);
     if (!res.ok) throw new Error(res.status);
     const gist = await res.json();
     const raw = gist.files[cfg2.gistFile]?.content;
@@ -2161,6 +2170,41 @@ function initInfractionsPanel() {
   renderWarnLog();
 }
 
+
+// ── BACKUP & RESTORE ──────────────────────────────────
+function downloadBackup() {
+  const data = load();
+  const cfg = getCityConfig();
+  const filename = `riftbound-backup-${cfg?.label?.toLowerCase().replace(' ','-') || 'data'}-${new Date().toISOString().slice(0,10)}.json`;
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  const el = document.getElementById('backupStatus');
+  if (el) { el.textContent = '✓ Backup downloaded'; el.style.color = '#4caf50'; setTimeout(() => el.textContent = '', 3000); }
+}
+
+function restoreBackup(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.events) throw new Error('Invalid backup file');
+      save(data);
+      renderAll();
+      const el = document.getElementById('backupStatus');
+      if (el) { el.textContent = '✓ Restored successfully'; el.style.color = '#4caf50'; setTimeout(() => el.textContent = '', 3000); }
+    } catch(err) {
+      const el = document.getElementById('backupStatus');
+      if (el) { el.textContent = '✗ Invalid backup file'; el.style.color = '#c0392b'; setTimeout(() => el.textContent = '', 3000); }
+    }
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
 </script>
 </body>
 </html>
