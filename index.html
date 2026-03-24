@@ -1107,10 +1107,17 @@ async function loadFromGist() {
     const res = await fetch(`https://api.github.com/gists/${cfg2.gistId}`, {
       headers: {
         'Authorization': `token ${getToken()}`,
-        'Cache-Control': 'no-cache'
+        'Cache-Control': 'no-cache',
+        'If-None-Match': '',
+        'If-Modified-Since': ''
       }
     });
-    if (!res.ok) throw new Error(res.status);
+    if (!res.ok && res.status !== 304) throw new Error(res.status);
+    if (res.status === 304) {
+      setSyncStatus('⚠ Gist cache hit — forcing reload', '#c0392b');
+      setTimeout(() => setSyncStatus('', ''), 3000);
+      return load();
+    }
     const gist = await res.json();
     const raw = gist.files[cfg2.gistFile]?.content;
     if (raw && raw.trim() !== '{}' && raw.trim() !== '') {
@@ -1121,8 +1128,7 @@ async function loadFromGist() {
       return data;
     }
   } catch(e) {
-    setSyncStatus('✗ Gist load failed: ' + e.message, '#c0392b');
-    console.error('loadFromGist error:', e);
+    setSyncStatus('✗ Gist load failed — using local', '#c0392b');
   }
   return load();
 }
