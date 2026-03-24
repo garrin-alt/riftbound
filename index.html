@@ -1121,7 +1121,8 @@ async function loadFromGist() {
       return data;
     }
   } catch(e) {
-    setSyncStatus('✗ Gist load failed — using local', '#c0392b');
+    setSyncStatus('✗ Gist load failed: ' + e.message, '#c0392b');
+    console.error('loadFromGist error:', e);
   }
   return load();
 }
