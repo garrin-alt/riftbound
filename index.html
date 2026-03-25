@@ -623,6 +623,9 @@
       <div class="sidebar-nav-item" id="snav-settings" onclick="showTab('settings'); closeSidebar()">
         <span class="sidebar-nav-icon">⚙</span> Settings
       </div>
+      <div class="sidebar-nav-item" id="snav-judge" onclick="showTab('judge'); closeSidebar()">
+        <span class="sidebar-nav-icon">⚖️</span> Judge Reference
+      </div>
       <div class="sidebar-nav-item" id="snav-more" onclick="showTab('more'); closeSidebar()">
         <span class="sidebar-nav-icon">🔮</span> More Tools
       </div>
@@ -923,6 +926,43 @@
         </div>
       </div>
 
+    </div>
+  </div>
+
+  <!-- JUDGE REFERENCE -->
+  <div class="panel" id="tab-judge">
+    <div class="panel-title">Judge Reference</div>
+    <p class="panel-desc">Ask rules questions — powered by Gemini + official Riftbound documents</p>
+    <div class="divider"></div>
+
+    <div style="max-width:720px">
+      <div class="card">
+        <div class="card-label">⚖️ Ask a Rules Question</div>
+        <p style="font-size:0.82rem;color:rgba(245,237,214,0.4);margin-bottom:14px;line-height:1.6;">
+          References the complete Core Rules, all patch notes, errata, FAQ articles, Tournament Rules, and the full card database.
+        </p>
+        <textarea id="judgeQuestion"
+          style="width:100%;background:rgba(245,237,214,0.05);border:1px solid rgba(201,146,42,0.3);
+          color:var(--parchment);font-family:'Crimson Pro',serif;font-size:1rem;
+          padding:12px 16px;outline:none;resize:vertical;min-height:80px;
+          transition:border-color 0.2s;line-height:1.5;"
+          placeholder="e.g. Can I use a Reaction spell during an opponent's combat showdown?"
+          onkeydown="if(event.key==='Enter'&&event.ctrlKey)askJudge()"
+        ></textarea>
+        <button class="btn" onclick="askJudge()" id="judgeBtn" style="margin-top:8px">
+          ⚖️ Get Ruling
+        </button>
+        <p style="font-size:0.72rem;color:rgba(245,237,214,0.2);margin-top:4px;font-style:italic">Ctrl+Enter to submit</p>
+      </div>
+
+      <div id="judgeAnswer" style="display:none">
+        <div class="card">
+          <div class="card-label">📜 Ruling</div>
+          <div id="judgeAnswerText" style="font-size:0.92rem;line-height:1.8;color:rgba(245,237,214,0.85);white-space:pre-wrap"></div>
+        </div>
+      </div>
+
+      <div id="judgeHistory" style="margin-top:8px"></div>
     </div>
   </div>
 
@@ -2204,6 +2244,62 @@ function restoreBackup(input) {
   };
   reader.readAsText(file);
   input.value = '';
+}
+
+// ── JUDGE REFERENCE ───────────────────────────────────
+const JUDGE_WORKER_URL = 'https://riftbound-judge.astrum812.workers.dev';
+let judgeHistory = [];
+
+async function askJudge() {
+  const question = document.getElementById('judgeQuestion').value.trim();
+  if (!question) return;
+
+  const btn = document.getElementById('judgeBtn');
+  const answerBox = document.getElementById('judgeAnswer');
+  const answerText = document.getElementById('judgeAnswerText');
+
+  btn.disabled = true;
+  btn.textContent = '⟳ Consulting the rules…';
+  answerBox.style.display = 'none';
+
+  try {
+    const res = await fetch(JUDGE_WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question })
+    });
+
+    const data = await res.json();
+
+    if (data.error) throw new Error(data.error);
+
+    answerText.textContent = data.answer;
+    answerBox.style.display = 'block';
+
+    // Add to history
+    judgeHistory.unshift({ question, answer: data.answer });
+    renderJudgeHistory();
+
+    // Clear input
+    document.getElementById('judgeQuestion').value = '';
+
+  } catch(err) {
+    answerText.textContent = '✗ Error: ' + err.message;
+    answerBox.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⚖️ Get Ruling';
+  }
+}
+
+function renderJudgeHistory() {
+  const el = document.getElementById('judgeHistory');
+  if (!el || !judgeHistory.length) return;
+  el.innerHTML = judgeHistory.slice(0, 5).map((h, i) => `
+    <div class="card" style="margin-bottom:10px;opacity:${1 - i * 0.15}">
+      <div class="card-label" style="margin-bottom:8px">Q: ${h.question.length > 80 ? h.question.slice(0,80)+'…' : h.question}</div>
+      <div style="font-size:0.88rem;line-height:1.7;color:rgba(245,237,214,0.65);white-space:pre-wrap">${h.answer}</div>
+    </div>`).join('');
 }
 </script>
 </body>
