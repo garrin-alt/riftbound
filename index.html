@@ -1247,6 +1247,10 @@ function togglePlayerDrop(uid) {
 function getWorstEvent(results) {
   const attended = Object.values(results);
   if (attended.length <= 1) return null;
+  // Priority 1: drop a DNS first
+  const dns = attended.find(r => r.dns);
+  if (dns) return dns;
+  // Priority 2: drop lowest scoring event
   let worst = null;
   attended.forEach(r => {
     if (!worst || r.total < worst.total) worst = r;
