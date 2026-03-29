@@ -737,6 +737,7 @@
     <div class="sidebar-footer">
       <div class="sidebar-sync" id="syncStatus"></div>
       <button class="lock-out-btn" onclick="lockOut()">⚿ Lock</button>
+      <div id="appVersion" style="font-size:0.65rem;color:rgba(245,237,214,0.18);text-align:center;letter-spacing:0.08em;margin-top:4px;font-family:'Crimson Pro',serif;font-style:italic;"></div>
     </div>
   </div>
 
@@ -1216,6 +1217,8 @@
 </div>
 
 <script>
+const APP_VERSION = 'v0.29.3.26';
+
 // ── PASSWORDS ─────────────────────────────────────────
 // Hardcoded fallbacks — override by saving in Settings (stored in Gist)
 // ── CITY CONFIG ───────────────────────────────────────
@@ -1751,6 +1754,8 @@ async function initApp() {
   renderAll();
 }
 if (sessionStorage.getItem('rb_auth') === '1') initApp();
+// Set version display
+(function(){ const el = document.getElementById('appVersion'); if (el) el.textContent = APP_VERSION; })();
 // ── RAFFLE ────────────────────────────────────────────
 let raffleRunning = false;
 
