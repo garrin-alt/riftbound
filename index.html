@@ -1247,10 +1247,10 @@ function togglePlayerDrop(uid) {
 function getWorstEvent(results) {
   const attended = Object.values(results);
   if (attended.length <= 1) return null;
-  // Priority 1: drop a DNS first
-  const dns = attended.find(r => r.dns === true);
-  if (dns) return dns;
-  // Priority 2: drop lowest scoring event
+  // Priority 1: drop absent or DNS first
+  const dnsMiss = attended.find(r => r.dns === true || r.absent === true);
+  if (dnsMiss) return dnsMiss;
+  // Priority 2: drop lowest scoring attended event
   let worst = null;
   attended.forEach(r => {
     if (!worst || r.total < worst.total) worst = r;
@@ -1270,13 +1270,25 @@ function buildStandings(events, roster) {
     });
   });
 
+  // Inject synthetic absent records for events a player didn't appear in
+  Object.values(map).forEach(player => {
+    events.forEach(ev => {
+      if (!player.results[ev.id]) {
+        player.results[ev.id] = {
+          uid: player.uid, name: player.name, display: player.display,
+          rank: 999, record: '0-0-0', mp: 0, pp: 0, ap: 0, total: 0,
+          dns: true, absent: true
+        };
+      }
+    });
+  });
+
   // Apply per-player drops
   Object.values(map).forEach(player => {
     if (playerDrops[player.uid]) {
       const worst = getWorstEvent(player.results);
       if (worst) {
         player.total -= worst.total;
-        // Find the event id (key) for this result
         player.droppedEventId = Object.keys(player.results).find(k => player.results[k] === worst);
         player.dropped = worst;
       }
@@ -1330,8 +1342,9 @@ function renderLB(data, filter = '') {
     const dots = data.events.map(ev => {
       const r = p.results[ev.id];
       const isDropped = p.droppedEventId && p.droppedEventId === ev.id;
-      if (!r)    return `<span class="edot n" title="${ev.name}: absent"></span>`;
-      if (r.dns) return `<span class="edot d" title="${ev.name}: DNS${isDropped?' (dropped)':''}" style="${isDropped?'opacity:0.3;outline:1px solid #c0392b;':''}"></span>`;
+      if (!r)         return `<span class="edot n" title="${ev.name}: absent"></span>`;
+      if (r.absent)   return `<span class="edot n" title="${ev.name}: absent${isDropped?' (dropped)':''}" style="${isDropped?'opacity:0.3;outline:1px solid #c0392b;':''}"></span>`;
+      if (r.dns)      return `<span class="edot d" title="${ev.name}: DNS${isDropped?' (dropped)':''}" style="${isDropped?'opacity:0.3;outline:1px solid #c0392b;':''}"></span>`;
       return `<span class="edot y" title="${ev.name}: ${r.total}pts (rank #${r.rank})${isDropped?' — DROPPED':''}" style="${isDropped?'opacity:0.3;outline:1px solid #c0392b;':''}"></span>`;
     }).join('');
 
@@ -1339,7 +1352,8 @@ function renderLB(data, filter = '') {
       const r = p.results[ev.id];
       if (!r) return null;
       const isDropped = p.droppedEventId && p.droppedEventId === ev.id;
-      if (r.dns) return isDropped ? '<s>DNS</s>' : 'DNS';
+      if (r.absent) return isDropped ? '<s style="color:rgba(245,237,214,0.2)">ABS</s>' : '<span style="color:rgba(245,237,214,0.2)">ABS</span>';
+      if (r.dns)    return isDropped ? '<s>DNS</s>' : 'DNS';
       return isDropped ? `<s>${r.mp}+${r.pp}+${r.ap}</s>` : `${r.mp}+${r.pp}+${r.ap}`;
     }).filter(Boolean).join(' / ');
 
