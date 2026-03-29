@@ -1316,8 +1316,7 @@ function showTab(id) {
 
 // ── GIST CONFIG ───────────────────────────────────────
 // ── GIST CONFIG (city-aware) ─────────────────────────
-const GIST_TOKEN = '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';
-function getToken() { return localStorage.getItem('rb_gist_token') || GIST_TOKEN; }
+function getToken() { return localStorage.getItem('rb_gist_token') || ''; }
 
 // ── DATA ──────────────────────────────────────────────
 // Schema: { events: [{ id, name, date, players: [{uid,name,display,rank,record,mp,pp,ap,total,dns}] }] }
@@ -1360,7 +1359,6 @@ async function syncToGist(data) {
 }
 
 async function loadFromGist() {
-  if (!getToken()) { setSyncStatus('⚠ Enter token in Settings', '#c0392b'); return load(); }
   setSyncStatus('⟳ Loading…', 'rgba(201,146,42,0.7)');
   try {
     const cfg2 = getCityConfig();
