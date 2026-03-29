@@ -1051,9 +1051,7 @@
           transition:border-color 0.2s;line-height:1.5;"
           placeholder="e.g. Can I use a Reaction spell during an opponent's combat showdown?"
         ></textarea>
-        <button class="btn" onclick="askJudge()" id="judgeBtn" style="margin-top:8px">
-          &#9878; Get Ruling
-        </button>
+        <button class="btn" onclick="askJudge()" id="judgeBtn" style="margin-top:8px">&#9878; Get Ruling</button>
         <p style="font-size:0.72rem;color:rgba(245,237,214,0.2);margin-top:4px;font-style:italic">Ctrl+Enter to submit</p>
       </div>
       <div id="judgeAnswer" style="display:none">
@@ -1318,7 +1316,7 @@ function showTab(id) {
 
 // ── GIST CONFIG ───────────────────────────────────────
 // ── GIST CONFIG (city-aware) ─────────────────────────
-const GIST_TOKEN = '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';
+const GIST_TOKEN = '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';
 function getToken() { return localStorage.getItem('rb_gist_token') || GIST_TOKEN; }
 
 // ── DATA ──────────────────────────────────────────────
@@ -2561,13 +2559,6 @@ async function askJudge() {
   }
 }
 
-document.addEventListener('keydown', function(e) {
-  if (e.ctrlKey && e.key === 'Enter') {
-    var active = document.querySelector('.panel.active');
-    if (active && active.id === 'tab-judge') askJudge();
-  }
-});
-
 function renderJudgeHistory() {
   const el = document.getElementById('judgeHistory');
   if (!el || !judgeHistory.length) return;
@@ -2579,6 +2570,7 @@ function renderJudgeHistory() {
   }).join('');
 }
 // -- END JUDGE REFERENCE --
+
 
 // ==================== SWISS TOURNAMENT ====================
 var SW = {
@@ -2975,6 +2967,7 @@ function swInitTab(){ swRenderSetup(); }
   swRenderSetup();
 })();
 // ==================== END SWISS ====================
+
 </script>
 </body>
 </html>
