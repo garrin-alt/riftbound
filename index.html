@@ -1929,21 +1929,16 @@ function getRaffleEntrants() {
   const selectedIds = Object.keys(raffleSelectedEvents);
   if (!selectedIds.length) return [];
   const selectedEvents = data.events.filter(ev => raffleSelectedEvents[ev.id]);
-  const standings = buildStandings(selectedEvents); // only selected events
-  const baseline = data.raffleBaseline || {};
-  // Only subtract baseline tickets earned from events NOT in the current selection
+  const standings = buildStandings(selectedEvents);
+  // Tickets = number of selected events the player attended.
+  // When events are explicitly selected, the selection defines the ticket pool
+  // and the baseline is not applied.
   return standings
     .map(p => {
-      const total = selectedEvents.filter(ev => { const r = p.results[ev.id]; return r && !r.dns && !r.absent; }).length;
-      const baseAll = baseline[p.uid] || 0;
-      // Count how many selected events were already included in the baseline
-      const baseSelected = selectedEvents.filter(ev => {
+      const tickets = selectedEvents.filter(ev => {
         const r = p.results[ev.id];
-        return r && !r.dns && !r.absent && baseline[p.uid] !== undefined;
+        return r && !r.dns && !r.absent;
       }).length;
-      // Only subtract the portion of baseline that came from non-selected events
-      const baseOther = Math.max(0, baseAll - baseSelected);
-      const tickets = Math.max(0, total - baseOther);
       return { display: p.display, uid: p.uid, tickets };
     })
     .filter(p => p.tickets > 0)
