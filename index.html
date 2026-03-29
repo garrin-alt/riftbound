@@ -701,13 +701,7 @@
       <div>
         <div class="lb-toolbar">
           <span class="lb-meta" id="lbMeta">—</span>
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-            <label style="font-size:0.75rem;color:rgba(245,237,214,0.4);display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none">
-              <input type="checkbox" id="dropToggle" onchange="renderAll()" style="accent-color:var(--gold)"/>
-              <span>Drop worst event</span>
-            </label>
-            <input class="lb-search" type="text" placeholder="Search player…" oninput="filterLB(this.value)"/>
-          </div>
+          <input class="lb-search" type="text" placeholder="Search player…" oninput="filterLB(this.value)"/>
         </div>
         <table>
           <thead>
@@ -1242,13 +1236,25 @@ function importEvent() {
 }
 
 // ── STANDINGS ─────────────────────────────────────────
-function getDropToggle() {
-  const el = document.getElementById('dropToggle');
-  return el ? el.checked : false;
+// Per-player drop state: uid -> true/false
+let playerDrops = {};
+
+function togglePlayerDrop(uid) {
+  playerDrops[uid] = !playerDrops[uid];
+  renderAll();
+}
+
+function getWorstEvent(results) {
+  const attended = Object.values(results);
+  if (attended.length <= 1) return null;
+  let worst = null;
+  attended.forEach(r => {
+    if (!worst || r.total < worst.total) worst = r;
+  });
+  return worst;
 }
 
 function buildStandings(events, roster) {
-  const drop = getDropToggle();
   const map = {};
   events.forEach(ev => {
     ev.players.forEach(p => {
@@ -1260,22 +1266,16 @@ function buildStandings(events, roster) {
     });
   });
 
-  // Apply drop: remove worst single event per player if they have >1 event
-  if (drop) {
-    Object.values(map).forEach(player => {
-      const attended = Object.values(player.results);
-      if (attended.length <= 1) return; // can't drop only event
-      // Find worst event (lowest total, DNS counts as 0)
-      let worst = null;
-      attended.forEach(r => {
-        if (!worst || r.total < worst.total) worst = r;
-      });
+  // Apply per-player drops
+  Object.values(map).forEach(player => {
+    if (playerDrops[player.uid]) {
+      const worst = getWorstEvent(player.results);
       if (worst) {
         player.total -= worst.total;
         player.dropped = worst;
       }
-    });
-  }
+    }
+  });
 
   let result = Object.values(map).sort((a, b) => b.total - a.total);
   if (roster) result = result.filter(p => roster[p.uid] !== false);
@@ -1324,17 +1324,17 @@ function renderLB(data, filter = '') {
     const dots = data.events.map(ev => {
       const r = p.results[ev.id];
       const isDropped = p.dropped && p.dropped === r;
-      if (!r)      return `<span class="edot n" title="${ev.name}: absent"></span>`;
-      if (r.dns)   return `<span class="edot d" title="${ev.name}: DNS${isDropped?' (dropped)':''}" style="${isDropped?'outline:1px solid #c0392b;':''}" ></span>`;
-      return `<span class="edot y" title="${ev.name}: ${r.total}pts (rank #${r.rank})${isDropped?' — DROPPED':''}" style="${isDropped?'opacity:0.3;outline:1px solid #c0392b;':''}" ></span>`;
+      if (!r)    return `<span class="edot n" title="${ev.name}: absent"></span>`;
+      if (r.dns) return `<span class="edot d" title="${ev.name}: DNS${isDropped?' (dropped)':''}" style="${isDropped?'opacity:0.3;outline:1px solid #c0392b;':''}"></span>`;
+      return `<span class="edot y" title="${ev.name}: ${r.total}pts (rank #${r.rank})${isDropped?' — DROPPED':''}" style="${isDropped?'opacity:0.3;outline:1px solid #c0392b;':''}"></span>`;
     }).join('');
 
     const bkdn = data.events.map(ev => {
       const r = p.results[ev.id];
       if (!r) return null;
       const isDropped = p.dropped && p.dropped === r;
-      if (r.dns) return isDropped ? '~~DNS~~' : 'DNS';
-      return isDropped ? `~~${r.mp}+${r.pp}+${r.ap}~~` : `${r.mp}+${r.pp}+${r.ap}`;
+      if (r.dns) return isDropped ? '<s>DNS</s>' : 'DNS';
+      return isDropped ? `<s>${r.mp}+${r.pp}+${r.ap}</s>` : `${r.mp}+${r.pp}+${r.ap}`;
     }).filter(Boolean).join(' / ');
 
     const detailEvs = data.events.map(ev => {
@@ -1354,8 +1354,25 @@ function renderLB(data, filter = '') {
     return `
       <tr class="pr" onclick="toggleDet('${p.uid}')">
         <td class="c"><span class="badge ${bc}">${rank}</span></td>
-        <td><div class="p-disp">${p.display}</div><div class="p-real">${p.name}</div></td>
-        <td class="r"><div class="pts-big">${p.total}</div><div class="pts-sm">${bkdn}</div></td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div>
+              <div class="p-disp">${p.display}</div>
+              <div class="p-real">${p.name}</div>
+            </div>
+            ${Object.values(p.results).length > 1 ? `
+            <button onclick="event.stopPropagation();togglePlayerDrop('${p.uid}')"
+              title="${playerDrops[p.uid] ? 'Restore worst event' : 'Drop worst event'}"
+              style="font-size:0.6rem;padding:2px 7px;border:1px solid ${playerDrops[p.uid] ? 'rgba(192,57,43,0.6)' : 'rgba(201,146,42,0.25)'};
+              background:${playerDrops[p.uid] ? 'rgba(192,57,43,0.15)' : 'transparent'};
+              color:${playerDrops[p.uid] ? '#e05060' : 'rgba(245,237,214,0.3)'};
+              cursor:pointer;font-family:'Cinzel',serif;letter-spacing:0.05em;
+              transition:all 0.15s;white-space:nowrap">
+              ${playerDrops[p.uid] ? '✕ drop' : '↓ drop'}
+            </button>` : ''}
+          </div>
+        </td>
+        <td class="r"><div class="pts-big">${p.total}</div><div class="pts-sm" style="font-size:0.68rem">${bkdn}</div></td>
         <td class="c">${dots}</td>
         <td class="c" style="font-size:0.8rem;color:rgba(245,237,214,0.4)">${attended}/${data.events.length}</td>
       </tr>
