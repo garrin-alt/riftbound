@@ -840,7 +840,12 @@
       <!-- LEFT: Ticket list & controls -->
       <div>
         <div class="card">
-          <div class="card-label">🎟 Ticket Pool</div>
+          <div class="card-label">&#128197; Select Events</div>
+          <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);margin-bottom:12px;font-style:italic">Only players from selected events earn tickets. Each selected event = 1 ticket.</p>
+          <div id="raffleEventToggles"><div class="empty-list">No events loaded</div></div>
+        </div>
+        <div class="card">
+          <div class="card-label">&#127999; Ticket Pool</div>
           <div class="ticket-pool" id="ticketPool">
             <div class="empty-list">No eligible players yet</div>
           </div>
@@ -1312,6 +1317,7 @@ function showTab(id) {
   if (id === 'tcg') tcgRender();
   if (id === 'infractions') initInfractionsPanel();
   if (id === 'swiss') swInitTab();
+  if (id === 'raffle') renderRaffleEventToggles();
 }
 
 // ── GIST CONFIG ───────────────────────────────────────
@@ -1880,13 +1886,54 @@ function raffleReset() {
   document.getElementById('winnerAnnounce').classList.remove('show');
 }
 
+// Track which events are selected for raffle (uid -> true)
+var raffleSelectedEvents = {};
+
+function renderRaffleEventToggles() {
+  const data = load();
+  const container = document.getElementById('raffleEventToggles');
+  if (!container) return;
+  if (!data.events || !data.events.length) {
+    container.innerHTML = '<div class="empty-list">No events loaded</div>';
+    return;
+  }
+  container.innerHTML = data.events.map(function(ev) {
+    const selected = raffleSelectedEvents[ev.id] === true;
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(201,146,42,0.08)">' +
+      '<div>' +
+        '<div style="font-size:0.85rem;color:rgba(245,237,214,0.8)">' + ev.name + '</div>' +
+        '<div style="font-size:0.7rem;color:rgba(245,237,214,0.3)">' + ev.date + ' &middot; ' + ev.players.filter(function(p){return !p.dns;}).length + ' players</div>' +
+      '</div>' +
+      '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.72rem;color:rgba(245,237,214,0.4)">' +
+        '<input type="checkbox" ' + (selected ? 'checked' : '') + ' data-evid="' + ev.id + '" onchange="toggleRaffleEvent(this)" style="accent-color:var(--gold)"/>' +
+        (selected ? '<span style="color:var(--gold-light)">Included</span>' : 'Include') +
+      '</label>' +
+    '</div>';
+  }).join('');
+  // Re-render ticket pool after toggle change
+  renderRafflePool();
+}
+
+function toggleRaffleEvent(checkbox) {
+  const evid = checkbox.dataset.evid;
+  if (checkbox.checked) {
+    raffleSelectedEvents[evid] = true;
+  } else {
+    delete raffleSelectedEvents[evid];
+  }
+  renderRaffleEventToggles();
+}
+
 function getRaffleEntrants() {
   const data = load();
-  const standings = buildStandings(data.events); // no roster filter — all attendees eligible
+  const selectedIds = Object.keys(raffleSelectedEvents);
+  if (!selectedIds.length) return [];
+  const selectedEvents = data.events.filter(ev => raffleSelectedEvents[ev.id]);
+  const standings = buildStandings(selectedEvents); // only selected events
   const baseline = data.raffleBaseline || {};
   return standings
     .map(p => {
-      const total = data.events.filter(ev => { const r = p.results[ev.id]; return r && !r.dns; }).length;
+      const total = selectedEvents.filter(ev => { const r = p.results[ev.id]; return r && !r.dns && !r.absent; }).length;
       const base  = baseline[p.uid] || 0;
       const tickets = Math.max(0, total - base);
       return { display: p.display, uid: p.uid, tickets };
