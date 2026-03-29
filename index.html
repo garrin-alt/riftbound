@@ -578,6 +578,107 @@
     .warn-del:hover { color: #e05060; }
     .warn-empty  { text-align: center; padding: 40px; font-size: 0.85rem; color: rgba(245,237,214,0.18); font-style: italic; }
 
+    /* -- SWISS TOURNAMENT -- */
+    .swiss-phase { display: none; }
+    .swiss-phase.active { display: block; }
+    .setup-grid { display: grid; grid-template-columns: 1fr 320px; gap: 32px; }
+    @media(max-width:768px) { .setup-grid { grid-template-columns: 1fr; } }
+    .sec-title { font-family: 'Cinzel', serif; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); margin-bottom: 14px; }
+    .inp { width: 100%; background: rgba(245,237,214,0.05); border: 1px solid rgba(201,146,42,0.25); color: var(--parchment); font-family: 'Crimson Pro', serif; font-size: 1rem; padding: 10px 14px; outline: none; transition: border-color 0.2s; }
+    .inp:focus { border-color: var(--gold); }
+    .inp::placeholder { color: rgba(245,237,214,0.25); font-style: italic; }
+    .add-row { display: flex; gap: 8px; margin-bottom: 10px; position: relative; }
+    .add-row .inp { flex: 1; }
+    .icon-btn { width: 42px; flex-shrink: 0; background: rgba(201,146,42,0.15); border: 1px solid rgba(201,146,42,0.3); color: var(--gold-light); font-size: 1.3rem; cursor: pointer; transition: all 0.15s; }
+    .icon-btn:hover { background: rgba(201,146,42,0.3); }
+    .ac-list { position: absolute; top: 100%; left: 0; right: 42px; z-index: 100; background: #1a1410; border: 1px solid rgba(201,146,42,0.3); border-top: none; max-height: 180px; overflow-y: auto; display: none; }
+    .ac-list.open { display: block; }
+    .ac-opt { padding: 8px 14px; font-size: 0.9rem; cursor: pointer; color: rgba(245,237,214,0.7); border-bottom: 1px solid rgba(201,146,42,0.08); }
+    .ac-opt:hover { background: rgba(201,146,42,0.12); color: var(--parchment); }
+    .plist { display: flex; flex-direction: column; gap: 4px; max-height: 300px; overflow-y: auto; }
+    .pchip { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: rgba(201,146,42,0.05); border: 1px solid rgba(201,146,42,0.12); font-size: 0.88rem; }
+    .pchip-rm { background: none; border: none; color: rgba(245,237,214,0.2); cursor: pointer; font-size: 1rem; padding: 0 4px; }
+    .pchip-rm:hover { color: #c0392b; }
+    .rounds-big { font-family: 'Cinzel', serif; font-size: 3.5rem; font-weight: 700; color: var(--gold-light); text-align: center; line-height: 1; margin: 12px 0 6px; }
+    .rounds-sub { font-size: 0.7rem; color: rgba(245,237,214,0.3); text-align: center; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 16px; }
+    .rnd-btns { display: flex; gap: 8px; justify-content: center; }
+    .rnd-btn { width: 46px; height: 46px; background: rgba(245,237,214,0.05); border: 1px solid rgba(201,146,42,0.2); color: var(--parchment); font-family: 'Cinzel', serif; font-size: 1.4rem; cursor: pointer; transition: all 0.15s; }
+    .rnd-btn:hover { background: rgba(201,146,42,0.15); border-color: var(--gold); }
+    .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .stat { padding: 10px 14px; background: rgba(201,146,42,0.04); border: 1px solid rgba(201,146,42,0.1); }
+    .stat-l { font-size: 0.62rem; color: rgba(245,237,214,0.3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 2px; }
+    .stat-v { font-family: 'Cinzel', serif; font-size: 1.1rem; color: var(--gold-light); }
+    .start-btn { width: 100%; padding: 15px; font-family: 'Cinzel', serif; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; background: linear-gradient(135deg, var(--rust), var(--gold)); color: var(--parchment); border: none; cursor: pointer; transition: opacity 0.2s; margin-top: 6px; }
+    .start-btn:hover:not(:disabled) { opacity: 0.88; }
+    .start-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .t-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+    .t-header-left { flex: 1; }
+    .round-badge { font-family: 'Cinzel', serif; font-size: 0.7rem; letter-spacing: 0.2em; color: var(--gold); border: 1px solid rgba(201,146,42,0.3); padding: 6px 18px; text-transform: uppercase; display: inline-block; }
+    .rdot { height: 3px; flex: 1; background: rgba(201,146,42,0.15); transition: background 0.3s; cursor: default; }
+    .rdot.done { background: rgba(201,146,42,0.4); }
+    .rdot.active { background: var(--gold); }
+    .rdot.editing { background: #e8b84b; animation: swPulse 1s infinite alternate; }
+    @keyframes swPulse { from { opacity:0.6; } to { opacity:1; } }
+    .repair-banner { background: rgba(232,184,75,0.08); border: 1px solid rgba(232,184,75,0.35); padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .repair-text { font-size: 0.88rem; color: var(--gold-light); }
+    .repair-text strong { font-family: 'Cinzel', serif; font-size: 0.78rem; letter-spacing: 0.08em; }
+    .repair-text small { display: block; font-size: 0.75rem; color: rgba(245,237,214,0.4); margin-top: 2px; font-style: italic; }
+    .repair-btn { font-family: 'Cinzel', serif; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; padding: 8px 18px; background: rgba(232,184,75,0.18); border: 1px solid rgba(232,184,75,0.5); color: var(--gold-light); cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+    .repair-btn:hover { background: rgba(232,184,75,0.3); }
+    .cancel-repair-btn { font-family: 'Cinzel', serif; font-size: 0.65rem; letter-spacing: 0.1em; padding: 8px 14px; background: none; border: 1px solid rgba(245,237,214,0.1); color: rgba(245,237,214,0.35); cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+    .cancel-repair-btn:hover { border-color: rgba(245,237,214,0.3); color: rgba(245,237,214,0.6); }
+    .late-row { display: flex; gap: 8px; position: relative; }
+    .late-row .inp { flex: 1; font-size: 0.88rem; padding: 7px 12px; }
+    .late-ac { position: absolute; top: 100%; left: 0; right: 42px; z-index: 100; background: #1a1410; border: 1px solid rgba(201,146,42,0.3); border-top: none; max-height: 150px; overflow-y: auto; display: none; }
+    .late-ac.open { display: block; }
+    .t-cols { display: grid; grid-template-columns: 1fr 340px; gap: 24px; align-items: start; }
+    @media(max-width:900px) { .t-cols { grid-template-columns: 1fr; } }
+    .pair-list { display: flex; flex-direction: column; gap: 10px; }
+    .pcard { border: 1px solid rgba(201,146,42,0.18); background: rgba(245,237,214,0.02); }
+    .pcard.done { border-color: rgba(201,146,42,0.4); }
+    .pcard-head { display: flex; align-items: center; justify-content: space-between; padding: 9px 16px; background: rgba(201,146,42,0.04); border-bottom: 1px solid rgba(201,146,42,0.1); font-family: 'Cinzel', serif; font-size: 0.6rem; letter-spacing: 0.15em; color: rgba(245,237,214,0.35); text-transform: uppercase; }
+    .pcard-body { padding: 14px 16px; }
+    .pvs { display: grid; grid-template-columns: 1fr 40px 1fr; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .pname { font-size: 0.95rem; font-weight: 500; }
+    .pname.right { text-align: right; }
+    .pvs-mid { font-family: 'Cinzel', serif; font-size: 0.62rem; color: rgba(201,146,42,0.3); text-align: center; letter-spacing: 0.1em; }
+    .score-row { display: grid; grid-template-columns: 1fr 30px 1fr; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .score-sel { width: 100%; background: rgba(26,18,9,0.8); border: 1px solid rgba(201,146,42,0.2); color: var(--parchment); font-family: 'Cinzel', serif; font-size: 0.85rem; padding: 6px; outline: none; cursor: pointer; text-align: center; -webkit-appearance: none; appearance: none; }
+    .score-sel:focus { border-color: var(--gold); }
+    .score-dash { color: rgba(201,146,42,0.3); text-align: center; font-family: 'Cinzel', serif; }
+    .res-btns { display: flex; gap: 5px; }
+    .res-btn { flex: 1; padding: 7px 4px; font-family: 'Cinzel', serif; font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase; border: 1px solid rgba(201,146,42,0.15); background: rgba(26,18,9,0.4); color: rgba(245,237,214,0.4); cursor: pointer; transition: all 0.15s; }
+    .res-btn:hover { border-color: rgba(201,146,42,0.4); color: var(--parchment); }
+    .res-btn.win1 { background: rgba(61,139,94,0.2); color: #5ec88a; border-color: #3d8b5e; }
+    .res-btn.drw { background: rgba(90,107,122,0.2); color: #8aa8c0; border-color: #5a6b7a; }
+    .res-btn.win2 { background: rgba(139,58,58,0.2); color: #e08080; border-color: #8b3a3a; }
+    .bye-box { border: 1px dashed rgba(201,146,42,0.15); padding: 16px; text-align: center; font-size: 0.82rem; color: rgba(245,237,214,0.3); font-style: italic; }
+    .adv-btn { width: 100%; padding: 13px; font-family: 'Cinzel', serif; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; background: linear-gradient(135deg, rgba(139,58,26,0.7), rgba(201,146,42,0.7)); color: var(--parchment); border: none; cursor: pointer; transition: all 0.2s; margin-top: 12px; }
+    .adv-btn:hover:not(:disabled) { opacity: 0.85; }
+    .adv-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .adv-btn.end { background: linear-gradient(135deg, rgba(40,90,40,0.8), rgba(61,139,94,0.8)); }
+    .stbl { width: 100%; border-collapse: collapse; }
+    .stbl thead th { font-family: 'Cinzel', serif; font-size: 0.58rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); padding: 8px 10px; text-align: left; border-bottom: 1px solid rgba(201,146,42,0.2); white-space: nowrap; }
+    .stbl thead th.r { text-align: right; }
+    .stbl tbody td { padding: 8px 10px; font-size: 0.85rem; border-bottom: 1px solid rgba(201,146,42,0.06); }
+    .stbl tbody td.r { text-align: right; }
+    .stbl tbody tr:hover { background: rgba(201,146,42,0.04); }
+    .rank-n { font-family: 'Cinzel', serif; font-size: 0.72rem; color: rgba(245,237,214,0.3); }
+    .pts-v { font-family: 'Cinzel', serif; font-size: 1rem; color: var(--gold-light); font-weight: 600; }
+    .rec-v { font-size: 0.76rem; color: rgba(245,237,214,0.4); }
+    .omw-v { font-size: 0.76rem; color: rgba(245,237,214,0.45); }
+    .final-top { text-align: center; padding: 40px 0 28px; }
+    .final-trophy { font-size: 3rem; margin-bottom: 10px; }
+    .final-title { font-family: 'Cinzel', serif; font-size: 1.8rem; font-weight: 700; color: var(--gold-light); letter-spacing: 0.1em; }
+    .final-sub { font-size: 0.88rem; color: rgba(245,237,214,0.4); font-style: italic; margin-top: 6px; }
+    .podium { display: flex; justify-content: center; gap: 14px; margin: 28px 0; flex-wrap: wrap; }
+    .p-card { padding: 22px 26px; border: 1px solid rgba(201,146,42,0.3); text-align: center; background: rgba(201,146,42,0.05); min-width: 150px; }
+    .p-card.first { border-color: var(--gold); background: rgba(201,146,42,0.1); }
+    .p-place { font-family: 'Cinzel', serif; font-size: 0.62rem; letter-spacing: 0.2em; color: var(--gold); text-transform: uppercase; margin-bottom: 8px; }
+    .p-name { font-family: 'Cinzel', serif; font-size: 1.05rem; font-weight: 600; color: var(--parchment); margin-bottom: 4px; }
+    .p-rec { font-size: 0.78rem; color: rgba(245,237,214,0.4); }
+    .reset-btn { display: block; margin: 28px auto 0; padding: 11px 28px; font-family: 'Cinzel', serif; font-size: 0.72rem; letter-spacing: 0.15em; text-transform: uppercase; background: none; border: 1px solid rgba(201,146,42,0.3); color: rgba(245,237,214,0.5); cursor: pointer; transition: all 0.2s; }
+    .reset-btn:hover { border-color: var(--gold); color: var(--gold-light); }
   </style>
 </head>
 <body>
@@ -622,6 +723,12 @@
       <div class="sidebar-divider"></div>
       <div class="sidebar-nav-item" id="snav-settings" onclick="showTab('settings'); closeSidebar()">
         <span class="sidebar-nav-icon">⚙</span> Settings
+      </div>
+      <div class="sidebar-nav-item" id="snav-judge" onclick="showTab('judge'); closeSidebar()">
+        <span class="sidebar-nav-icon">&#9878;</span> Judge Reference
+      </div>
+      <div class="sidebar-nav-item" id="snav-swiss" onclick="showTab('swiss'); closeSidebar()">
+        <span class="sidebar-nav-icon">&#9876;</span> Swiss Tournament
       </div>
       <div class="sidebar-nav-item" id="snav-more" onclick="showTab('more'); closeSidebar()">
         <span class="sidebar-nav-icon">🔮</span> More Tools
@@ -926,6 +1033,149 @@
     </div>
   </div>
 
+  <!-- JUDGE REFERENCE -->
+  <div class="panel" id="tab-judge">
+    <div class="panel-title">Judge Reference</div>
+    <p class="panel-desc">Ask rules questions &mdash; powered by Gemini + official Riftbound documents</p>
+    <div class="divider"></div>
+    <div style="max-width:720px">
+      <div class="card">
+        <div class="card-label">&#9878; Ask a Rules Question</div>
+        <p style="font-size:0.82rem;color:rgba(245,237,214,0.4);margin-bottom:14px;line-height:1.6;">
+          References the complete Core Rules, all patch notes, errata, FAQ articles, Tournament Rules, and the full card database.
+        </p>
+        <textarea id="judgeQuestion"
+          style="width:100%;background:rgba(245,237,214,0.05);border:1px solid rgba(201,146,42,0.3);
+          color:var(--parchment);font-family:'Crimson Pro',serif;font-size:1rem;
+          padding:12px 16px;outline:none;resize:vertical;min-height:80px;
+          transition:border-color 0.2s;line-height:1.5;"
+          placeholder="e.g. Can I use a Reaction spell during an opponent's combat showdown?"
+        ></textarea>
+        <button class="btn" onclick="askJudge()" id="judgeBtn" style="margin-top:8px">
+          &#9878; Get Ruling
+        </button>
+        <p style="font-size:0.72rem;color:rgba(245,237,214,0.2);margin-top:4px;font-style:italic">Ctrl+Enter to submit</p>
+      </div>
+      <div id="judgeAnswer" style="display:none">
+        <div class="card">
+          <div class="card-label">&#128220; Ruling</div>
+          <div id="judgeAnswerText" style="font-size:0.92rem;line-height:1.8;color:rgba(245,237,214,0.85);white-space:pre-wrap"></div>
+        </div>
+      </div>
+      <div id="judgeHistory"></div>
+    </div>
+  </div>
+  <!-- SWISS TOURNAMENT -->
+  <div class="panel" id="tab-swiss">
+    <div class="panel-title">Swiss Tournament</div>
+    <p class="panel-desc">Run a Swiss-format tournament with OMW tiebreakers</p>
+    <div class="divider"></div>
+    <div id="swissApp">
+      <div class="swiss-phase active" id="sw-phase-setup">
+        <div class="setup-grid">
+          <div>
+            <div class="sec-title">Players</div>
+            <div class="card">
+              <div class="add-row">
+                <input class="inp" id="swPInput" placeholder="Type a player name..." autocomplete="off"/>
+                <button class="icon-btn" id="swAddBtn">+</button>
+                <div class="ac-list" id="swAcList"></div>
+              </div>
+              <div class="plist" id="swPList"><div class="empty-hint">No players added yet</div></div>
+            </div>
+            <button class="btn ghost" id="swClearBtn">Clear All</button>
+          </div>
+          <div>
+            <div class="sec-title">Rounds</div>
+            <div class="card">
+              <div class="rounds-big" id="swRndDisplay">4</div>
+              <div class="rounds-sub">Total Rounds</div>
+              <div class="rnd-btns">
+                <button class="rnd-btn" id="swRndMinus">&#8722;</button>
+                <button class="rnd-btn" id="swRndPlus">+</button>
+              </div>
+            </div>
+            <div class="sec-title" style="margin-top:14px">Info</div>
+            <div class="card">
+              <div class="stat-grid">
+                <div class="stat"><div class="stat-l">Players</div><div class="stat-v" id="swSPlayers">0</div></div>
+                <div class="stat"><div class="stat-l">Rounds</div><div class="stat-v" id="swSRounds">4</div></div>
+                <div class="stat"><div class="stat-l">Has Bye</div><div class="stat-v" id="swSBye">No</div></div>
+                <div class="stat"><div class="stat-l">Max Pts</div><div class="stat-v" id="swSMax">-</div></div>
+              </div>
+            </div>
+            <button class="start-btn" id="swStartBtn">Begin Tournament &#8594;</button>
+          </div>
+        </div>
+      </div>
+      <div class="swiss-phase" id="sw-phase-tournament">
+        <div class="t-header">
+          <div class="t-header-left">
+            <div class="round-dots" id="swRDots"></div>
+            <div class="round-badge" id="swRBadge">Round 1</div>
+          </div>
+          <button class="btn ghost" style="width:auto;padding:6px 16px;margin:0" id="swResetBtn">&#8635; Reset</button>
+        </div>
+        <div class="repair-banner" id="swRepairBanner" style="display:none">
+          <div class="repair-text">
+            <strong id="swRepairTitle">&#9888; Editing Round</strong>
+            <small id="swRepairSub">Future rounds will be wiped and regenerated.</small>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="cancel-repair-btn" id="swCancelRepairBtn">Cancel</button>
+            <button class="repair-btn" id="swConfirmRepairBtn">&#9881; REPAIR ROUND</button>
+          </div>
+        </div>
+        <div class="t-cols">
+          <div>
+            <div class="sec-title">Pairings</div>
+            <div class="pair-list" id="swPairList"></div>
+            <button class="adv-btn" id="swAdvBtn">Next Round &#8594;</button>
+          </div>
+          <div>
+            <div class="sec-title">Standings</div>
+            <div class="card" style="padding:0;overflow:hidden">
+              <table class="stbl">
+                <thead><tr><th>#</th><th>Player</th><th class="r">Pts</th><th class="r">W-L-D</th><th class="r">OMW%</th></tr></thead>
+                <tbody id="swSBody"></tbody>
+              </table>
+            </div>
+            <div id="swLateSection" style="margin-top:12px;display:none">
+              <div class="card" style="padding:16px">
+                <div style="font-family:'Cinzel',serif;font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--gold);margin-bottom:8px">+ Add Latecomer</div>
+                <div class="late-row">
+                  <input class="inp" id="swLateInput" placeholder="Player name..." autocomplete="off"/>
+                  <button class="icon-btn" id="swLateAddBtn">+</button>
+                  <div class="late-ac" id="swLateAc"></div>
+                </div>
+              </div>
+            </div>
+            <button class="btn danger" style="margin-top:8px" id="swEndBtn">End Tournament</button>
+            <button class="btn ghost" style="margin-top:4px" id="swExportBtn">&#8595; Export Standings CSV</button>
+          </div>
+        </div>
+      </div>
+      <div class="swiss-phase" id="sw-phase-final">
+        <div class="final-top">
+          <div class="final-trophy">&#127942;</div>
+          <div class="final-title">Tournament Complete</div>
+          <div class="final-sub" id="swFSub"></div>
+        </div>
+        <div class="podium" id="swPodium"></div>
+        <div style="max-width:560px;margin:0 auto">
+          <div class="sec-title">Final Standings</div>
+          <div class="card" style="padding:0;overflow:hidden">
+            <table class="stbl">
+              <thead><tr><th>#</th><th>Player</th><th class="r">Pts</th><th class="r">W-L-D</th><th class="r">OMW%</th></tr></thead>
+              <tbody id="swFBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <button class="btn ghost" style="max-width:320px;margin:16px auto 0;display:block" id="swExportFinalBtn">&#8595; Export Melee-Compatible CSV</button>
+        <button class="reset-btn" id="swNewBtn">&#8635; New Tournament</button>
+      </div>
+    </div>
+  </div>
   <!-- MORE TOOLS -->
   <div class="panel" id="tab-more">
     <div class="panel-title">More Tools</div>
@@ -1063,6 +1313,7 @@ function showTab(id) {
   if (id === 'settings') initSettingsPanel();
   if (id === 'tcg') tcgRender();
   if (id === 'infractions') initInfractionsPanel();
+  if (id === 'swiss') swInitTab();
 }
 
 // ── GIST CONFIG ───────────────────────────────────────
@@ -2274,6 +2525,456 @@ function restoreBackup(input) {
   reader.readAsText(file);
   input.value = '';
 }
+
+// -- JUDGE REFERENCE --
+const JUDGE_WORKER_URL = 'https://riftbound-judge.astrum812.workers.dev';
+var judgeHistory = [];
+
+async function askJudge() {
+  const question = document.getElementById('judgeQuestion').value.trim();
+  if (!question) return;
+  const btn = document.getElementById('judgeBtn');
+  const answerBox = document.getElementById('judgeAnswer');
+  const answerText = document.getElementById('judgeAnswerText');
+  btn.disabled = true;
+  btn.textContent = 'Consulting the rules...';
+  answerBox.style.display = 'none';
+  try {
+    const res = await fetch(JUDGE_WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    answerText.textContent = data.answer;
+    answerBox.style.display = 'block';
+    judgeHistory.unshift({ question, answer: data.answer });
+    renderJudgeHistory();
+    document.getElementById('judgeQuestion').value = '';
+  } catch(err) {
+    answerText.textContent = 'Error: ' + err.message;
+    answerBox.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Get Ruling';
+  }
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.ctrlKey && e.key === 'Enter') {
+    var active = document.querySelector('.panel.active');
+    if (active && active.id === 'tab-judge') askJudge();
+  }
+});
+
+function renderJudgeHistory() {
+  const el = document.getElementById('judgeHistory');
+  if (!el || !judgeHistory.length) return;
+  el.innerHTML = judgeHistory.slice(0, 5).map(function(h, i) {
+    return '<div class="card" style="margin-bottom:10px;opacity:' + (1 - i * 0.15) + '">' +
+      '<div class="card-label" style="margin-bottom:8px">Q: ' + (h.question.length > 80 ? h.question.slice(0,80)+'...' : h.question) + '</div>' +
+      '<div style="font-size:0.88rem;line-height:1.7;color:rgba(245,237,214,0.65);white-space:pre-wrap">' + h.answer + '</div>' +
+    '</div>';
+  }).join('');
+}
+// -- END JUDGE REFERENCE --
+
+// ==================== SWISS TOURNAMENT ====================
+var SW = {
+  players: [], rounds: 4, curRound: 0, activeRound: 0,
+  pairings: [], history: [], results: {}, byeId: null, editingOld: false
+};
+
+function swGetRoster() {
+  try {
+    var data = load();
+    if (!data || !data.events) return [];
+    var map = {};
+    data.events.forEach(function(ev) {
+      ev.players.forEach(function(p) {
+        if (!map[p.uid]) map[p.uid] = { uid: p.uid, name: p.name, display: p.display };
+      });
+    });
+    return Object.values(map).sort(function(a,b) { return a.display.localeCompare(b.display); });
+  } catch(e) { return []; }
+}
+
+function swBuildAC(inputId, acId, onPick) {
+  var inp = document.getElementById(inputId);
+  var ac  = document.getElementById(acId);
+  if (!inp || !ac) return;
+  inp.addEventListener('input', function() {
+    var val = this.value.trim();
+    if (!val) { ac.classList.remove('open'); return; }
+    var taken = SW.players.map(function(p) { return p.display.toLowerCase(); });
+    var matches = swGetRoster().filter(function(p) {
+      return p.display.toLowerCase().indexOf(val.toLowerCase()) !== -1 &&
+             taken.indexOf(p.display.toLowerCase()) === -1;
+    }).slice(0, 8);
+    if (!matches.length) { ac.classList.remove('open'); return; }
+    ac.innerHTML = '';
+    matches.forEach(function(p) {
+      var d = document.createElement('div');
+      d.className = 'ac-opt';
+      d.textContent = p.display;
+      d.addEventListener('mousedown', function(e) {
+        e.preventDefault(); inp.value = ''; ac.classList.remove('open'); onPick(p);
+      });
+      ac.appendChild(d);
+    });
+    ac.classList.add('open');
+  });
+  inp.addEventListener('blur', function() { setTimeout(function() { ac.classList.remove('open'); }, 150); });
+  inp.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      var val = this.value.trim();
+      if (val) {
+        this.value = ''; ac.classList.remove('open');
+        var roster = swGetRoster();
+        var match = roster.find(function(p) { return p.display.toLowerCase() === val.toLowerCase(); });
+        onPick(match || { uid: 'manual-' + Date.now(), name: val, display: val });
+      }
+    }
+  });
+}
+
+function swAddPlayer(playerObj, late) {
+  if (!playerObj || !playerObj.display) return;
+  if (SW.players.find(function(p) { return p.display.toLowerCase() === playerObj.display.toLowerCase(); })) return;
+  SW.players.push({ id: playerObj.uid || ('m'+Date.now()), name: playerObj.name || playerObj.display, display: playerObj.display, uid: playerObj.uid || '', late: !!late });
+  if (late) {
+    SW.results[SW.players[SW.players.length-1].id] = {w:0,l:0,d:0,gw:0,gl:0,pts:0,opps:[]};
+    swRenderStandings('swSBody');
+  } else { swRenderSetup(); }
+}
+
+function swRemovePlayer(id) {
+  SW.players = SW.players.filter(function(p) { return p.id !== id; });
+  swRenderSetup();
+}
+
+function swRenderSetup() {
+  var n = SW.players.length;
+  var elems = {swRndDisplay:SW.rounds, swSPlayers:n, swSRounds:SW.rounds, swSBye:n%2!==0?'Yes':'No', swSMax:n>0?SW.rounds*3:'-'};
+  Object.keys(elems).forEach(function(id) { var el=document.getElementById(id); if(el) el.textContent=elems[id]; });
+  var stBtn=document.getElementById('swStartBtn'); if(stBtn) stBtn.disabled=n<2;
+  var list=document.getElementById('swPList'); if(!list) return;
+  if(!n){list.innerHTML='<div class="empty-hint">No players added yet</div>';return;}
+  list.innerHTML=SW.players.map(function(p){
+    return '<div class="pchip"><span>'+p.display+'</span><button class="pchip-rm" data-id="'+p.id+'">x</button></div>';
+  }).join('');
+  list.querySelectorAll('.pchip-rm').forEach(function(btn){
+    btn.addEventListener('click',function(){swRemovePlayer(this.dataset.id);});
+  });
+}
+
+function swShowPhase(name) {
+  document.querySelectorAll('.swiss-phase').forEach(function(p){p.classList.remove('active');});
+  var el=document.getElementById('sw-phase-'+name); if(el) el.classList.add('active');
+}
+
+function swStartTournament() {
+  SW.results={};
+  SW.players.forEach(function(p){SW.results[p.id]={w:0,l:0,d:0,gw:0,gl:0,pts:0,opps:[]};});
+  SW.curRound=0;SW.activeRound=0;SW.history=[];SW.editingOld=false;
+  swShowPhase('tournament'); swGenPairings(false);
+}
+
+function swComputeResultsUpTo(round) {
+  var res={};
+  SW.players.forEach(function(p){res[p.id]={w:0,l:0,d:0,gw:0,gl:0,pts:0,opps:[]};});
+  for(var r=0;r<round-1;r++){
+    if(!SW.history[r]) continue;
+    SW.history[r].pairings.forEach(function(pair){
+      if(pair.bye){if(!res[pair.p1])res[pair.p1]={w:0,l:0,d:0,gw:0,gl:0,pts:0,opps:[]};res[pair.p1].w++;res[pair.p1].pts+=3;res[pair.p1].gw+=2;return;}
+      if(!res[pair.p1])res[pair.p1]={w:0,l:0,d:0,gw:0,gl:0,pts:0,opps:[]};
+      if(!res[pair.p2])res[pair.p2]={w:0,l:0,d:0,gw:0,gl:0,pts:0,opps:[]};
+      var r1=res[pair.p1],r2=res[pair.p2];
+      r1.opps.push(pair.p2);r2.opps.push(pair.p1);
+      r1.gw+=pair.g1||0;r1.gl+=pair.g2||0;r2.gw+=pair.g2||0;r2.gl+=pair.g1||0;
+      if(pair.res==='p1'){r1.w++;r1.pts+=3;r2.l++;}
+      else if(pair.res==='p2'){r2.w++;r2.pts+=3;r1.l++;}
+      else{r1.d++;r1.pts++;r2.d++;r2.pts++;}
+    });
+  }
+  return res;
+}
+
+function swGenPairings(isRepair) {
+  SW.curRound++;SW.activeRound=SW.curRound;SW.editingOld=false;
+  SW.results=swComputeResultsUpTo(SW.curRound);
+  SW.players.forEach(function(p){if(!SW.results[p.id])SW.results[p.id]={w:0,l:0,d:0,gw:0,gl:0,pts:0,opps:[]};});
+  var standings=swGetStandings(),paired={},pairs=[];
+  SW.byeId=null;var active=standings.slice();
+  if(active.length%2!==0){
+    var byeP=null;
+    for(var i=active.length-1;i>=0;i--){
+      var pid=active[i].id;
+      var hadBye=SW.history.some(function(r){return r.pairings.some(function(p){return p.bye&&p.p1===pid;});});
+      if(!hadBye){byeP=active[i];break;}
+    }
+    if(!byeP) byeP=active[active.length-1];
+    SW.byeId=byeP.id;active=active.filter(function(p){return p.id!==byeP.id;});
+    paired[byeP.id]=true;
+    pairs.push({id:'bye'+SW.curRound,p1:byeP.id,p2:null,res:'p1',g1:2,g2:0,bye:true});
+    SW.results[byeP.id].w++;SW.results[byeP.id].pts+=3;SW.results[byeP.id].gw+=2;
+  }
+  for(var i=0;i<active.length;i++){
+    var p1=active[i];if(paired[p1.id])continue;paired[p1.id]=true;var p2=null;
+    for(var j=i+1;j<active.length;j++){var c=active[j];if(paired[c.id])continue;if(SW.results[p1.id].opps.indexOf(c.id)===-1){p2=c;break;}}
+    if(!p2){for(var j=i+1;j<active.length;j++){if(!paired[active[j].id]){p2=active[j];break;}}}
+    if(!p2) continue;
+    paired[p2.id]=true;
+    pairs.push({id:'p'+SW.curRound+'_'+i,p1:p1.id,p2:p2.id,res:null,g1:2,g2:0,bye:false});
+  }
+  SW.pairings=pairs;
+  swUpdateHeader();swRenderRepairBanner();swRenderPairings();swRenderStandings('swSBody');swShowLateSection(true);
+}
+
+function swPName(id){var p=SW.players.find(function(x){return x.id===id;});return p?p.display:'?';}
+
+function swUpdateHeader(){
+  var rb=document.getElementById('swRBadge');if(rb)rb.textContent='Round '+SW.curRound+' of '+SW.rounds;
+  swRenderDots();
+}
+
+function swRenderDots(){
+  var c=document.getElementById('swRDots');if(!c)return;c.innerHTML='';
+  for(var i=1;i<=SW.rounds;i++){
+    var d=document.createElement('div');
+    var cls='rdot'+(i<SW.activeRound?' done':i===SW.activeRound&&!SW.editingOld?' active':i===SW.curRound&&SW.editingOld?' editing':'');
+    d.className=cls;d.setAttribute('data-tip','Round '+i);
+    if(i<=SW.activeRound){(function(round){d.style.cursor='pointer';d.addEventListener('click',function(){swViewRound(round);});})(i);}
+    c.appendChild(d);
+  }
+}
+
+function swViewRound(round){
+  if(round===SW.activeRound&&!SW.editingOld)return;
+  if(round>SW.activeRound)return;
+  if(round===SW.activeRound){SW.curRound=SW.activeRound;SW.editingOld=false;swRenderRepairBanner();swRenderPairings();swRenderStandings('swSBody');swUpdateHeader();swShowLateSection(true);return;}
+  SW.curRound=round;SW.editingOld=true;
+  var hist=SW.history[round-1];
+  if(hist)SW.pairings=hist.pairings.map(function(p){return Object.assign({},p);});
+  swUpdateHeader();swRenderRepairBanner();swRenderPairings();
+  var tempRes=swComputeResultsUpTo(round);
+  SW.players.forEach(function(p){if(!tempRes[p.id])tempRes[p.id]={w:0,l:0,d:0,gw:0,gl:0,pts:0,opps:[]};});
+  swRenderStandingsFromRes('swSBody',tempRes);swShowLateSection(false);
+}
+
+function swRenderRepairBanner(){
+  var banner=document.getElementById('swRepairBanner');if(!banner)return;
+  if(!SW.editingOld){banner.style.display='none';return;}
+  banner.style.display='flex';
+  var rt=document.getElementById('swRepairTitle');if(rt)rt.textContent='Editing Round '+SW.curRound;
+  var wiped=[];for(var i=SW.curRound+1;i<=SW.activeRound;i++)wiped.push(i);
+  var rs=document.getElementById('swRepairSub');
+  if(rs)rs.textContent=wiped.length?'Round'+(wiped.length>1?'s ':' ')+wiped.join(', ')+' will be wiped and regenerated.':'Results will be updated.';
+}
+
+function swConfirmRepair(){
+  var editedRound=SW.curRound;
+  SW.history[editedRound-1]={round:editedRound,pairings:SW.pairings.slice()};
+  SW.history=SW.history.slice(0,editedRound);
+  SW.activeRound=editedRound;SW.editingOld=false;
+  SW.results=swComputeResultsUpTo(editedRound+1);
+  SW.pairings.forEach(function(pair){
+    if(pair.bye){if(!SW.results[pair.p1])SW.results[pair.p1]={w:0,l:0,d:0,gw:0,gl:0,pts:0,opps:[]};SW.results[pair.p1].w++;SW.results[pair.p1].pts+=3;SW.results[pair.p1].gw+=2;return;}
+    if(pair.res===null)return;
+    if(!SW.results[pair.p1])SW.results[pair.p1]={w:0,l:0,d:0,gw:0,gl:0,pts:0,opps:[]};
+    if(!SW.results[pair.p2])SW.results[pair.p2]={w:0,l:0,d:0,gw:0,gl:0,pts:0,opps:[]};
+    var r1=SW.results[pair.p1],r2=SW.results[pair.p2];
+    r1.opps.push(pair.p2);r2.opps.push(pair.p1);
+    r1.gw+=pair.g1||0;r1.gl+=pair.g2||0;r2.gw+=pair.g2||0;r2.gl+=pair.g1||0;
+    if(pair.res==='p1'){r1.w++;r1.pts+=3;r2.l++;}
+    else if(pair.res==='p2'){r2.w++;r2.pts+=3;r1.l++;}
+    else{r1.d++;r1.pts++;r2.d++;r2.pts++;}
+  });
+  SW.players.forEach(function(p){if(!SW.results[p.id])SW.results[p.id]={w:0,l:0,d:0,gw:0,gl:0,pts:0,opps:[]};});
+  if(editedRound>=SW.rounds){SW.curRound=editedRound;swUpdateHeader();swRenderRepairBanner();swRenderPairings();swRenderStandings('swSBody');swShowLateSection(true);}
+  else swGenPairings(true);
+}
+
+function swCancelRepair(){
+  var hist=SW.history[SW.curRound-1];
+  if(hist)SW.pairings=hist.pairings.map(function(p){return Object.assign({},p);});
+  SW.curRound=SW.activeRound;SW.editingOld=false;
+  swRenderRepairBanner();swUpdateHeader();swRenderPairings();swRenderStandings('swSBody');swShowLateSection(true);
+}
+
+function swRenderPairings(){
+  var list=document.getElementById('swPairList');if(!list)return;
+  list.innerHTML='';var tableNum=0;
+  SW.pairings.forEach(function(pair){
+    var div=document.createElement('div');
+    if(pair.bye){
+      div.className='bye-box';
+      div.innerHTML='<strong style="color:var(--gold-light)">'+swPName(pair.p1)+'</strong> receives a bye this round<div style="margin-top:4px;font-size:0.75rem">Awarded 2-0 win automatically</div>';
+      list.appendChild(div);return;
+    }
+    tableNum++;div.className='pcard'+(pair.res!==null?' done':'');div.id='swpcard-'+pair.id;
+    var p1n=swPName(pair.p1),p2n=swPName(pair.p2);
+    var p1s=p1n.split(' ')[0],p2s=p2n.split(' ')[0];
+    var p1style=pair.res==='p1'?'color:var(--gold-light);font-weight:600':pair.res==='p2'?'opacity:0.4':'';
+    var p2style=pair.res==='p2'?'color:var(--gold-light);font-weight:600':pair.res==='p1'?'opacity:0.4':'';
+    div.innerHTML=
+      '<div class="pcard-head"><span>Table '+tableNum+'</span><span>'+(pair.res!==null?'&#10003; Complete':'Pending')+'</span></div>'+
+      '<div class="pcard-body">'+
+        '<div class="pvs"><div class="pname left" style="'+p1style+'">'+p1n+'</div><div class="pvs-mid">VS</div><div class="pname right" style="'+p2style+'">'+p2n+'</div></div>'+
+        '<div class="score-row">'+
+          '<select class="score-sel" id="swg1-'+pair.id+'"><option value="0"'+(pair.g1===0?' selected':'')+'>0</option><option value="1"'+(pair.g1===1?' selected':'')+'>1</option><option value="2"'+(pair.g1===2?' selected':'')+'>2</option></select>'+
+          '<div class="score-dash">-</div>'+
+          '<select class="score-sel" id="swg2-'+pair.id+'"><option value="0"'+(pair.g2===0?' selected':'')+'>0</option><option value="1"'+(pair.g2===1?' selected':'')+'>1</option><option value="2"'+(pair.g2===2?' selected':'')+'>2</option></select>'+
+        '</div>'+
+        '<div class="res-btns">'+
+          '<button class="res-btn'+(pair.res==='p1'?' win1':'')+'" data-pair="'+pair.id+'" data-res="p1">'+p1s+' Wins</button>'+
+          '<button class="res-btn'+(pair.res==='draw'?' drw':'')+'" data-pair="'+pair.id+'" data-res="draw">Draw</button>'+
+          '<button class="res-btn'+(pair.res==='p2'?' win2':'')+'" data-pair="'+pair.id+'" data-res="p2">'+p2s+' Wins</button>'+
+        '</div>'+
+      '</div>';
+    list.appendChild(div);
+  });
+  list.querySelectorAll('.res-btn').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var pid=this.dataset.pair,res=this.dataset.res;
+      var pair=SW.pairings.find(function(p){return p.id===pid;});if(!pair)return;
+      pair.g1=parseInt(document.getElementById('swg1-'+pid).value)||0;
+      pair.g2=parseInt(document.getElementById('swg2-'+pid).value)||0;
+      pair.res=res;
+      if(SW.editingOld){SW.history[SW.curRound-1]={round:SW.curRound,pairings:SW.pairings.slice()};}
+      swRenderPairings();
+      if(SW.editingOld){var t=swComputeResultsUpTo(SW.curRound);SW.players.forEach(function(p){if(!t[p.id])t[p.id]={w:0,l:0,d:0,gw:0,gl:0,pts:0,opps:[]};});swRenderStandingsFromRes('swSBody',t);}
+      else swRenderStandings('swSBody');
+    });
+  });
+  list.querySelectorAll('.score-sel').forEach(function(sel){
+    sel.addEventListener('change',function(){
+      var which=this.id.startsWith('swg1-')?'g1':'g2';
+      var pairId=this.id.substring(5);
+      var pair=SW.pairings.find(function(p){return p.id===pairId;});if(pair)pair[which]=parseInt(this.value)||0;
+    });
+  });
+  swCheckAdv();
+}
+
+function swCheckAdv(){
+  var allDone=!SW.editingOld&&SW.pairings.every(function(p){return p.res!==null;});
+  var btn=document.getElementById('swAdvBtn');if(!btn)return;
+  var isLast=SW.curRound>=SW.rounds;
+  btn.disabled=!allDone;
+  if(SW.editingOld){btn.textContent='Navigate using round dots above';btn.disabled=true;}
+  else{btn.textContent=isLast?'Finish Tournament':'Next Round ->';btn.className='adv-btn'+(isLast?' end':'');}
+}
+
+function swShowLateSection(show){
+  var el=document.getElementById('swLateSection');if(el)el.style.display=show?'block':'none';
+}
+
+function swMwp(id,res){
+  res=res||SW.results;var r=res[id];if(!r)return 0.33;
+  var total=r.w+r.l+r.d;if(total===0)return 0.33;
+  return Math.max(0.33,r.pts/(total*3));
+}
+
+function swOmw(id,res){
+  res=res||SW.results;var r=res[id];if(!r||!r.opps.length)return 0;
+  var sum=0;r.opps.forEach(function(oid){sum+=swMwp(oid,res);});return sum/r.opps.length;
+}
+
+function swGetStandings(res){
+  res=res||SW.results;
+  return SW.players.map(function(p){
+    var r=res[p.id]||{w:0,l:0,d:0,gw:0,gl:0,pts:0,opps:[]};
+    return{id:p.id,name:p.name,display:p.display,uid:p.uid,pts:r.pts,w:r.w,l:r.l,d:r.d,omw:swOmw(p.id,res)};
+  }).sort(function(a,b){return b.pts!==a.pts?b.pts-a.pts:b.omw-a.omw;});
+}
+
+function swRenderStandings(tbodyId){swRenderStandingsFromRes(tbodyId,SW.results);}
+
+function swRenderStandingsFromRes(tbodyId,res){
+  var tbody=document.getElementById(tbodyId);if(!tbody)return;
+  tbody.innerHTML=swGetStandings(res).map(function(p,i){
+    return '<tr><td><span class="rank-n">'+(i+1)+'</span></td><td>'+p.display+'</td>'+
+      '<td class="r"><span class="pts-v">'+p.pts+'</span></td>'+
+      '<td class="r"><span class="rec-v">'+p.w+'-'+p.l+'-'+p.d+'</span></td>'+
+      '<td class="r"><span class="omw-v">'+(p.omw*100).toFixed(1)+'%</span></td></tr>';
+  }).join('');
+}
+
+function swAdvanceRound(){
+  SW.history[SW.curRound-1]={round:SW.curRound,pairings:SW.pairings.slice()};
+  if(SW.curRound>=SW.rounds){swEndTournament();return;}
+  swGenPairings(false);
+}
+
+function swEndTournament(){
+  if(!SW.editingOld&&SW.pairings.every(function(p){return p.res!==null;})){
+    SW.history[SW.curRound-1]={round:SW.curRound,pairings:SW.pairings.slice()};
+    SW.results=swComputeResultsUpTo(SW.curRound+1);
+    SW.players.forEach(function(p){if(!SW.results[p.id])SW.results[p.id]={w:0,l:0,d:0,gw:0,gl:0,pts:0,opps:[]};});
+  }
+  swShowPhase('final');
+  var standings=swGetStandings();
+  var fSub=document.getElementById('swFSub');if(fSub)fSub.textContent=SW.players.length+' players - '+SW.curRound+' rounds played';
+  var medals=['1st','2nd','3rd'];
+  var pod=document.getElementById('swPodium');
+  if(pod)pod.innerHTML=standings.slice(0,3).map(function(p,i){
+    return '<div class="p-card'+(i===0?' first':'')+'">'+
+      '<div class="p-place">'+medals[i]+'</div>'+
+      '<div class="p-name">'+p.display+'</div>'+
+      '<div class="p-rec">'+p.pts+' pts - '+p.w+'-'+p.l+'-'+p.d+' - '+(p.omw*100).toFixed(1)+'% OMW</div>'+
+    '</div>';
+  }).join('');
+  swRenderStandings('swFBody');
+}
+
+function swExportCSV(final){
+  var standings=swGetStandings();
+  var rows=[['Rank','Player','Display Name','User ID','Record (W-L-D)','Points','OMW%']];
+  standings.forEach(function(p,i){
+    rows.push([i+1,p.name||p.display,p.display,p.uid||'',p.w+'-'+p.l+'-'+p.d,p.pts,(p.omw*100).toFixed(1)+'%']);
+  });
+  var csv=rows.map(function(r){return r.map(function(v){return '"'+v+'"';}).join(',');}).join('\n');
+  var label=final?'final':'round-'+SW.curRound;
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='riftbound-swiss-'+label+'.csv';a.click();
+}
+
+function swInitTab(){ swRenderSetup(); }
+
+(function(){
+  function swWire(id,fn){var el=document.getElementById(id);if(el)el.addEventListener('click',fn);}
+  swBuildAC('swPInput','swAcList',function(p){swAddPlayer(p,false);});
+  swBuildAC('swLateInput','swLateAc',function(p){swAddPlayer(p,true);});
+  swWire('swAddBtn',function(){
+    var val=document.getElementById('swPInput').value.trim();
+    if(val){var roster=swGetRoster();var match=roster.find(function(p){return p.display.toLowerCase()===val.toLowerCase();});
+    swAddPlayer(match||{uid:'m'+Date.now(),name:val,display:val},false);
+    document.getElementById('swPInput').value='';document.getElementById('swAcList').classList.remove('open');}
+  });
+  swWire('swLateAddBtn',function(){
+    var val=document.getElementById('swLateInput').value.trim();
+    if(val){var roster=swGetRoster();var match=roster.find(function(p){return p.display.toLowerCase()===val.toLowerCase();});
+    swAddPlayer(match||{uid:'m'+Date.now(),name:val,display:val},true);
+    document.getElementById('swLateInput').value='';document.getElementById('swLateAc').classList.remove('open');}
+  });
+  swWire('swRndMinus',function(){if(SW.rounds>1){SW.rounds--;swRenderSetup();}});
+  swWire('swRndPlus',function(){if(SW.rounds<10){SW.rounds++;swRenderSetup();}});
+  swWire('swClearBtn',function(){SW.players=[];swRenderSetup();});
+  swWire('swStartBtn',function(){if(SW.players.length>=2)swStartTournament();});
+  swWire('swAdvBtn',swAdvanceRound);
+  swWire('swResetBtn',function(){if(confirm('Reset tournament? All results will be lost.')){SW={players:SW.players,rounds:SW.rounds,curRound:0,activeRound:0,pairings:[],history:[],results:{},byeId:null,editingOld:false};swShowPhase('setup');swRenderSetup();}});
+  swWire('swEndBtn',function(){if(confirm('End tournament early?'))swEndTournament();});
+  swWire('swNewBtn',function(){SW={players:[],rounds:4,curRound:0,activeRound:0,pairings:[],history:[],results:{},byeId:null,editingOld:false};swShowPhase('setup');swRenderSetup();});
+  swWire('swConfirmRepairBtn',swConfirmRepair);
+  swWire('swCancelRepairBtn',swCancelRepair);
+  swWire('swExportBtn',function(){swExportCSV(false);});
+  swWire('swExportFinalBtn',function(){swExportCSV(true);});
+  swRenderSetup();
+})();
+// ==================== END SWISS ====================
 </script>
 </body>
 </html>
