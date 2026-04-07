@@ -614,10 +614,19 @@
     .t-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
     .t-header-left { flex: 1; }
     .round-badge { font-family: 'Cinzel', serif; font-size: 0.7rem; letter-spacing: 0.2em; color: var(--gold); border: 1px solid rgba(201,146,42,0.3); padding: 6px 18px; text-transform: uppercase; display: inline-block; }
-    .rdot { height: 3px; flex: 1; background: rgba(201,146,42,0.15); transition: background 0.3s; cursor: default; }
-    .rdot.done { background: rgba(201,146,42,0.4); }
-    .rdot.active { background: var(--gold); }
-    .rdot.editing { background: #e8b84b; animation: swPulse 1s infinite alternate; }
+    .round-dots { display: flex; gap: 6px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+    .rdot {
+      display: flex; align-items: center; justify-content: center;
+      min-width: 36px; height: 36px; padding: 0 10px;
+      font-family: 'Cinzel', serif; font-size: 0.65rem; font-weight: 600; letter-spacing: 0.05em;
+      border: 1px solid rgba(201,146,42,0.2); color: rgba(245,237,214,0.3);
+      background: rgba(201,146,42,0.04); cursor: default;
+      transition: all 0.2s; white-space: nowrap; user-select: none;
+    }
+    .rdot.done { background: rgba(201,146,42,0.12); border-color: rgba(201,146,42,0.4); color: rgba(245,237,214,0.55); cursor: pointer; }
+    .rdot.done:hover { background: rgba(201,146,42,0.22); border-color: var(--gold); color: var(--gold-light); }
+    .rdot.active { background: rgba(201,146,42,0.2); border-color: var(--gold); color: var(--gold-light); font-weight: 700; }
+    .rdot.editing { background: rgba(232,184,75,0.15); border-color: #e8b84b; color: #e8b84b; cursor: pointer; animation: swPulse 1s infinite alternate; }
     @keyframes swPulse { from { opacity:0.6; } to { opacity:1; } }
     .repair-banner { background: rgba(232,184,75,0.08); border: 1px solid rgba(232,184,75,0.35); padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
     .repair-text { font-size: 0.88rem; color: var(--gold-light); }
@@ -679,6 +688,49 @@
     .p-rec { font-size: 0.78rem; color: rgba(245,237,214,0.4); }
     .reset-btn { display: block; margin: 28px auto 0; padding: 11px 28px; font-family: 'Cinzel', serif; font-size: 0.72rem; letter-spacing: 0.15em; text-transform: uppercase; background: none; border: 1px solid rgba(201,146,42,0.3); color: rgba(245,237,214,0.5); cursor: pointer; transition: all 0.2s; }
     .reset-btn:hover { border-color: var(--gold); color: var(--gold-light); }
+
+    /* ── SWISS MOBILE ── */
+    @media (max-width: 600px) {
+      .panel { padding: 20px 16px; }
+      .t-header { flex-direction: column; align-items: stretch; gap: 10px; margin-bottom: 16px; }
+      .t-header-left { order: 1; }
+      #swResetBtn { order: 2; width: 100%; text-align: center; }
+      .round-dots { gap: 5px; }
+      .rdot { min-width: 40px; height: 40px; font-size: 0.72rem; flex: 1; justify-content: center; }
+      .round-badge { display: block; font-size: 0.75rem; padding: 8px 14px; text-align: center; }
+      .repair-banner { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px 14px; }
+      .repair-banner > div:last-child { display: flex; gap: 8px; }
+      .repair-btn, .cancel-repair-btn { flex: 1; text-align: center; padding: 10px 8px; }
+      .t-cols { gap: 16px; }
+      .pcard-body { padding: 12px; }
+      .pvs { grid-template-columns: 1fr 32px 1fr; gap: 4px; margin-bottom: 10px; }
+      .pname { font-size: 0.88rem; overflow-wrap: break-word; word-break: break-word; }
+      .pvs-mid { font-size: 0.58rem; }
+      .score-row { gap: 6px; margin-bottom: 10px; }
+      .score-sel { font-size: 1rem; padding: 10px 4px; }
+      .res-btns { gap: 6px; }
+      .res-btn { padding: 12px 4px; font-size: 0.65rem; letter-spacing: 0.04em; }
+      .adv-btn { padding: 16px; font-size: 0.82rem; margin-top: 14px; }
+      .back-round-btn { padding: 13px 14px; font-size: 0.72rem; }
+      .stbl thead th { font-size: 0.55rem; padding: 7px 6px; letter-spacing: 0.06em; }
+      .stbl tbody td { font-size: 0.82rem; padding: 8px 6px; }
+      .pts-v { font-size: 0.9rem; }
+      .btn.danger, .btn.ghost { padding: 12px 14px; font-size: 0.68rem; }
+      #swLateSection .card { padding: 12px; }
+      .late-row .inp { font-size: 0.9rem; padding: 10px 10px; }
+      .final-title { font-size: 1.4rem; }
+      .podium { gap: 8px; }
+      .p-card { padding: 16px 18px; min-width: 120px; }
+    }
+    .back-round-btn {
+      display: none; width: 100%; margin-top: 8px;
+      padding: 10px 14px; font-family: 'Cinzel', serif; font-size: 0.68rem;
+      font-weight: 600; letter-spacing: 0.13em; text-transform: uppercase;
+      background: rgba(232,184,75,0.06); border: 1px solid rgba(232,184,75,0.25);
+      color: rgba(232,184,75,0.7); cursor: pointer; transition: all 0.2s;
+    }
+    .back-round-btn:hover { background: rgba(232,184,75,0.14); border-color: rgba(232,184,75,0.55); color: var(--gold-light); }
+    .back-round-btn.visible { display: block; }
   </style>
 </head>
 <body>
@@ -1102,6 +1154,7 @@
             <div class="sec-title">Pairings</div>
             <div class="pair-list" id="swPairList"></div>
             <button class="adv-btn" id="swAdvBtn">Next Round &#8594;</button>
+            <button class="back-round-btn" id="swBackRoundBtn">&#8592; Fix Last Round</button>
           </div>
           <div>
             <div class="sec-title">Standings</div>
@@ -2710,9 +2763,14 @@ function swRenderDots(){
   var c=document.getElementById('swRDots');if(!c)return;c.innerHTML='';
   for(var i=1;i<=SW.rounds;i++){
     var d=document.createElement('div');
-    var cls='rdot'+(i<SW.activeRound?' done':i===SW.activeRound&&!SW.editingOld?' active':i===SW.curRound&&SW.editingOld?' editing':'');
-    d.className=cls;d.setAttribute('data-tip','Round '+i);
-    if(i<=SW.activeRound){(function(round){d.style.cursor='pointer';d.addEventListener('click',function(){swViewRound(round);});})(i);}
+    var isDone=i<SW.activeRound;
+    var isActive=i===SW.activeRound&&!SW.editingOld;
+    var isEditing=i===SW.curRound&&SW.editingOld;
+    var cls='rdot'+(isDone?' done':isActive?' active':isEditing?' editing':'');
+    d.className=cls;
+    d.textContent='R'+i;
+    d.title='Round '+i+(isDone?' (completed)':isActive?' (current)':isEditing?' (editing)':'');
+    if(isDone||isEditing){(function(round){d.style.cursor='pointer';d.addEventListener('click',function(){swViewRound(round);});})(i);}
     c.appendChild(d);
   }
 }
@@ -2831,7 +2889,14 @@ function swCheckAdv(){
   var isLast=SW.curRound>=SW.rounds;
   btn.disabled=!allDone;
   if(SW.editingOld){btn.textContent='Navigate using round dots above';btn.disabled=true;}
-  else{btn.textContent=isLast?'Finish Tournament':'Next Round ->';btn.className='adv-btn'+(isLast?' end':'');}
+  else{btn.textContent=isLast?'Finish Tournament':'Next Round \u2192';btn.className='adv-btn'+(isLast?' end':'');}
+  // Back-to-last-round button: show when on active round and a previous round exists
+  var backBtn=document.getElementById('swBackRoundBtn');
+  if(backBtn){
+    var showBack=!SW.editingOld&&SW.activeRound>1;
+    backBtn.className='back-round-btn'+(showBack?' visible':'');
+    backBtn.textContent='\u2190 Fix Round '+(SW.activeRound-1);
+  }
 }
 
 function swShowLateSection(show){
@@ -2932,6 +2997,7 @@ function swInitTab(){ swRenderSetup(); }
   swWire('swClearBtn',function(){SW.players=[];swRenderSetup();});
   swWire('swStartBtn',function(){if(SW.players.length>=2)swStartTournament();});
   swWire('swAdvBtn',swAdvanceRound);
+  swWire('swBackRoundBtn',function(){if(SW.activeRound>1)swViewRound(SW.activeRound-1);});
   swWire('swResetBtn',function(){if(confirm('Reset tournament? All results will be lost.')){SW={players:SW.players,rounds:SW.rounds,curRound:0,activeRound:0,pairings:[],history:[],results:{},byeId:null,editingOld:false};swShowPhase('setup');swRenderSetup();}});
   swWire('swEndBtn',function(){if(confirm('End tournament early?'))swEndTournament();});
   swWire('swNewBtn',function(){SW={players:[],rounds:4,curRound:0,activeRound:0,pairings:[],history:[],results:{},byeId:null,editingOld:false};swShowPhase('setup');swRenderSetup();});
