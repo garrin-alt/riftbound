@@ -731,6 +731,93 @@
     }
     .back-round-btn:hover { background: rgba(232,184,75,0.14); border-color: rgba(232,184,75,0.55); color: var(--gold-light); }
     .back-round-btn.visible { display: block; }
+
+    /* ── RIVALRY ANALYZER ── */
+    .rv-layout { display: grid; grid-template-columns: 280px 1fr; gap: 24px; align-items: start; }
+    @media (max-width: 860px) { .rv-layout { grid-template-columns: 1fr; } }
+
+    .rv-drop-zone {
+      border: 2px dashed rgba(201,146,42,0.25); padding: 24px 16px; text-align: center;
+      cursor: pointer; transition: all 0.2s; margin-bottom: 12px; position: relative;
+    }
+    .rv-drop-zone:hover, .rv-drop-zone.drag-over { border-color: var(--gold); background: rgba(201,146,42,0.06); }
+    .rv-drop-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .rv-drop-icon { font-size: 1.6rem; margin-bottom: 6px; opacity: 0.5; }
+    .rv-drop-zone p { font-size: 0.82rem; color: rgba(245,237,214,0.4); line-height: 1.5; }
+    .rv-drop-zone span { color: var(--gold-light); }
+
+    .rv-file-item {
+      display: flex; align-items: center; gap: 8px; padding: 7px 10px;
+      background: rgba(201,146,42,0.04); border: 1px solid rgba(201,146,42,0.1);
+      font-size: 0.8rem; margin-bottom: 5px;
+    }
+    .rv-file-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold); flex-shrink: 0; }
+    .rv-file-name { color: rgba(245,237,214,0.7); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: 'Crimson Pro', serif; font-size: 0.82rem; }
+    .rv-file-rows { font-size: 0.7rem; color: rgba(245,237,214,0.3); flex-shrink: 0; }
+    .rv-file-rm { background: none; border: none; color: rgba(192,57,43,0.4); cursor: pointer; font-size: 0.85rem; padding: 0 3px; transition: color 0.2s; }
+    .rv-file-rm:hover { color: #c0392b; }
+
+    .rv-stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    .rv-weight-item { margin-bottom: 12px; }
+    .rv-weight-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .rv-weight-name { font-size: 0.78rem; color: rgba(245,237,214,0.55); }
+    .rv-weight-val { font-family: 'Cinzel', serif; font-size: 0.72rem; color: var(--gold); }
+    input[type=range] { width: 100%; accent-color: var(--gold); }
+
+    /* Tab bar inside rivalry panel */
+    .rv-tabs { display: flex; gap: 0; border-bottom: 1px solid rgba(201,146,42,0.2); margin-bottom: 20px; }
+    .rv-tab {
+      padding: 9px 18px; font-family: 'Cinzel', serif; font-size: 0.62rem;
+      letter-spacing: 0.12em; text-transform: uppercase; color: rgba(245,237,214,0.35);
+      cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.15s;
+    }
+    .rv-tab.active { color: var(--gold-light); border-bottom-color: var(--gold); }
+    .rv-tab:hover:not(.active) { color: rgba(245,237,214,0.65); }
+    .rv-tab-panel { display: none; }
+    .rv-tab-panel.active { display: block; }
+
+    /* Rivalry cards */
+    .rv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+    .rv-card {
+      background: rgba(245,237,214,0.02); border: 1px solid rgba(201,146,42,0.18);
+      padding: 16px; position: relative; overflow: hidden;
+    }
+    .rv-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--gold), transparent); }
+    .rv-card-rank { font-family: 'Cinzel', serif; font-size: 0.58rem; letter-spacing: 0.18em; color: rgba(201,146,42,0.5); margin-bottom: 10px; text-transform: uppercase; }
+    .rv-names { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .rv-name { font-family: 'Cinzel', serif; font-size: 1rem; font-weight: 600; color: var(--parchment); flex: 1; }
+    .rv-vs { font-family: 'Cinzel', serif; font-size: 0.58rem; color: rgba(201,146,42,0.5); border: 1px solid rgba(201,146,42,0.2); padding: 2px 6px; flex-shrink: 0; letter-spacing: 0.1em; }
+    .rv-mini-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 12px; text-align: center; }
+    .rv-mini-num { font-family: 'Cinzel', serif; font-size: 0.95rem; font-weight: 700; color: var(--gold-light); }
+    .rv-mini-lbl { font-size: 0.62rem; color: rgba(245,237,214,0.28); letter-spacing: 0.06em; text-transform: uppercase; margin-top: 1px; }
+    .rv-heat-lbl-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+    .rv-heat-lbl { font-size: 0.62rem; color: rgba(245,237,214,0.28); letter-spacing: 0.1em; text-transform: uppercase; }
+    .rv-heat-pct { font-family: 'Cinzel', serif; font-size: 0.72rem; color: var(--gold); }
+    .rv-heat-bar { height: 3px; background: rgba(201,146,42,0.1); }
+    .rv-heat-fill { height: 100%; background: linear-gradient(90deg, var(--rust), var(--gold)); transition: width 0.6s ease; }
+
+    /* Pairing rows */
+    .rv-pair-row {
+      display: grid; grid-template-columns: 28px 1fr auto 1fr auto;
+      align-items: center; gap: 12px;
+      padding: 11px 14px; background: rgba(245,237,214,0.02);
+      border: 1px solid rgba(201,146,42,0.14); margin-bottom: 7px;
+    }
+    .rv-pair-num { font-family: 'Cinzel', serif; font-size: 0.62rem; color: rgba(245,237,214,0.25); }
+    .rv-pair-player { font-family: 'Cinzel', serif; font-size: 0.9rem; color: var(--parchment); }
+    .rv-pair-vs { font-family: 'Cinzel', serif; font-size: 0.58rem; color: rgba(201,146,42,0.45); text-align: center; }
+    .rv-badge { font-family: 'Cinzel', serif; font-size: 0.55rem; letter-spacing: 0.08em; padding: 2px 7px; text-transform: uppercase; font-weight: 600; }
+    .rv-badge-hot { background: rgba(201,146,42,0.1); color: var(--gold); border: 1px solid rgba(201,146,42,0.3); }
+    .rv-badge-new { background: rgba(245,237,214,0.03); color: rgba(245,237,214,0.25); border: 1px solid rgba(245,237,214,0.08); }
+
+    /* H2H table inside rivalry */
+    .rv-rec-w { color: #5ec88a; font-family: 'Cinzel', serif; font-size: 0.8rem; }
+    .rv-rec-l { color: #e08080; font-family: 'Cinzel', serif; font-size: 0.8rem; }
+    .rv-score-gold { font-family: 'Cinzel', serif; font-size: 0.82rem; color: var(--gold-light); font-weight: 700; }
+
+    .rv-empty { text-align: center; padding: 60px 20px; color: rgba(245,237,214,0.18); font-style: italic; font-size: 0.9rem; }
+    .rv-empty-icon { font-size: 2.5rem; margin-bottom: 10px; opacity: 0.25; }
   </style>
 </head>
 <body>
@@ -778,6 +865,9 @@
       </div>
       <div class="sidebar-nav-item" id="snav-swiss" onclick="showTab('swiss'); closeSidebar()">
         <span class="sidebar-nav-icon">&#9876;</span> Swiss Tournament
+      </div>
+      <div class="sidebar-nav-item" id="snav-rivalry" onclick="showTab('rivalry'); closeSidebar()">
+        <span class="sidebar-nav-icon">⚔️</span> Rivalry Analyzer
       </div>
       <div class="sidebar-nav-item" id="snav-more" onclick="showTab('more'); closeSidebar()">
         <span class="sidebar-nav-icon">🔮</span> More Tools
@@ -1206,6 +1296,121 @@
     <p class="panel-desc">Additional tools will appear here over time</p>
     <div class="divider"></div>
     <div class="coming"><div class="coming-icon">🔮</div><p>Coming soon…</p></div>
+  </div>
+
+  <!-- RIVALRY ANALYZER -->
+  <div class="panel" id="tab-rivalry">
+    <div class="panel-title">Rivalry Analyzer</div>
+    <p class="panel-desc">Upload historical round CSVs to generate rivalry pairings from real match data</p>
+    <div class="divider"></div>
+
+    <div class="rv-layout">
+
+      <!-- LEFT SIDEBAR -->
+      <div>
+        <!-- Upload -->
+        <div class="card">
+          <div class="card-label">⬆ Tournament Files</div>
+          <div class="rv-drop-zone" id="rvDropZone">
+            <input type="file" id="rvFileInput" accept=".csv" multiple/>
+            <div class="rv-drop-icon">📄</div>
+            <p>Drop CSVs here or <span>browse</span></p>
+            <p style="font-size:0.73rem;margin-top:3px;opacity:0.6">Player A · Player B · Wins A · Wins B</p>
+          </div>
+          <div id="rvFileList"></div>
+        </div>
+
+        <!-- Dataset stats -->
+        <div class="card" id="rvStatsCard" style="display:none">
+          <div class="card-label">📊 Dataset</div>
+          <div class="rv-stat-grid">
+            <div class="stat"><div class="stat-l">Matches</div><div class="stat-v" id="rvStatMatches">0</div></div>
+            <div class="stat"><div class="stat-l">Players</div><div class="stat-v" id="rvStatPlayers">0</div></div>
+            <div class="stat"><div class="stat-l">Events</div><div class="stat-v" id="rvStatEvents">0</div></div>
+            <div class="stat"><div class="stat-l">Pairs</div><div class="stat-v" id="rvStatPairs">0</div></div>
+          </div>
+        </div>
+
+        <!-- Weights -->
+        <div class="card">
+          <div class="card-label">⚖ Score Weights</div>
+          <div class="rv-weight-item">
+            <div class="rv-weight-top">
+              <span class="rv-weight-name">Meetings (frequency)</span>
+              <span class="rv-weight-val" id="rvWMeetLbl">70%</span>
+            </div>
+            <input type="range" id="rvWMeet" min="0" max="100" value="70"/>
+          </div>
+          <div class="rv-weight-item">
+            <div class="rv-weight-top">
+              <span class="rv-weight-name">Close matches (2-1)</span>
+              <span class="rv-weight-val" id="rvWCloseLbl">20%</span>
+            </div>
+            <input type="range" id="rvWClose" min="0" max="100" value="20"/>
+          </div>
+          <div class="rv-weight-item">
+            <div class="rv-weight-top">
+              <span class="rv-weight-name">Win swing</span>
+              <span class="rv-weight-val" id="rvWSwingLbl">10%</span>
+            </div>
+            <input type="range" id="rvWSwing" min="0" max="100" value="10"/>
+          </div>
+        </div>
+
+        <button class="btn" id="rvAnalyzeBtn" disabled>Analyze Rivalries</button>
+      </div>
+
+      <!-- RIGHT: Results -->
+      <div>
+        <div id="rvEmpty">
+          <div class="rv-empty">
+            <div class="rv-empty-icon">⚔️</div>
+            Upload past tournament CSVs to generate rivalry scores from real match history
+          </div>
+        </div>
+
+        <div id="rvResults" style="display:none">
+          <div class="rv-tabs">
+            <div class="rv-tab active" data-rvtab="cards">Rivalry Rankings</div>
+            <div class="rv-tab" data-rvtab="h2h">Head-to-Head</div>
+            <div class="rv-tab" data-rvtab="pairings">Suggested Pairings</div>
+          </div>
+
+          <!-- Rankings -->
+          <div class="rv-tab-panel active" id="rvtab-cards">
+            <div class="rv-grid" id="rvGrid"></div>
+          </div>
+
+          <!-- H2H table -->
+          <div class="rv-tab-panel" id="rvtab-h2h">
+            <table>
+              <thead>
+                <tr>
+                  <th>Player A</th><th>Player B</th>
+                  <th class="c">Meetings</th>
+                  <th class="c">Record (A–B)</th>
+                  <th class="c">Close</th>
+                  <th class="r">Score</th>
+                </tr>
+              </thead>
+              <tbody id="rvH2HBody"></tbody>
+            </table>
+          </div>
+
+          <!-- Pairings -->
+          <div class="rv-tab-panel" id="rvtab-pairings">
+            <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic;margin-bottom:16px;line-height:1.6">
+              Optimal one-to-one rivalry assignments. ESTABLISHED = 2+ historical meetings.
+            </p>
+            <div id="rvPairingList"></div>
+            <div style="display:flex;gap:8px;margin-top:16px">
+              <button class="btn ghost" id="rvExportCSV" style="width:auto;flex:1">⬇ Export CSV</button>
+              <button class="btn ghost" id="rvCopyWhatsApp" style="width:auto;flex:1">📋 Copy for WhatsApp</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
 </div>
@@ -3008,6 +3213,253 @@ function swInitTab(){ swRenderSetup(); }
   swRenderSetup();
 })();
 // ==================== END SWISS ====================
+
+// ==================== RIVALRY ANALYZER ====================
+(function(){
+  var rvFiles = [];
+  var rvMatches = [];
+  var rvH2H = {};
+  var rvScores = [];
+  var rvPairs = [];
+
+  // Weight sliders
+  var wMeet  = document.getElementById('rvWMeet');
+  var wClose = document.getElementById('rvWClose');
+  var wSwing = document.getElementById('rvWSwing');
+  [wMeet, wClose, wSwing].forEach(function(sl){
+    if(sl) sl.addEventListener('input', rvUpdateWeightLabels);
+  });
+
+  function rvUpdateWeightLabels(){
+    var total = (+wMeet.value + +wClose.value + +wSwing.value) || 1;
+    document.getElementById('rvWMeetLbl').textContent  = Math.round(+wMeet.value/total*100)+'%';
+    document.getElementById('rvWCloseLbl').textContent = Math.round(+wClose.value/total*100)+'%';
+    document.getElementById('rvWSwingLbl').textContent = Math.round(+wSwing.value/total*100)+'%';
+  }
+
+  // Drop zone
+  var dz = document.getElementById('rvDropZone');
+  var fi = document.getElementById('rvFileInput');
+  if(dz){
+    dz.addEventListener('dragover', function(e){ e.preventDefault(); dz.classList.add('drag-over'); });
+    dz.addEventListener('dragleave', function(){ dz.classList.remove('drag-over'); });
+    dz.addEventListener('drop', function(e){ e.preventDefault(); dz.classList.remove('drag-over'); rvHandleFiles([].slice.call(e.dataTransfer.files)); });
+  }
+  if(fi) fi.addEventListener('change', function(){ rvHandleFiles([].slice.call(fi.files)); });
+
+  function rvHandleFiles(incoming){
+    incoming.forEach(function(f){
+      if(!f.name.endsWith('.csv')) return;
+      if(rvFiles.find(function(x){ return x.name===f.name; })) return;
+      var reader = new FileReader();
+      reader.onload = function(e){
+        var rows = rvParseCSV(e.target.result, f.name);
+        rvFiles.push({ name: f.name, rows: rows });
+        rvRebuildMatches();
+        rvRenderFileList();
+        rvUpdateStats();
+        document.getElementById('rvAnalyzeBtn').disabled = false;
+      };
+      reader.readAsText(f);
+    });
+  }
+
+  function rvParseCSV(text, fname){
+    var lines = text.trim().split('\n').filter(Boolean);
+    if(lines.length < 2) return [];
+    var header = lines[0].split(',').map(function(h){ return h.trim().toLowerCase(); });
+    function col(name){
+      var aliases = {
+        player_a: ['player_a','player a','playera','name_a','player1'],
+        player_b: ['player_b','player b','playerb','name_b','player2'],
+        wins_a:   ['wins_a','wins a','winsa','score_a','score a','scorea','w_a'],
+        wins_b:   ['wins_b','wins b','winsb','score_b','score b','scoreb','w_b'],
+      };
+      var list = aliases[name] || [];
+      for(var i=0;i<list.length;i++){ var idx=header.indexOf(list[i]); if(idx!==-1) return idx; }
+      return -1;
+    }
+    var iA=col('player_a'), iB=col('player_b'), iWA=col('wins_a'), iWB=col('wins_b');
+    return lines.slice(1).map(function(line){
+      var c = line.split(',').map(function(x){ return x.trim(); });
+      if(iA===-1) return { playerA:c[0], playerB:c[1], winsA:+c[2]||0, winsB:+c[3]||0, tournament:fname };
+      return { playerA:c[iA], playerB:c[iB], winsA:+c[iWA]||0, winsB:+c[iWB]||0, tournament:fname };
+    }).filter(function(r){ return r.playerA && r.playerB; });
+  }
+
+  function rvRebuildMatches(){ rvMatches = rvFiles.reduce(function(acc,f){ return acc.concat(f.rows); },[]); }
+
+  window.rvRemoveFile = function(name){
+    rvFiles = rvFiles.filter(function(f){ return f.name!==name; });
+    rvRebuildMatches(); rvRenderFileList(); rvUpdateStats();
+    if(rvFiles.length===0){
+      document.getElementById('rvAnalyzeBtn').disabled = true;
+      document.getElementById('rvStatsCard').style.display = 'none';
+    }
+  };
+
+  function rvRenderFileList(){
+    var el = document.getElementById('rvFileList');
+    if(!el) return;
+    el.innerHTML = rvFiles.map(function(f){
+      return '<div class="rv-file-item">'+
+        '<div class="rv-file-dot"></div>'+
+        '<div class="rv-file-name">'+f.name+'</div>'+
+        '<div class="rv-file-rows">'+f.rows.length+'r</div>'+
+        '<button class="rv-file-rm" onclick="rvRemoveFile(\''+f.name.replace(/'/g,"\\'")+'\')" title="Remove">✕</button>'+
+      '</div>';
+    }).join('');
+  }
+
+  function rvUpdateStats(){
+    var sc = document.getElementById('rvStatsCard');
+    if(rvMatches.length===0){ if(sc) sc.style.display='none'; return; }
+    if(sc) sc.style.display='block';
+    var players=new Set(), pairs=new Set();
+    rvMatches.forEach(function(m){ players.add(m.playerA); players.add(m.playerB); pairs.add(rvKey(m.playerA,m.playerB)); });
+    document.getElementById('rvStatMatches').textContent = rvMatches.length;
+    document.getElementById('rvStatPlayers').textContent = players.size;
+    document.getElementById('rvStatEvents').textContent  = rvFiles.length;
+    document.getElementById('rvStatPairs').textContent   = pairs.size;
+  }
+
+  function rvKey(a,b){ return [a,b].sort().join('|'); }
+
+  // Analyze button
+  var analyzeBtn = document.getElementById('rvAnalyzeBtn');
+  if(analyzeBtn) analyzeBtn.addEventListener('click', rvAnalyze);
+
+  function rvAnalyze(){
+    rvH2H = {};
+    rvMatches.forEach(function(m){
+      var key = rvKey(m.playerA, m.playerB);
+      if(!rvH2H[key]) rvH2H[key] = { players: [m.playerA,m.playerB].sort(), meetings:0, winsA:0, winsB:0, close:0, swings:0 };
+      var e = rvH2H[key];
+      var sorted = e.players[0];
+      if(m.playerA===sorted){ e.winsA+=m.winsA; e.winsB+=m.winsB; }
+      else { e.winsA+=m.winsB; e.winsB+=m.winsA; }
+      e.meetings++;
+      if(Math.abs(m.winsA-m.winsB)===1) e.close++;
+      if(e.winsA!==e.winsB){
+        var leader = e.winsA>e.winsB ? sorted : e.players[1];
+        var thisWinner = (m.playerA===sorted?(m.winsA>m.winsB):(m.winsB>m.winsA)) ? sorted : e.players[1];
+        if(leader!==thisWinner) e.swings++;
+      }
+    });
+
+    var maxM = Math.max.apply(null, Object.values(rvH2H).map(function(e){ return e.meetings; }).concat([1]));
+    var maxC = Math.max.apply(null, Object.values(rvH2H).map(function(e){ return e.close; }).concat([1]));
+    var maxS = Math.max.apply(null, Object.values(rvH2H).map(function(e){ return e.swings; }).concat([1]));
+    var total = (+wMeet.value + +wClose.value + +wSwing.value) || 1;
+    var wm = +wMeet.value/total, wc = +wClose.value/total, ws = +wSwing.value/total;
+
+    rvScores = Object.entries(rvH2H).map(function(kv){
+      var e = kv[1];
+      var score = wm*(e.meetings/maxM) + wc*(e.close/maxC) + ws*(e.swings/maxS);
+      return Object.assign({}, e, { score: score });
+    }).sort(function(a,b){ return b.score-a.score; });
+
+    // Greedy one-to-one matching
+    var assigned = {};
+    rvPairs = [];
+    rvScores.forEach(function(r){
+      var a=r.players[0], b=r.players[1];
+      if(!assigned[a] && !assigned[b]){ rvPairs.push(r); assigned[a]=true; assigned[b]=true; }
+    });
+
+    document.getElementById('rvEmpty').style.display = 'none';
+    document.getElementById('rvResults').style.display = 'block';
+    rvRenderCards();
+    rvRenderH2H();
+    rvRenderPairings();
+  }
+
+  function rvRenderCards(){
+    var max = rvScores[0] ? rvScores[0].score : 1;
+    document.getElementById('rvGrid').innerHTML = rvScores.slice(0,12).map(function(r,i){
+      var pct = Math.round(r.score/max*100);
+      return '<div class="rv-card">'+
+        '<div class="rv-card-rank">Rivalry #'+(i+1)+'</div>'+
+        '<div class="rv-names">'+
+          '<div class="rv-name">'+r.players[0]+'</div>'+
+          '<div class="rv-vs">VS</div>'+
+          '<div class="rv-name" style="text-align:right">'+r.players[1]+'</div>'+
+        '</div>'+
+        '<div class="rv-mini-stats">'+
+          '<div><div class="rv-mini-num" style="color:var(--gold-light)">'+r.winsA+'</div><div class="rv-mini-lbl">Wins</div></div>'+
+          '<div><div class="rv-mini-num">'+r.meetings+'</div><div class="rv-mini-lbl">Matches</div></div>'+
+          '<div><div class="rv-mini-num" style="color:var(--gold-light)">'+r.winsB+'</div><div class="rv-mini-lbl">Wins</div></div>'+
+        '</div>'+
+        '<div class="rv-heat-lbl-row"><span class="rv-heat-lbl">Rivalry Heat</span><span class="rv-heat-pct">'+pct+'%</span></div>'+
+        '<div class="rv-heat-bar"><div class="rv-heat-fill" style="width:'+pct+'%"></div></div>'+
+      '</div>';
+    }).join('');
+  }
+
+  function rvRenderH2H(){
+    document.getElementById('rvH2HBody').innerHTML = rvScores.map(function(r){
+      return '<tr>'+
+        '<td>'+r.players[0]+'</td>'+
+        '<td>'+r.players[1]+'</td>'+
+        '<td class="c">'+r.meetings+'</td>'+
+        '<td class="c"><span class="rv-rec-w">'+r.winsA+'W</span> – <span class="rv-rec-l">'+r.winsB+'L</span></td>'+
+        '<td class="c">'+r.close+'</td>'+
+        '<td class="r"><span class="rv-score-gold">'+Math.round(r.score*100)+'</span></td>'+
+      '</tr>';
+    }).join('');
+  }
+
+  function rvRenderPairings(){
+    document.getElementById('rvPairingList').innerHTML = rvPairs.map(function(r,i){
+      var hot = r.meetings >= 2;
+      return '<div class="rv-pair-row">'+
+        '<div class="rv-pair-num">'+String(i+1).padStart(2,'0')+'</div>'+
+        '<div class="rv-pair-player">'+r.players[0]+'</div>'+
+        '<div class="rv-pair-vs">⚔</div>'+
+        '<div class="rv-pair-player">'+r.players[1]+'</div>'+
+        '<div class="rv-badge '+(hot?'rv-badge-hot':'rv-badge-new')+'">'+( hot?'Established':'New Rivalry')+'</div>'+
+      '</div>';
+    }).join('');
+  }
+
+  // Sub-tabs inside rivalry panel
+  document.querySelectorAll('.rv-tab').forEach(function(tab){
+    tab.addEventListener('click', function(){
+      document.querySelectorAll('.rv-tab').forEach(function(t){ t.classList.remove('active'); });
+      document.querySelectorAll('.rv-tab-panel').forEach(function(p){ p.classList.remove('active'); });
+      tab.classList.add('active');
+      var panel = document.getElementById('rvtab-'+tab.dataset.rvtab);
+      if(panel) panel.classList.add('active');
+    });
+  });
+
+  // Export CSV
+  var expCSV = document.getElementById('rvExportCSV');
+  if(expCSV) expCSV.addEventListener('click', function(){
+    var rows = ['Player A,Player B,Meetings,Wins A,Wins B,Close Matches,Score'];
+    rvPairs.forEach(function(r){
+      rows.push(r.players[0]+','+r.players[1]+','+r.meetings+','+r.winsA+','+r.winsB+','+r.close+','+Math.round(r.score*100));
+    });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));
+    a.download = 'gnl-rivalries.csv'; a.click();
+  });
+
+  // Copy for WhatsApp
+  var copyWA = document.getElementById('rvCopyWhatsApp');
+  if(copyWA) copyWA.addEventListener('click', function(){
+    var lines = ['⚔️ *GNL SEASON RIVALRIES* ⚔️',''];
+    rvPairs.forEach(function(r,i){
+      lines.push((i+1)+'. '+r.players[0]+' vs '+r.players[1]+' ('+r.meetings+' meetings)');
+    });
+    lines.push('','Rivalries generated from historical match data. May the best player win. 🏆');
+    navigator.clipboard.writeText(lines.join('\n'));
+    copyWA.textContent = 'Copied!';
+    setTimeout(function(){ copyWA.textContent = '📋 Copy for WhatsApp'; }, 1800);
+  });
+
+})();
+// ==================== END RIVALRY ANALYZER ====================
 
 </script>
 </body>
