@@ -818,6 +818,18 @@
 
     .rv-empty { text-align: center; padding: 60px 20px; color: rgba(245,237,214,0.18); font-style: italic; font-size: 0.9rem; }
     .rv-empty-icon { font-size: 2.5rem; margin-bottom: 10px; opacity: 0.25; }
+
+    .rv-ev-row {
+      display: grid; grid-template-columns: 28px 1fr auto 1fr auto;
+      align-items: center; gap: 12px;
+      padding: 11px 14px; background: rgba(245,237,214,0.02);
+      border: 1px solid rgba(201,146,42,0.14); margin-bottom: 7px;
+    }
+    .rv-ev-row.fallback { border-color: rgba(192,140,57,0.3); background: rgba(192,140,57,0.04); }
+    .rv-ev-row.none { border-color: rgba(245,237,214,0.06); opacity: 0.55; }
+    .rv-ev-meta { font-size: 0.62rem; color: rgba(245,237,214,0.3); text-align: right; }
+    .rv-ev-meta.fallback-lbl { color: #c98c39; }
+    .rv-ev-stats-bar { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 14px; }
   </style>
 </head>
 <body>
@@ -1266,6 +1278,7 @@
             </div>
             <button class="btn danger" style="margin-top:8px" id="swEndBtn">End Tournament</button>
             <button class="btn ghost" style="margin-top:4px" id="swExportBtn">&#8595; Export Standings CSV</button>
+            <button class="btn ghost" style="margin-top:4px" id="swExportPairingsBtn">&#8595; Export Pairings CSV (for Rivalry)</button>
           </div>
         </div>
       </div>
@@ -1374,10 +1387,18 @@
             <div class="rv-tab active" data-rvtab="cards">Rivalry Rankings</div>
             <div class="rv-tab" data-rvtab="h2h">Head-to-Head</div>
             <div class="rv-tab" data-rvtab="pairings">Suggested Pairings</div>
+            <div class="rv-tab" data-rvtab="eventday">⚔ Event Day</div>
           </div>
 
           <!-- Rankings -->
           <div class="rv-tab-panel active" id="rvtab-cards">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+              <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic">Built from all uploaded season data.</p>
+              <div style="display:flex;align-items:center;gap:10px">
+                <span id="rvGistStatus" style="font-size:0.72rem;color:rgba(245,237,214,0.3)"></span>
+                <button class="btn ghost" id="rvSaveGist" style="width:auto;padding:7px 14px;font-size:0.7rem">☁ Save to Gist</button>
+              </div>
+            </div>
             <div class="rv-grid" id="rvGrid"></div>
           </div>
 
@@ -1407,6 +1428,36 @@
               <button class="btn ghost" id="rvExportCSV" style="width:auto;flex:1">⬇ Export CSV</button>
               <button class="btn ghost" id="rvCopyWhatsApp" style="width:auto;flex:1">📋 Copy for WhatsApp</button>
             </div>
+          </div>
+
+          <!-- EVENT DAY -->
+          <div class="rv-tab-panel" id="rvtab-eventday">
+            <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic;margin-bottom:14px;line-height:1.6">
+              Upload today's check-in / pairings CSV. Each attending player gets matched to their best available rival from the saved season Gist — even if that exact rival isn't here today.
+            </p>
+
+            <div class="card" style="margin-bottom:14px">
+              <div class="card-label">☁ Season Rivalry Data</div>
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                <button class="btn ghost" id="rvLoadGistBtn" style="width:auto;padding:7px 14px;font-size:0.7rem">↻ Load Saved Rivalries from Gist</button>
+                <span id="rvEventGistStatus" style="font-size:0.72rem;color:rgba(245,237,214,0.3)"></span>
+              </div>
+            </div>
+
+            <div class="card" style="margin-bottom:14px">
+              <div class="card-label">⬆ Today's Attendance / Pairings File</div>
+              <div class="rv-drop-zone" id="rvEventDropZone">
+                <input type="file" id="rvEventFileInput" accept=".csv"/>
+                <div class="rv-drop-icon">📄</div>
+                <p>Drop today's CSV here or <span>browse</span></p>
+                <p style="font-size:0.73rem;margin-top:3px;opacity:0.6">Same export format as your tournament platform</p>
+              </div>
+              <div id="rvEventFileList"></div>
+            </div>
+
+            <button class="btn" id="rvGeneratePairingsBtn" disabled>Generate Event Rivalries</button>
+
+            <div id="rvEventResults" style="margin-top:18px"></div>
           </div>
         </div>
       </div>
@@ -3166,6 +3217,32 @@ function swEndTournament(){
   swRenderStandings('swFBody');
 }
 
+function swExportPairings(){
+  // Export all historical pairings as Player A, Player B, Wins A, Wins B
+  var rows = ['"Player A","Player B","Wins A","Wins B","Round","Tournament"'];
+  var tName = 'Tournament';
+  SW.history.forEach(function(h){
+    if(!h) return;
+    h.pairings.forEach(function(p){
+      if(p.bye || p.res===null) return;
+      var wA = p.g1||0, wB = p.g2||0;
+      rows.push('"'+p.p1n+'","'+p.p2n+'","'+wA+'","'+wB+'","'+h.round+'","'+tName+'"');
+    });
+  });
+  // Also include current round if not in history yet
+  if(SW.pairings && SW.pairings.length && !SW.history[SW.curRound-1]){
+    SW.pairings.forEach(function(p){
+      if(p.bye || p.res===null) return;
+      var wA = p.g1||0, wB = p.g2||0;
+      rows.push('"'+p.p1n+'","'+p.p2n+'","'+wA+'","'+wB+'","'+SW.curRound+'","'+tName+'"');
+    });
+  }
+  if(rows.length < 2){ alert('No completed pairings to export yet.'); return; }
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));
+  a.download = 'riftbound-pairings.csv'; a.click();
+}
+
 function swExportCSV(final){
   var standings=swGetStandings();
   var rows=[['Rank','Player','Display Name','User ID','Record (W-L-D)','Points','OMW%']];
@@ -3210,6 +3287,7 @@ function swInitTab(){ swRenderSetup(); }
   swWire('swCancelRepairBtn',swCancelRepair);
   swWire('swExportBtn',function(){swExportCSV(false);});
   swWire('swExportFinalBtn',function(){swExportCSV(true);});
+  swWire('swExportPairingsBtn',swExportPairings);
   swRenderSetup();
 })();
 // ==================== END SWISS ====================
@@ -3265,26 +3343,104 @@ function swInitTab(){ swRenderSetup(); }
   }
 
   function rvParseCSV(text, fname){
+    // Normalise line endings, strip BOM
+    text = text.replace(/^\uFEFF/,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
     var lines = text.trim().split('\n').filter(Boolean);
     if(lines.length < 2) return [];
-    var header = lines[0].split(',').map(function(h){ return h.trim().toLowerCase(); });
-    function col(name){
-      var aliases = {
-        player_a: ['player_a','player a','playera','name_a','player1'],
-        player_b: ['player_b','player b','playerb','name_b','player2'],
-        wins_a:   ['wins_a','wins a','winsa','score_a','score a','scorea','w_a'],
-        wins_b:   ['wins_b','wins b','winsb','score_b','score b','scoreb','w_b'],
-      };
-      var list = aliases[name] || [];
-      for(var i=0;i<list.length;i++){ var idx=header.indexOf(list[i]); if(idx!==-1) return idx; }
+
+    function unquote(s){
+      s = (s||'').trim();
+      if(s.charAt(0)==='"' && s.charAt(s.length-1)==='"') s = s.slice(1,-1).replace(/""/g,'"');
+      return s;
+    }
+    function splitLine(line){
+      var out=[], cur='', inQ=false;
+      for(var i=0;i<line.length;i++){
+        var ch=line[i];
+        if(ch==='"'){ if(inQ && line[i+1]==='"'){ cur+='"'; i++; } else { inQ=!inQ; } }
+        else if(ch===',' && !inQ){ out.push(cur); cur=''; }
+        else { cur+=ch; }
+      }
+      out.push(cur);
+      return out.map(function(s){ return s.trim(); });
+    }
+
+    var header = splitLine(lines[0]).map(function(h){ return unquote(h).toLowerCase(); });
+
+    function findCol(aliases){
+      for(var i=0;i<aliases.length;i++){ var idx=header.indexOf(aliases[i]); if(idx!==-1) return idx; }
       return -1;
     }
+
+    // ── FORMAT A: tournament-platform export (Player 1 First Name, Player 1 Last Name, Match Result, etc.) ──
+    var iP1First = findCol(['player 1 first name']);
+    var iP1Last  = findCol(['player 1 last name']);
+    var iP2First = findCol(['player 2 first name']);
+    var iP2Last  = findCol(['player 2 last name']);
+    var iResult  = findCol(['match result']);
+    var iStatus  = findCol(['match status']);
+
+    if(iP1First!==-1 && iP2First!==-1 && iResult!==-1){
+      var results = [];
+      lines.slice(1).forEach(function(line){
+        if(!line.trim()) return;
+        var c = splitLine(line).map(unquote);
+        var p1 = (c[iP1First]+' '+(c[iP1Last]||'')).trim();
+        var p2 = (c[iP2First]+' '+(c[iP2Last]||'')).trim();
+        if(!p1 || !p2 || p1===p2) return;
+        if(iStatus!==-1 && c[iStatus] && c[iStatus].toUpperCase().indexOf('COMPLETE')===-1) return;
+
+        var resultText = c[iResult] || '';
+        // Formats seen: "Karl Dean: 2-1-0"  or  "Draw"  or  "BYE" or blank
+        var winsA = 0, winsB = 0;
+        var m = resultText.match(/^(.*?):\s*(\d+)-(\d+)(?:-(\d+))?$/);
+        if(m){
+          var winnerName = m[1].trim();
+          var g1 = +m[2], g2 = +m[3];
+          // Figure out which side won: match winnerName against p1 or p2
+          if(winnerName === p1 || p1.indexOf(winnerName)===0 || winnerName.indexOf(p1)===0){
+            winsA = g1; winsB = g2;
+          } else if(winnerName === p2 || p2.indexOf(winnerName)===0 || winnerName.indexOf(p2)===0){
+            winsA = g2; winsB = g1;
+          } else {
+            // fallback: can't match name, just assign as-is (A first)
+            winsA = g1; winsB = g2;
+          }
+        } else if(/draw/i.test(resultText)){
+          winsA = 1; winsB = 1;
+        } else {
+          return; // BYE, blank, or unparseable result — skip this row
+        }
+        results.push({ playerA: p1, playerB: p2, winsA: winsA, winsB: winsB, tournament: fname });
+      });
+      return results;
+    }
+
+    // ── FORMAT B: simple Player A / Player B / Wins A / Wins B (e.g. Swiss tool pairings export) ──
+    function col(name){
+      var aliases = {
+        player_a: ['player_a','player a','playera','name_a','player1','p1','p1 name'],
+        player_b: ['player_b','player b','playerb','name_b','player2','p2','p2 name'],
+        wins_a:   ['wins_a','wins a','winsa','score_a','score a','scorea','w_a','g_a','games_a','wins p1'],
+        wins_b:   ['wins_b','wins b','winsb','score_b','score b','scoreb','w_b','g_b','games_b','wins p2'],
+      };
+      return findCol(aliases[name] || []);
+    }
     var iA=col('player_a'), iB=col('player_b'), iWA=col('wins_a'), iWB=col('wins_b');
-    return lines.slice(1).map(function(line){
-      var c = line.split(',').map(function(x){ return x.trim(); });
-      if(iA===-1) return { playerA:c[0], playerB:c[1], winsA:+c[2]||0, winsB:+c[3]||0, tournament:fname };
-      return { playerA:c[iA], playerB:c[iB], winsA:+c[iWA]||0, winsB:+c[iWB]||0, tournament:fname };
-    }).filter(function(r){ return r.playerA && r.playerB; });
+
+    if(iA===-1){
+      // Nothing recognisable — refuse to guess positionally, return empty so the UI flags a parse error
+      return [];
+    }
+
+    var out = [];
+    lines.slice(1).forEach(function(line){
+      if(!line.trim()) return;
+      var c = splitLine(line).map(unquote);
+      var row = { playerA:c[iA]||'', playerB:c[iB]||'', winsA:+(c[iWA])||0, winsB:+(c[iWB])||0, tournament:fname };
+      if(row.playerA && row.playerB && row.playerA!==row.playerB) out.push(row);
+    });
+    return out;
   }
 
   function rvRebuildMatches(){ rvMatches = rvFiles.reduce(function(acc,f){ return acc.concat(f.rows); },[]); }
@@ -3302,10 +3458,11 @@ function swInitTab(){ swRenderSetup(); }
     var el = document.getElementById('rvFileList');
     if(!el) return;
     el.innerHTML = rvFiles.map(function(f){
+      var ok = f.rows.length > 0;
       return '<div class="rv-file-item">'+
-        '<div class="rv-file-dot"></div>'+
+        '<div class="rv-file-dot" style="background:'+(ok?'var(--gold)':'#c0392b')+'"></div>'+
         '<div class="rv-file-name">'+f.name+'</div>'+
-        '<div class="rv-file-rows">'+f.rows.length+'r</div>'+
+        '<div class="rv-file-rows" style="color:'+(ok?'rgba(245,237,214,0.4)':'#c0392b')+'">'+(ok ? f.rows.length+' rows' : 'parse error')+'</div>'+
         '<button class="rv-file-rm" onclick="rvRemoveFile(\''+f.name.replace(/'/g,"\\'")+'\')" title="Remove">✕</button>'+
       '</div>';
     }).join('');
@@ -3457,6 +3614,245 @@ function swInitTab(){ swRenderSetup(); }
     copyWA.textContent = 'Copied!';
     setTimeout(function(){ copyWA.textContent = '📋 Copy for WhatsApp'; }, 1800);
   });
+
+  // ── SAVE SEASON RIVALRY DATA TO GIST ──────────────────────────────────────
+  // Rides on the site's existing save()/load()/syncToGist() — stored as a new
+  // top-level key so it doesn't touch existing event data.
+  function rvSetGistStatus(msg, color){
+    var el = document.getElementById('rvGistStatus');
+    if(el){ el.textContent = msg; el.style.color = color || 'rgba(245,237,214,0.3)'; }
+  }
+
+  var saveGistBtn = document.getElementById('rvSaveGist');
+  if(saveGistBtn) saveGistBtn.addEventListener('click', function(){
+    if(!rvScores.length){ rvSetGistStatus('⚠ Nothing to save — analyze first', '#c0392b'); return; }
+    if(typeof getToken==='function' && !getToken()){
+      rvSetGistStatus('⚠ No Gist token set (Settings tab)', '#c0392b'); return;
+    }
+    rvSetGistStatus('⟳ Saving…', 'rgba(201,146,42,0.7)');
+    try {
+      var data = load();
+      data.rivalry = {
+        h2h: rvScores.map(function(r){
+          return { players: r.players, meetings: r.meetings, winsA: r.winsA, winsB: r.winsB, close: r.close, swings: r.swings, score: r.score };
+        }),
+        savedPairs: rvPairs.map(function(r){ return { players: r.players, score: r.score, meetings: r.meetings }; }),
+        updatedAt: new Date().toISOString()
+      };
+      save(data); // existing save() persists locally AND triggers syncToGist()
+      rvSetGistStatus('✓ Saved to Gist', '#4caf50');
+      setTimeout(function(){ rvSetGistStatus('',''); }, 3000);
+    } catch(e){
+      rvSetGistStatus('✗ Save failed', '#c0392b');
+    }
+  });
+
+  // ── EVENT DAY: load season rivalry data + match today's attendees ────────
+  var rvSeasonH2H = null; // loaded from gist: array of {players:[a,b], score, meetings, ...}
+  var rvEventFiles = [];
+  var rvEventMatches = [];
+
+  function rvSetEventGistStatus(msg, color){
+    var el = document.getElementById('rvEventGistStatus');
+    if(el){ el.textContent = msg; el.style.color = color || 'rgba(245,237,214,0.3)'; }
+  }
+
+  var loadGistBtn = document.getElementById('rvLoadGistBtn');
+  if(loadGistBtn) loadGistBtn.addEventListener('click', async function(){
+    rvSetEventGistStatus('⟳ Loading…', 'rgba(201,146,42,0.7)');
+    try {
+      var data = await loadFromGist();
+      if(data && data.rivalry && data.rivalry.h2h && data.rivalry.h2h.length){
+        rvSeasonH2H = data.rivalry.h2h;
+        rvSetEventGistStatus('✓ Loaded '+rvSeasonH2H.length+' rivalry pairs (saved '+new Date(data.rivalry.updatedAt).toLocaleDateString()+')', '#4caf50');
+      } else {
+        rvSeasonH2H = null;
+        rvSetEventGistStatus('⚠ No saved rivalry data found in Gist yet', '#c0392b');
+      }
+    } catch(e){
+      rvSetEventGistStatus('✗ Load failed', '#c0392b');
+    }
+    rvMaybeEnableGenerate();
+  });
+
+  // Event-day drop zone
+  var evDz = document.getElementById('rvEventDropZone');
+  var evFi = document.getElementById('rvEventFileInput');
+  if(evDz){
+    evDz.addEventListener('dragover', function(e){ e.preventDefault(); evDz.classList.add('drag-over'); });
+    evDz.addEventListener('dragleave', function(){ evDz.classList.remove('drag-over'); });
+    evDz.addEventListener('drop', function(e){ e.preventDefault(); evDz.classList.remove('drag-over'); rvHandleEventFiles([].slice.call(e.dataTransfer.files)); });
+  }
+  if(evFi) evFi.addEventListener('change', function(){ rvHandleEventFiles([].slice.call(evFi.files)); });
+
+  function rvHandleEventFiles(incoming){
+    var f = incoming[0];
+    if(!f || !f.name.endsWith('.csv')) return;
+    var reader = new FileReader();
+    reader.onload = function(e){
+      var rows = rvParseCSV(e.target.result, f.name);
+      rvEventFiles = [{ name: f.name, rows: rows }];
+      rvEventMatches = rows;
+      rvRenderEventFileList();
+      rvMaybeEnableGenerate();
+    };
+    reader.readAsText(f);
+  }
+
+  function rvRenderEventFileList(){
+    var el = document.getElementById('rvEventFileList');
+    if(!el) return;
+    el.innerHTML = rvEventFiles.map(function(f){
+      var ok = f.rows.length > 0;
+      return '<div class="rv-file-item">'+
+        '<div class="rv-file-dot" style="background:'+(ok?'var(--gold)':'#c0392b')+'"></div>'+
+        '<div class="rv-file-name">'+f.name+'</div>'+
+        '<div class="rv-file-rows" style="color:'+(ok?'rgba(245,237,214,0.4)':'#c0392b')+'">'+(ok ? f.rows.length+' rows' : 'parse error')+'</div>'+
+      '</div>';
+    }).join('');
+  }
+
+  function rvMaybeEnableGenerate(){
+    var btn = document.getElementById('rvGeneratePairingsBtn');
+    if(btn) btn.disabled = !(rvSeasonH2H && rvEventMatches.length);
+  }
+
+  // Extract unique attendee names from today's pairings file
+  function rvGetAttendees(){
+    var set = new Set();
+    rvEventMatches.forEach(function(m){ set.add(m.playerA); set.add(m.playerB); });
+    return Array.from(set);
+  }
+
+  var genBtn = document.getElementById('rvGeneratePairingsBtn');
+  if(genBtn) genBtn.addEventListener('click', rvGenerateEventRivalries);
+
+  function rvGenerateEventRivalries(){
+    var attendees = rvGetAttendees();
+    var attendeeSet = new Set(attendees);
+
+    // Build per-player ranked rival lists from season h2h data, restricted to today's attendees
+    var candidatesByPlayer = {};
+    attendees.forEach(function(p){ candidatesByPlayer[p] = []; });
+
+    rvSeasonH2H.forEach(function(entry){
+      var a = entry.players[0], b = entry.players[1];
+      var aHere = attendeeSet.has(a), bHere = attendeeSet.has(b);
+      if(aHere && bHere){
+        candidatesByPlayer[a].push({ opponent: b, score: entry.score, meetings: entry.meetings });
+        candidatesByPlayer[b].push({ opponent: a, score: entry.score, meetings: entry.meetings });
+      }
+    });
+
+    // Sort each player's candidate list by score descending (best rival first)
+    Object.keys(candidatesByPlayer).forEach(function(p){
+      candidatesByPlayer[p].sort(function(x,y){ return y.score - x.score; });
+    });
+
+    // Greedy assignment: process players in order of their best available score (strongest rivalries locked in first)
+    var playerBestScore = attendees.map(function(p){
+      var list = candidatesByPlayer[p];
+      return { player: p, best: list.length ? list[0].score : -1 };
+    }).sort(function(a,b){ return b.best - a.best; });
+
+    var assigned = {};
+    var results = [];
+
+    playerBestScore.forEach(function(entry){
+      var p = entry.player;
+      if(assigned[p]) return;
+      var list = candidatesByPlayer[p];
+      var chosen = null;
+      for(var i=0;i<list.length;i++){
+        if(!assigned[list[i].opponent]){ chosen = list[i]; break; }
+      }
+      if(chosen){
+        assigned[p] = true; assigned[chosen.opponent] = true;
+        var isTopChoice = list.length && list[0].opponent === chosen.opponent;
+        results.push({
+          a: p, b: chosen.opponent, score: chosen.score, meetings: chosen.meetings,
+          fallback: !isTopChoice
+        });
+      }
+    });
+
+    // Anyone left unassigned (no shared history with any other attendee) gets flagged as "no rival present"
+    var unmatched = attendees.filter(function(p){ return !assigned[p]; });
+
+    rvRenderEventResults(results, unmatched, attendees.length);
+  }
+
+  function rvRenderEventResults(results, unmatched, totalAttendees){
+    var wrap = document.getElementById('rvEventResults');
+    var html = '';
+
+    html += '<div class="rv-ev-stats-bar">'+
+      '<div class="stat"><div class="stat-l">Attendees</div><div class="stat-v">'+totalAttendees+'</div></div>'+
+      '<div class="stat"><div class="stat-l">Matched</div><div class="stat-v">'+results.length+'</div></div>'+
+      '<div class="stat"><div class="stat-l">Established</div><div class="stat-v">'+results.filter(function(r){return r.meetings>=2;}).length+'</div></div>'+
+      '<div class="stat"><div class="stat-l">No Rival</div><div class="stat-v">'+unmatched.length+'</div></div>'+
+    '</div>';
+
+    results.sort(function(a,b){ return b.score - a.score; });
+
+    html += results.map(function(r,i){
+      var cls = r.fallback ? 'fallback' : '';
+      var badge = r.fallback
+        ? '<div class="rv-ev-meta fallback-lbl">best available<br>('+r.meetings+' meetings)</div>'
+        : '<div class="rv-ev-meta">true rival<br>('+r.meetings+' meetings)</div>';
+      return '<div class="rv-ev-row '+cls+'">'+
+        '<div class="rv-pair-num">'+String(i+1).padStart(2,'0')+'</div>'+
+        '<div class="rv-pair-player">'+r.a+'</div>'+
+        '<div class="rv-pair-vs">⚔</div>'+
+        '<div class="rv-pair-player">'+r.b+'</div>'+
+        badge+
+      '</div>';
+    }).join('');
+
+    if(unmatched.length){
+      html += '<div style="margin-top:16px;margin-bottom:6px;font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;color:rgba(245,237,214,0.3)">No Rivalry History</div>';
+      html += unmatched.map(function(p){
+        return '<div class="rv-ev-row none">'+
+          '<div class="rv-pair-num">–</div>'+
+          '<div class="rv-pair-player">'+p+'</div>'+
+          '<div class="rv-pair-vs">—</div>'+
+          '<div class="rv-pair-player" style="opacity:0.4">no rival present</div>'+
+          '<div></div>'+
+        '</div>';
+      }).join('');
+    }
+
+    html += '<div style="display:flex;gap:8px;margin-top:16px">'+
+      '<button class="btn ghost" id="rvEventExportCSV" style="width:auto;flex:1">⬇ Export CSV</button>'+
+      '<button class="btn ghost" id="rvEventCopyWhatsApp" style="width:auto;flex:1">📋 Copy for WhatsApp</button>'+
+    '</div>';
+
+    wrap.innerHTML = html;
+
+    document.getElementById('rvEventExportCSV').addEventListener('click', function(){
+      var rows = ['Player A,Player B,Meetings,Score,Type'];
+      results.forEach(function(r){
+        rows.push(r.a+','+r.b+','+r.meetings+','+Math.round(r.score*100)+','+(r.fallback?'Best Available':'True Rival'));
+      });
+      unmatched.forEach(function(p){ rows.push(p+',,,,No Rival Present'); });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));
+      a.download = 'gnl-event-rivalries.csv'; a.click();
+    });
+
+    document.getElementById('rvEventCopyWhatsApp').addEventListener('click', function(){
+      var lines = ["⚔️ *TODAY'S RIVALRY MATCHUPS* ⚔️",''];
+      results.forEach(function(r,i){
+        lines.push((i+1)+'. '+r.a+' vs '+r.b + (r.fallback ? ' (rivalry)' : ' (RIVAL)'));
+      });
+      if(unmatched.length) lines.push('', 'No rival history yet: '+unmatched.join(', '));
+      lines.push('', 'Good luck out there! 🏆');
+      navigator.clipboard.writeText(lines.join('\n'));
+      var btn = document.getElementById('rvEventCopyWhatsApp');
+      btn.textContent = 'Copied!';
+      setTimeout(function(){ btn.textContent = '📋 Copy for WhatsApp'; }, 1800);
+    });
+  }
 
 })();
 // ==================== END RIVALRY ANALYZER ====================
