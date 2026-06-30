@@ -1331,6 +1331,10 @@
             <p style="font-size:0.73rem;margin-top:3px;opacity:0.6">Player A · Player B · Wins A · Wins B</p>
           </div>
           <div id="rvFileList"></div>
+          <label style="display:flex;align-items:center;gap:7px;margin-top:10px;font-size:0.74rem;color:rgba(245,237,214,0.55);cursor:pointer">
+            <input type="checkbox" id="rvMergeMode" checked style="accent-color:var(--gold)"/>
+            Merge into saved season data (recommended)
+          </label>
         </div>
 
         <!-- Dataset stats -->
@@ -1388,6 +1392,7 @@
             <div class="rv-tab" data-rvtab="h2h">Head-to-Head</div>
             <div class="rv-tab" data-rvtab="pairings">Suggested Pairings</div>
             <div class="rv-tab" data-rvtab="eventday">⚔ Event Day</div>
+            <div class="rv-tab" data-rvtab="leaderboard">🏆 Leaderboard</div>
           </div>
 
           <!-- Rankings -->
@@ -1396,6 +1401,7 @@
               <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic">Built from all uploaded season data.</p>
               <div style="display:flex;align-items:center;gap:10px">
                 <span id="rvGistStatus" style="font-size:0.72rem;color:rgba(245,237,214,0.3)"></span>
+                <button class="btn ghost" id="rvClearGist" style="width:auto;padding:7px 14px;font-size:0.7rem;border-color:rgba(192,57,43,0.3);color:#c0392b">🗑 Clear Rivalry Data</button>
                 <button class="btn ghost" id="rvSaveGist" style="width:auto;padding:7px 14px;font-size:0.7rem">☁ Save to Gist</button>
               </div>
             </div>
@@ -1458,6 +1464,56 @@
             <button class="btn" id="rvGeneratePairingsBtn" disabled>Generate Event Rivalries</button>
 
             <div id="rvEventResults" style="margin-top:18px"></div>
+
+            <div id="rvRecordResultsWrap" style="display:none;margin-top:22px">
+              <div class="card">
+                <div class="card-label">🏆 Record Results &amp; Award Rivalry Points</div>
+                <p style="font-size:0.74rem;color:rgba(245,237,214,0.4);margin-bottom:10px;line-height:1.5">
+                  Upload a round's results CSV. Any match between declared rivals (above) earns the winner Rivalry Points — <strong style="color:rgba(245,237,214,0.6)">+2 normally, +4 in Top Cut/Knockouts</strong>. You can upload multiple rounds from the same event one at a time (e.g. Swiss round 3, then later the Top 8 bracket) — points stack each time the rivalry meets again.
+                </p>
+                <div style="display:flex;gap:14px;margin-bottom:12px">
+                  <label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:rgba(245,237,214,0.6);cursor:pointer">
+                    <input type="radio" name="rvRoundType" id="rvRoundSwiss" value="swiss" checked style="accent-color:var(--gold)"/> Swiss Round (+2)
+                  </label>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:rgba(245,237,214,0.6);cursor:pointer">
+                    <input type="radio" name="rvRoundType" id="rvRoundPlayoff" value="playoff" style="accent-color:var(--gold)"/> Top Cut / Knockout (+4)
+                  </label>
+                </div>
+                <div class="rv-drop-zone" id="rvResultsDropZone">
+                  <input type="file" id="rvResultsFileInput" accept=".csv"/>
+                  <div class="rv-drop-icon">🏁</div>
+                  <p>Drop round results CSV here or <span>browse</span></p>
+                </div>
+                <div id="rvResultsFileList"></div>
+                <button class="btn" id="rvProcessResultsBtn" style="margin-top:10px" disabled>Process Results &amp; Save to Gist</button>
+                <div id="rvResultsSummary" style="margin-top:12px"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- LEADERBOARD -->
+          <div class="rv-tab-panel" id="rvtab-leaderboard">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+              <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic">Cumulative Rivalry Points across the whole season.</p>
+              <button class="btn ghost" id="rvRefreshLeaderboard" style="width:auto;padding:7px 14px;font-size:0.7rem">↻ Load from Gist</button>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th class="c">Rank</th>
+                  <th>Player</th>
+                  <th class="c">Rivalry Pts</th>
+                  <th class="c">Rival Record (W-L)</th>
+                  <th>Current Rival</th>
+                  <th class="c">Events Logged</th>
+                </tr>
+              </thead>
+              <tbody id="rvLeaderboardBody"></tbody>
+            </table>
+            <div id="rvLeaderboardEmpty" class="rv-empty" style="display:none">
+              <div class="rv-empty-icon">🏆</div>
+              No Rivalry Points recorded yet — process event results to populate the leaderboard
+            </div>
           </div>
         </div>
       </div>
@@ -3300,6 +3356,28 @@ function swInitTab(){ swRenderSetup(); }
   var rvScores = [];
   var rvPairs = [];
 
+  // Persistent season state (mirrors what's saved in the Gist under data.rivalry)
+  var rvSavedSeasonData = null; // { h2h, savedPairs, eventLog, rivalryPoints, updatedAt }
+  var rvLastEventAssignments = null; // the most recent event-day generated pairings (for results recording)
+
+  // Attempt a silent background load of saved season data on first interaction with the panel,
+  // so "merge into season" has something to merge against even before the user clicks Load.
+  var rvAutoLoadAttempted = false;
+  async function rvEnsureSeasonDataLoaded(){
+    if(rvAutoLoadAttempted) return;
+    rvAutoLoadAttempted = true;
+    try {
+      if(typeof loadFromGist === 'function'){
+        var data = await loadFromGist();
+        if(data && data.rivalry){
+          rvSavedSeasonData = data.rivalry;
+        }
+      }
+    } catch(e){ /* silent — user can still manually load on Event Day tab */ }
+  }
+  var rivalryNavEl = document.getElementById('snav-rivalry');
+  if(rivalryNavEl) rivalryNavEl.addEventListener('click', rvEnsureSeasonDataLoaded);
+
   // Weight sliders
   var wMeet  = document.getElementById('rvWMeet');
   var wClose = document.getElementById('rvWClose');
@@ -3488,6 +3566,20 @@ function swInitTab(){ swRenderSetup(); }
 
   function rvAnalyze(){
     rvH2H = {};
+
+    // If merge mode is on, seed rvH2H with the previously saved season data first
+    var mergeBox = document.getElementById('rvMergeMode');
+    if(mergeBox && mergeBox.checked && rvSavedSeasonData && rvSavedSeasonData.h2h){
+      rvSavedSeasonData.h2h.forEach(function(e){
+        var key = rvKey(e.players[0], e.players[1]);
+        rvH2H[key] = {
+          players: e.players.slice().sort(),
+          meetings: e.meetings, winsA: e.winsA, winsB: e.winsB,
+          close: e.close, swings: e.swings
+        };
+      });
+    }
+
     rvMatches.forEach(function(m){
       var key = rvKey(m.playerA, m.playerB);
       if(!rvH2H[key]) rvH2H[key] = { players: [m.playerA,m.playerB].sort(), meetings:0, winsA:0, winsB:0, close:0, swings:0 };
@@ -3623,6 +3715,50 @@ function swInitTab(){ swRenderSetup(); }
     if(el){ el.textContent = msg; el.style.color = color || 'rgba(245,237,214,0.3)'; }
   }
 
+  // Clear ALL rivalry data from the Gist (h2h, pairings, points, event log).
+  // Two-click confirm: first click arms it, second click (within 5s) executes.
+  var clearGistBtn = document.getElementById('rvClearGist');
+  var rvClearArmed = false;
+  if(clearGistBtn) clearGistBtn.addEventListener('click', async function(){
+    if(typeof getToken==='function' && !getToken()){
+      rvSetGistStatus('⚠ No Gist token set (Settings tab)', '#c0392b'); return;
+    }
+    if(!rvClearArmed){
+      rvClearArmed = true;
+      clearGistBtn.textContent = '⚠ Click again to confirm';
+      rvSetGistStatus('This deletes ALL rivalry data permanently', '#c0392b');
+      setTimeout(function(){
+        rvClearArmed = false;
+        clearGistBtn.textContent = '🗑 Clear Rivalry Data';
+        rvSetGistStatus('','');
+      }, 5000);
+      return;
+    }
+    rvClearArmed = false;
+    clearGistBtn.textContent = '⟳ Clearing…';
+    try {
+      var data = load();
+      delete data.rivalry;
+      save(data);
+      rvSavedSeasonData = null;
+      rvSeasonH2H = null;
+      rvScores = []; rvPairs = []; rvH2H = {};
+      document.getElementById('rvGrid').innerHTML = '';
+      document.getElementById('rvH2HBody').innerHTML = '';
+      document.getElementById('rvPairingList').innerHTML = '';
+      var lbBody = document.getElementById('rvLeaderboardBody');
+      if(lbBody) lbBody.innerHTML = '';
+      var lbEmpty = document.getElementById('rvLeaderboardEmpty');
+      if(lbEmpty) lbEmpty.style.display = 'block';
+      clearGistBtn.textContent = '🗑 Clear Rivalry Data';
+      rvSetGistStatus('✓ Rivalry data cleared', '#4caf50');
+      setTimeout(function(){ rvSetGistStatus('',''); }, 3000);
+    } catch(e){
+      clearGistBtn.textContent = '🗑 Clear Rivalry Data';
+      rvSetGistStatus('✗ Clear failed', '#c0392b');
+    }
+  });
+
   var saveGistBtn = document.getElementById('rvSaveGist');
   if(saveGistBtn) saveGistBtn.addEventListener('click', function(){
     if(!rvScores.length){ rvSetGistStatus('⚠ Nothing to save — analyze first', '#c0392b'); return; }
@@ -3632,13 +3768,17 @@ function swInitTab(){ swRenderSetup(); }
     rvSetGistStatus('⟳ Saving…', 'rgba(201,146,42,0.7)');
     try {
       var data = load();
+      var prior = data.rivalry || {};
       data.rivalry = {
         h2h: rvScores.map(function(r){
           return { players: r.players, meetings: r.meetings, winsA: r.winsA, winsB: r.winsB, close: r.close, swings: r.swings, score: r.score };
         }),
         savedPairs: rvPairs.map(function(r){ return { players: r.players, score: r.score, meetings: r.meetings }; }),
+        eventLog: prior.eventLog || [],
+        rivalryPoints: prior.rivalryPoints || {},
         updatedAt: new Date().toISOString()
       };
+      rvSavedSeasonData = data.rivalry;
       save(data); // existing save() persists locally AND triggers syncToGist()
       rvSetGistStatus('✓ Saved to Gist', '#4caf50');
       setTimeout(function(){ rvSetGistStatus('',''); }, 3000);
@@ -3664,6 +3804,7 @@ function swInitTab(){ swRenderSetup(); }
       var data = await loadFromGist();
       if(data && data.rivalry && data.rivalry.h2h && data.rivalry.h2h.length){
         rvSeasonH2H = data.rivalry.h2h;
+        rvSavedSeasonData = data.rivalry;
         rvSetEventGistStatus('✓ Loaded '+rvSeasonH2H.length+' rivalry pairs (saved '+new Date(data.rivalry.updatedAt).toLocaleDateString()+')', '#4caf50');
       } else {
         rvSeasonH2H = null;
@@ -3776,10 +3917,28 @@ function swInitTab(){ swRenderSetup(); }
       }
     });
 
-    // Anyone left unassigned (no shared history with any other attendee) gets flagged as "no rival present"
+    // Anyone left unassigned (no shared history with any other attendee) gets a
+    // randomly shuffled rivalry so EVERY attendee leaves with a rival.
     var unmatched = attendees.filter(function(p){ return !assigned[p]; });
 
-    rvRenderEventResults(results, unmatched, attendees.length);
+    // Fisher-Yates shuffle
+    var shufflePool = unmatched.slice();
+    for(var si = shufflePool.length - 1; si > 0; si--){
+      var sj = Math.floor(Math.random() * (si + 1));
+      var tmp = shufflePool[si]; shufflePool[si] = shufflePool[sj]; shufflePool[sj] = tmp;
+    }
+    for(var k = 0; k + 1 < shufflePool.length; k += 2){
+      results.push({ a: shufflePool[k], b: shufflePool[k+1], score: 0, meetings: 0, fallback: false, random: true });
+    }
+    // If an odd one out remains, leave them flagged as no-rival (can't pair with self)
+    var stillUnmatched = shufflePool.length % 2 === 1 ? [shufflePool[shufflePool.length-1]] : [];
+
+    rvLastEventAssignments = { results: results, unmatched: stillUnmatched, date: new Date().toISOString() };
+    rvRenderEventResults(results, stillUnmatched, attendees.length);
+
+    var recordWrap = document.getElementById('rvRecordResultsWrap');
+    if(recordWrap) recordWrap.style.display = 'block';
+    rvMaybeEnableProcessResults();
   }
 
   function rvRenderEventResults(results, unmatched, totalAttendees){
@@ -3789,15 +3948,17 @@ function swInitTab(){ swRenderSetup(); }
     html += '<div class="rv-ev-stats-bar">'+
       '<div class="stat"><div class="stat-l">Attendees</div><div class="stat-v">'+totalAttendees+'</div></div>'+
       '<div class="stat"><div class="stat-l">Matched</div><div class="stat-v">'+results.length+'</div></div>'+
-      '<div class="stat"><div class="stat-l">Established</div><div class="stat-v">'+results.filter(function(r){return r.meetings>=2;}).length+'</div></div>'+
-      '<div class="stat"><div class="stat-l">No Rival</div><div class="stat-v">'+unmatched.length+'</div></div>'+
+      '<div class="stat"><div class="stat-l">Random</div><div class="stat-v">'+results.filter(function(r){return r.random;}).length+'</div></div>'+
+      '<div class="stat"><div class="stat-l">Unpaired</div><div class="stat-v">'+unmatched.length+'</div></div>'+
     '</div>';
 
-    results.sort(function(a,b){ return b.score - a.score; });
+    results.sort(function(a,b){ return (b.random?-1:0) - (a.random?-1:0) || b.score - a.score; });
 
     html += results.map(function(r,i){
-      var cls = r.fallback ? 'fallback' : '';
-      var badge = r.fallback
+      var cls = r.random ? 'fallback' : (r.fallback ? 'fallback' : '');
+      var badge = r.random
+        ? '<div class="rv-ev-meta fallback-lbl">random pairing<br>(new player)</div>'
+        : r.fallback
         ? '<div class="rv-ev-meta fallback-lbl">best available<br>('+r.meetings+' meetings)</div>'
         : '<div class="rv-ev-meta">true rival<br>('+r.meetings+' meetings)</div>';
       return '<div class="rv-ev-row '+cls+'">'+
@@ -3832,9 +3993,10 @@ function swInitTab(){ swRenderSetup(); }
     document.getElementById('rvEventExportCSV').addEventListener('click', function(){
       var rows = ['Player A,Player B,Meetings,Score,Type'];
       results.forEach(function(r){
-        rows.push(r.a+','+r.b+','+r.meetings+','+Math.round(r.score*100)+','+(r.fallback?'Best Available':'True Rival'));
+        var type = r.random ? 'Random' : (r.fallback ? 'Best Available' : 'True Rival');
+        rows.push(r.a+','+r.b+','+r.meetings+','+Math.round(r.score*100)+','+type);
       });
-      unmatched.forEach(function(p){ rows.push(p+',,,,No Rival Present'); });
+      unmatched.forEach(function(p){ rows.push(p+',,,,Unpaired'); });
       var a = document.createElement('a');
       a.href = URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));
       a.download = 'gnl-event-rivalries.csv'; a.click();
@@ -3843,15 +4005,224 @@ function swInitTab(){ swRenderSetup(); }
     document.getElementById('rvEventCopyWhatsApp').addEventListener('click', function(){
       var lines = ["⚔️ *TODAY'S RIVALRY MATCHUPS* ⚔️",''];
       results.forEach(function(r,i){
-        lines.push((i+1)+'. '+r.a+' vs '+r.b + (r.fallback ? ' (rivalry)' : ' (RIVAL)'));
+        var tag = r.random ? ' (new)' : (r.fallback ? ' (rivalry)' : ' (RIVAL)');
+        lines.push((i+1)+'. '+r.a+' vs '+r.b + tag);
       });
-      if(unmatched.length) lines.push('', 'No rival history yet: '+unmatched.join(', '));
+      if(unmatched.length) lines.push('', 'Unpaired: '+unmatched.join(', '));
       lines.push('', 'Good luck out there! 🏆');
       navigator.clipboard.writeText(lines.join('\n'));
       var btn = document.getElementById('rvEventCopyWhatsApp');
       btn.textContent = 'Copied!';
       setTimeout(function(){ btn.textContent = '📋 Copy for WhatsApp'; }, 1800);
     });
+  }
+
+  // ── RECORD RESULTS: upload final results, score Rivalry Points, merge + save ──
+  var rvResultsFiles = [];
+  var rvResultsMatches = [];
+
+  var resDz = document.getElementById('rvResultsDropZone');
+  var resFi = document.getElementById('rvResultsFileInput');
+  if(resDz){
+    resDz.addEventListener('dragover', function(e){ e.preventDefault(); resDz.classList.add('drag-over'); });
+    resDz.addEventListener('dragleave', function(){ resDz.classList.remove('drag-over'); });
+    resDz.addEventListener('drop', function(e){ e.preventDefault(); resDz.classList.remove('drag-over'); rvHandleResultsFiles([].slice.call(e.dataTransfer.files)); });
+  }
+  if(resFi) resFi.addEventListener('change', function(){ rvHandleResultsFiles([].slice.call(resFi.files)); });
+
+  function rvHandleResultsFiles(incoming){
+    var f = incoming[0];
+    if(!f || !f.name.endsWith('.csv')) return;
+    var reader = new FileReader();
+    reader.onload = function(e){
+      var rows = rvParseCSV(e.target.result, f.name);
+      rvResultsFiles = [{ name: f.name, rows: rows }];
+      rvResultsMatches = rows;
+      rvRenderResultsFileList();
+      rvMaybeEnableProcessResults();
+    };
+    reader.readAsText(f);
+  }
+
+  function rvRenderResultsFileList(){
+    var el = document.getElementById('rvResultsFileList');
+    if(!el) return;
+    el.innerHTML = rvResultsFiles.map(function(f){
+      var ok = f.rows.length > 0;
+      return '<div class="rv-file-item">'+
+        '<div class="rv-file-dot" style="background:'+(ok?'var(--gold)':'#c0392b')+'"></div>'+
+        '<div class="rv-file-name">'+f.name+'</div>'+
+        '<div class="rv-file-rows" style="color:'+(ok?'rgba(245,237,214,0.4)':'#c0392b')+'">'+(ok ? f.rows.length+' rows' : 'parse error')+'</div>'+
+      '</div>';
+    }).join('');
+  }
+
+  function rvMaybeEnableProcessResults(){
+    var btn = document.getElementById('rvProcessResultsBtn');
+    if(btn) btn.disabled = !(rvLastEventAssignments && rvResultsMatches.length);
+  }
+
+  var processBtn = document.getElementById('rvProcessResultsBtn');
+  if(processBtn) processBtn.addEventListener('click', rvProcessResults);
+
+  function rvKeyLower(a,b){ return [a.toLowerCase(),b.toLowerCase()].sort().join('|'); }
+
+  async function rvProcessResults(){
+    processBtn.disabled = true;
+    processBtn.textContent = 'Processing…';
+
+    var roundType = document.getElementById('rvRoundPlayoff').checked ? 'playoff' : 'swiss';
+    var pointValue = roundType === 'playoff' ? 4 : 2;
+
+    // Build a quick lookup of today's declared rivalries (from event-day generation)
+    var rivalSet = {}; // key -> {a,b}
+    rvLastEventAssignments.results.forEach(function(r){
+      rivalSet[rvKeyLower(r.a, r.b)] = { a: r.a, b: r.b };
+    });
+
+    // Walk today's actual results and find matches that were between declared rivals.
+    // No dedup against prior uploads — if the same rivals meet again (e.g. Swiss then
+    // Top Cut), it scores again. Each results upload is processed independently.
+    var pointsAwarded = {}; // playerName -> points gained from THIS upload
+    var rivalMatchesFound = [];
+
+    rvResultsMatches.forEach(function(m){
+      var key = rvKeyLower(m.playerA, m.playerB);
+      if(!rivalSet[key]) return; // not a rivalry pairing, skip
+      var winner = m.winsA > m.winsB ? m.playerA : (m.winsB > m.winsA ? m.playerB : null);
+      if(!winner) return; // draw, no points
+      pointsAwarded[winner] = (pointsAwarded[winner]||0) + pointValue;
+      rivalMatchesFound.push({ a: m.playerA, b: m.playerB, winner: winner, score: m.winsA+'-'+m.winsB, roundType: roundType, points: pointValue });
+    });
+
+    // Load latest season data fresh (avoid clobbering anything saved since this session started)
+    var data = load();
+    var rivalry = data.rivalry || { h2h: [], savedPairs: [], eventLog: [], rivalryPoints: {} };
+    rivalry.rivalryPoints = rivalry.rivalryPoints || {};
+    rivalry.eventLog = rivalry.eventLog || [];
+
+    // Update cumulative rivalry points + win/loss vs rival
+    Object.keys(pointsAwarded).forEach(function(player){
+      if(!rivalry.rivalryPoints[player]) rivalry.rivalryPoints[player] = { points: 0, rivalWins: 0, rivalLosses: 0, eventsLogged: 0 };
+      rivalry.rivalryPoints[player].points += pointsAwarded[player];
+      rivalry.rivalryPoints[player].rivalWins += 1;
+    });
+    rivalMatchesFound.forEach(function(rm){
+      var loser = rm.winner === rm.a ? rm.b : rm.a;
+      if(!rivalry.rivalryPoints[loser]) rivalry.rivalryPoints[loser] = { points: 0, rivalWins: 0, rivalLosses: 0, eventsLogged: 0 };
+      rivalry.rivalryPoints[loser].rivalLosses += 1;
+    });
+    // Track who had a rival match logged this upload (for "events logged" count), win or lose
+    var allInEvent = new Set();
+    rivalMatchesFound.forEach(function(rm){ allInEvent.add(rm.a); allInEvent.add(rm.b); });
+    allInEvent.forEach(function(p){
+      if(!rivalry.rivalryPoints[p]) rivalry.rivalryPoints[p] = { points: 0, rivalWins: 0, rivalLosses: 0, eventsLogged: 0 };
+      rivalry.rivalryPoints[p].eventsLogged += 1;
+    });
+
+    // Merge this event's full match results into season h2h (same logic as rvAnalyze, applied directly)
+    var h2hMap = {};
+    rivalry.h2h.forEach(function(e){ h2hMap[rvKey(e.players[0], e.players[1])] = e; });
+    rvResultsMatches.forEach(function(m){
+      var key = rvKey(m.playerA, m.playerB);
+      if(!h2hMap[key]) h2hMap[key] = { players: [m.playerA,m.playerB].sort(), meetings:0, winsA:0, winsB:0, close:0, swings:0, score:0 };
+      var e = h2hMap[key];
+      var sorted = e.players[0];
+      if(m.playerA===sorted){ e.winsA+=m.winsA; e.winsB+=m.winsB; }
+      else { e.winsA+=m.winsB; e.winsB+=m.winsA; }
+      e.meetings++;
+      if(Math.abs(m.winsA-m.winsB)===1) e.close++;
+    });
+    rivalry.h2h = Object.values(h2hMap);
+
+    // Log this upload (one event can have multiple log entries — one per round/bracket uploaded)
+    rivalry.eventLog.push({
+      date: new Date().toISOString(),
+      roundType: roundType,
+      attendees: rvLastEventAssignments.results.length*2 + rvLastEventAssignments.unmatched.length,
+      rivalryPairings: rvLastEventAssignments.results.length,
+      rivalMatchesPlayed: rivalMatchesFound.length,
+      results: rivalMatchesFound
+    });
+    rivalry.updatedAt = new Date().toISOString();
+
+    data.rivalry = rivalry;
+    rvSavedSeasonData = rivalry;
+
+    try {
+      save(data);
+      processBtn.textContent = 'Process Results & Save to Gist';
+      processBtn.disabled = false;
+      rvRenderResultsSummary(rivalMatchesFound, pointsAwarded);
+    } catch(e){
+      processBtn.textContent = 'Save failed — retry';
+      processBtn.disabled = false;
+    }
+  }
+
+  function rvRenderResultsSummary(rivalMatchesFound, pointsAwarded){
+    var el = document.getElementById('rvResultsSummary');
+    if(!el) return;
+    if(!rivalMatchesFound.length){
+      el.innerHTML = '<p style="font-size:0.78rem;color:rgba(245,237,214,0.4)">No rivalry matchups actually occurred in this round\'s results — nothing to score, but season h2h data was still merged and saved.</p>';
+      return;
+    }
+    el.innerHTML = '<p style="font-size:0.74rem;color:#4caf50;margin-bottom:8px">✓ Saved — '+rivalMatchesFound.length+' rivalry match(es) scored</p>' +
+      rivalMatchesFound.map(function(rm){
+        var tag = rm.roundType === 'playoff' ? ' <span style="color:#c98c39">[Top Cut]</span>' : '';
+        return '<div style="font-size:0.78rem;color:rgba(245,237,214,0.6);padding:4px 0">⚔ '+rm.a+' vs '+rm.b+' — <span style="color:var(--gold-light)">'+rm.winner+'</span> won '+rm.score+' (+'+rm.points+' pts)'+tag+'</div>';
+      }).join('');
+  }
+
+  // ── LEADERBOARD ──────────────────────────────────────────────────────────
+  var refreshLbBtn = document.getElementById('rvRefreshLeaderboard');
+  if(refreshLbBtn) refreshLbBtn.addEventListener('click', rvLoadLeaderboard);
+
+  // Auto-load leaderboard when its tab is opened
+  document.querySelectorAll('.rv-tab[data-rvtab="leaderboard"]').forEach(function(tab){
+    tab.addEventListener('click', rvLoadLeaderboard);
+  });
+
+  async function rvLoadLeaderboard(){
+    var body = document.getElementById('rvLeaderboardBody');
+    var empty = document.getElementById('rvLeaderboardEmpty');
+    try {
+      var data = rvSavedSeasonData;
+      if(!data || !data.rivalryPoints){
+        data = await loadFromGist();
+        data = data && data.rivalry;
+      }
+      if(!data || !data.rivalryPoints || !Object.keys(data.rivalryPoints).length){
+        body.innerHTML = ''; empty.style.display = 'block'; return;
+      }
+      rvSavedSeasonData = data;
+      empty.style.display = 'none';
+
+      // Find each player's current best rival from saved pairs, for display
+      var currentRival = {};
+      (data.savedPairs||[]).forEach(function(p){
+        currentRival[p.players[0]] = p.players[1];
+        currentRival[p.players[1]] = p.players[0];
+      });
+
+      var rows = Object.entries(data.rivalryPoints).map(function(kv){
+        return { player: kv[0], points: kv[1].points||0, w: kv[1].rivalWins||0, l: kv[1].rivalLosses||0, ev: kv[1].eventsLogged||0 };
+      }).sort(function(a,b){ return b.points - a.points; });
+
+      body.innerHTML = rows.map(function(r, i){
+        return '<tr>'+
+          '<td class="c td-mono">'+(i+1)+'</td>'+
+          '<td>'+r.player+'</td>'+
+          '<td class="c"><span class="rv-score-gold">'+r.points+'</span></td>'+
+          '<td class="c"><span class="rv-rec-w">'+r.w+'W</span> – <span class="rv-rec-l">'+r.l+'L</span></td>'+
+          '<td>'+(currentRival[r.player] || '<span style="opacity:0.3">—</span>')+'</td>'+
+          '<td class="c td-mono">'+r.ev+'</td>'+
+        '</tr>';
+      }).join('');
+    } catch(e){
+      body.innerHTML = '';
+      empty.style.display = 'block';
+    }
   }
 
 })();
