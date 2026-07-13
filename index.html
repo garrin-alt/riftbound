@@ -1469,14 +1469,14 @@
               <div class="card">
                 <div class="card-label">🏆 Record Results &amp; Award Rivalry Points</div>
                 <p style="font-size:0.74rem;color:rgba(245,237,214,0.4);margin-bottom:10px;line-height:1.5">
-                  Upload a round's results CSV. Any match between declared rivals (above) earns the winner Rivalry Points — <strong style="color:rgba(245,237,214,0.6)">+2 normally, +4 in Top Cut/Knockouts</strong>. You can upload multiple rounds from the same event one at a time (e.g. Swiss round 3, then later the Top 8 bracket) — points stack each time the rivalry meets again.
+                  Upload a round's results CSV. Any match between declared rivals (above) earns the winner Rivalry Points — <strong style="color:rgba(245,237,214,0.6)">+2 per rivalry win (Swiss and Top Cut/Knockouts alike)</strong>. You can upload multiple rounds from the same event one at a time (e.g. Swiss round 3, then later the Top 8 bracket) — points stack each time the rivalry meets again.
                 </p>
                 <div style="display:flex;gap:14px;margin-bottom:12px">
                   <label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:rgba(245,237,214,0.6);cursor:pointer">
                     <input type="radio" name="rvRoundType" id="rvRoundSwiss" value="swiss" checked style="accent-color:var(--gold)"/> Swiss Round (+2)
                   </label>
                   <label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:rgba(245,237,214,0.6);cursor:pointer">
-                    <input type="radio" name="rvRoundType" id="rvRoundPlayoff" value="playoff" style="accent-color:var(--gold)"/> Top Cut / Knockout (+4)
+                    <input type="radio" name="rvRoundType" id="rvRoundPlayoff" value="playoff" style="accent-color:var(--gold)"/> Top Cut / Knockout (+2)
                   </label>
                 </div>
                 <div class="rv-drop-zone" id="rvResultsDropZone">
@@ -4072,7 +4072,7 @@ function swInitTab(){ swRenderSetup(); }
     processBtn.textContent = 'Processing…';
 
     var roundType = document.getElementById('rvRoundPlayoff').checked ? 'playoff' : 'swiss';
-    var pointValue = roundType === 'playoff' ? 4 : 2;
+    var pointValue = 2;
 
     // Build a quick lookup of today's declared rivalries (from event-day generation)
     var rivalSet = {}; // key -> {a,b}
