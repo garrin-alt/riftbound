@@ -1383,6 +1383,9 @@
           <div class="rv-empty">
             <div class="rv-empty-icon">⚔️</div>
             Upload past tournament CSVs to generate rivalry scores from real match history
+            <div style="margin-top:14px">
+              <button class="btn ghost" id="rvLoadSavedBtn" style="width:auto;padding:8px 18px;font-size:0.72rem">↻ Load Saved Season Data</button>
+            </div>
           </div>
         </div>
 
@@ -3365,7 +3368,7 @@ function swInitTab(){ swRenderSetup(); }
   var rvLastEventAssignments = null; // the most recent event-day generated pairings (for results recording)
 
   // Attempt a silent background load of saved season data on first interaction with the panel,
-  // so "merge into season" has something to merge against even before the user clicks Load.
+  // so the tab opens showing the saved season and "merge into season" has something to merge against.
   var rvAutoLoadAttempted = false;
   async function rvEnsureSeasonDataLoaded(){
     if(rvAutoLoadAttempted) return;
@@ -3375,12 +3378,58 @@ function swInitTab(){ swRenderSetup(); }
         var data = await loadFromGist();
         if(data && data.rivalry){
           rvSavedSeasonData = data.rivalry;
+          rvRenderSavedSeason();
         }
       }
-    } catch(e){ /* silent — user can still manually load on Event Day tab */ }
+    } catch(e){ /* silent — user can still manually load via the button or Event Day tab */ }
   }
   var rivalryNavEl = document.getElementById('snav-rivalry');
   if(rivalryNavEl) rivalryNavEl.addEventListener('click', rvEnsureSeasonDataLoaded);
+
+  // Render the saved season straight from the Gist (no CSV upload needed).
+  function rvRenderSavedSeason(){
+    if(rvScores.length) return; // don't clobber a fresh in-session analysis
+    if(!rvSavedSeasonData || !rvSavedSeasonData.h2h || !rvSavedSeasonData.h2h.length) return;
+    rvScores = rvSavedSeasonData.h2h.slice().sort(function(a,b){ return (b.score||0)-(a.score||0); });
+    if(rvSavedSeasonData.savedPairs && rvSavedSeasonData.savedPairs.length){
+      rvPairs = rvSavedSeasonData.savedPairs.slice();
+    } else {
+      // No saved pairings — rebuild with the same greedy one-to-one matching
+      var assigned = {};
+      rvPairs = [];
+      rvScores.forEach(function(r){
+        var a=r.players[0], b=r.players[1];
+        if(!assigned[a] && !assigned[b]){ rvPairs.push(r); assigned[a]=true; assigned[b]=true; }
+      });
+    }
+    document.getElementById('rvEmpty').style.display = 'none';
+    document.getElementById('rvResults').style.display = 'block';
+    rvRenderCards();
+    rvRenderH2H();
+    rvRenderPairings();
+    var when = rvSavedSeasonData.updatedAt ? new Date(rvSavedSeasonData.updatedAt).toLocaleDateString() : '';
+    rvSetGistStatus('✓ Saved season data'+(when ? ' ('+when+')' : ''), '#4caf50');
+  }
+
+  // Manual load button inside the empty state
+  var loadSavedBtn = document.getElementById('rvLoadSavedBtn');
+  if(loadSavedBtn) loadSavedBtn.addEventListener('click', async function(){
+    loadSavedBtn.disabled = true;
+    loadSavedBtn.textContent = '⟳ Loading…';
+    try {
+      var data = await loadFromGist();
+      if(data && data.rivalry && data.rivalry.h2h && data.rivalry.h2h.length){
+        rvSavedSeasonData = data.rivalry;
+        rvRenderSavedSeason();
+      } else {
+        loadSavedBtn.textContent = '⚠ No saved season data in Gist';
+      }
+    } catch(e){
+      loadSavedBtn.textContent = '✗ Load failed — try again';
+    }
+    loadSavedBtn.disabled = false;
+    setTimeout(function(){ loadSavedBtn.textContent = '↻ Load Saved Season Data'; }, 3000);
+  });
 
   // Weight sliders
   var wMeet  = document.getElementById('rvWMeet');
