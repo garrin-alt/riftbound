@@ -1473,6 +1473,7 @@
                 <div class="card-label">🏆 Record Results &amp; Award Rivalry Points</div>
                 <p style="font-size:0.74rem;color:rgba(245,237,214,0.4);margin-bottom:10px;line-height:1.5">
                   Upload a round's results CSV. Any match between declared rivals (above) earns the winner Rivalry Points — <strong style="color:rgba(245,237,214,0.6)">+2 per rivalry win (Swiss and Top Cut/Knockouts alike)</strong>. You can upload multiple rounds from the same event one at a time (e.g. Swiss round 3, then later the Top 8 bracket) — points stack each time the rivalry meets again.
+                  <br/><span style="color:#9b8cc4">🌑 Shadow Points:</span> rivals who <em>don't</em> meet are scored by proxy from their own matches — win while your rival doesn't = <strong style="color:rgba(245,237,214,0.6)">+2 shadow</strong>, both win = <strong style="color:rgba(245,237,214,0.6)">+1 each</strong>, lose or draw = 0.
                 </p>
                 <div style="display:flex;gap:14px;margin-bottom:12px">
                   <label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:rgba(245,237,214,0.6);cursor:pointer">
@@ -1513,6 +1514,7 @@
                   <th class="c">Rank</th>
                   <th>Player</th>
                   <th class="c">Rivalry Pts</th>
+                  <th class="c">Shadow Pts</th>
                   <th class="c">Rival Record (W-L)</th>
                   <th>Current Rival</th>
                   <th class="c">Events Logged</th>
@@ -4163,18 +4165,54 @@ function swInitTab(){ swRenderSetup(); }
     // Top Cut), it scores again. Each results upload is processed independently.
     var pointsAwarded = {}; // playerName -> points gained from THIS upload
     var rivalMatchesFound = [];
+    var rivalMeetKeys = {}; // pairs that actually met at the table (even if drawn) — excluded from shadow scoring
+    var outcome = {}; // lowercased name -> { name, wins, losses, draws } across THIS upload
 
     rvResultsMatches.forEach(function(m){
+      [ [m.playerA, m.winsA, m.winsB], [m.playerB, m.winsB, m.winsA] ].forEach(function(side){
+        var k = side[0].toLowerCase();
+        if(!outcome[k]) outcome[k] = { name: side[0], wins: 0, losses: 0, draws: 0 };
+        if(side[1] > side[2]) outcome[k].wins++;
+        else if(side[1] < side[2]) outcome[k].losses++;
+        else outcome[k].draws++;
+      });
+
       var key = rvKeyLower(m.playerA, m.playerB);
       if(!rivalSet[key]) return; // not a rivalry pairing, skip
+      rivalMeetKeys[key] = true;
       var winner = m.winsA > m.winsB ? m.playerA : (m.winsB > m.winsA ? m.playerB : null);
       if(!winner) return; // draw, no points
       pointsAwarded[winner] = (pointsAwarded[winner]||0) + pointValue;
       rivalMatchesFound.push({ a: m.playerA, b: m.playerB, winner: winner, score: m.winsA+'-'+m.winsB, roundType: roundType, points: pointValue });
     });
 
-    rvPendingResults = { roundType: roundType, pointsAwarded: pointsAwarded, rivalMatchesFound: rivalMatchesFound };
-    rvRenderResultsSummary(rivalMatchesFound, pointsAwarded, false);
+    // ── SHADOW SCORING: declared rival pairs that did NOT meet at the table ──
+    // Compare each player's own round result against their rival's:
+    //   you won + rival lost/drew/absent → +2 · you won + rival won → +1 each · you lost/drew → 0
+    // "Won" means at least one win and no losses/draws in this upload.
+    function rvRoundSuccess(name){
+      var o = outcome[name.toLowerCase()];
+      if(!o) return null; // no result in this upload (BYE / dropped / absent)
+      return o.wins > 0 && o.losses === 0 && o.draws === 0;
+    }
+    var shadowAwards = []; // { player, rival, points, note }
+    var shadowPointsAwarded = {}; // playerName -> shadow points from THIS upload
+    rvLastEventAssignments.results.forEach(function(r){
+      var key = rvKeyLower(r.a, r.b);
+      if(rivalMeetKeys[key]) return; // they actually played — regular Rivalry Points territory
+      [ [r.a, r.b], [r.b, r.a] ].forEach(function(pair){
+        var p = pair[0], rival = pair[1];
+        if(rvRoundSuccess(p) !== true) return; // lost, drew, or didn't play → 0
+        var rivalWon = rvRoundSuccess(rival);
+        var pts = rivalWon === true ? 1 : 2; // rival also won → shadow draw; rival lost/drew/absent → shadow win
+        var note = rivalWon === true ? 'both won — shadow draw' : (rivalWon === null ? 'rival had no result' : 'rival lost their match');
+        shadowPointsAwarded[p] = (shadowPointsAwarded[p]||0) + pts;
+        shadowAwards.push({ player: p, rival: rival, points: pts, note: note });
+      });
+    });
+
+    rvPendingResults = { roundType: roundType, pointsAwarded: pointsAwarded, rivalMatchesFound: rivalMatchesFound, shadowAwards: shadowAwards, shadowPointsAwarded: shadowPointsAwarded };
+    rvRenderResultsSummary(rivalMatchesFound, pointsAwarded, false, shadowAwards);
     if(saveResultsBtn){ saveResultsBtn.disabled = false; saveResultsBtn.textContent = '☁ Save to Gist'; }
   }
 
@@ -4186,6 +4224,7 @@ function swInitTab(){ swRenderSetup(); }
     var roundType = rvPendingResults.roundType;
     var pointsAwarded = rvPendingResults.pointsAwarded;
     var rivalMatchesFound = rvPendingResults.rivalMatchesFound;
+    var shadowAwards = rvPendingResults.shadowAwards || [];
 
     // Load latest season data fresh (avoid clobbering anything saved since this session started)
     var data = load();
@@ -4210,6 +4249,15 @@ function swInitTab(){ swRenderSetup(); }
     allInEvent.forEach(function(p){
       if(!rivalry.rivalryPoints[p]) rivalry.rivalryPoints[p] = { points: 0, rivalWins: 0, rivalLosses: 0, eventsLogged: 0 };
       rivalry.rivalryPoints[p].eventsLogged += 1;
+    });
+
+    // Apply Shadow Points (declared rivals who didn't meet, scored by proxy)
+    shadowAwards.forEach(function(sa){
+      if(!rivalry.rivalryPoints[sa.player]) rivalry.rivalryPoints[sa.player] = { points: 0, rivalWins: 0, rivalLosses: 0, eventsLogged: 0 };
+      var rp = rivalry.rivalryPoints[sa.player];
+      rp.shadowPoints = (rp.shadowPoints||0) + sa.points;
+      if(sa.points === 2) rp.shadowWins = (rp.shadowWins||0) + 1;
+      else rp.shadowDraws = (rp.shadowDraws||0) + 1;
     });
 
     // Merge this event's full match results into season h2h (same logic as rvAnalyze, applied directly)
@@ -4241,7 +4289,8 @@ function swInitTab(){ swRenderSetup(); }
       attendees: rvLastEventAssignments.results.length*2 + rvLastEventAssignments.unmatched.length,
       rivalryPairings: rvLastEventAssignments.results.length,
       rivalMatchesPlayed: rivalMatchesFound.length,
-      results: rivalMatchesFound
+      results: rivalMatchesFound,
+      shadowAwards: shadowAwards
     });
     rivalry.updatedAt = new Date().toISOString();
 
@@ -4252,30 +4301,47 @@ function swInitTab(){ swRenderSetup(); }
       save(data);
       saveResultsBtn.textContent = '☁ Save to Gist';
       rvPendingResults = null; // consumed — a re-save would double-count
-      rvRenderResultsSummary(rivalMatchesFound, pointsAwarded, true);
+      rvRenderResultsSummary(rivalMatchesFound, pointsAwarded, true, shadowAwards);
     } catch(e){
       saveResultsBtn.textContent = 'Save failed — retry';
       saveResultsBtn.disabled = false;
     }
   }
 
-  function rvRenderResultsSummary(rivalMatchesFound, pointsAwarded, saved){
+  function rvRenderResultsSummary(rivalMatchesFound, pointsAwarded, saved, shadowAwards){
     var el = document.getElementById('rvResultsSummary');
     if(!el) return;
-    if(!rivalMatchesFound.length){
-      el.innerHTML = saved
-        ? '<p style="font-size:0.78rem;color:#4caf50">✓ Saved — no rivalry matchups to score, but this round was merged into season h2h.</p>'
-        : '<p style="font-size:0.78rem;color:rgba(245,237,214,0.4)">No rivalry matchups found in this round\'s results — nothing to score. Saving will still merge the round into season h2h.</p>';
+    shadowAwards = shadowAwards || [];
+    var html = '';
+
+    if(!rivalMatchesFound.length && !shadowAwards.length){
+      html = saved
+        ? '<p style="font-size:0.78rem;color:#4caf50">✓ Saved — no rivalry matchups or shadow points to score, but this round was merged into season h2h.</p>'
+        : '<p style="font-size:0.78rem;color:rgba(245,237,214,0.4)">No rivalry matchups or shadow points found in this round\'s results — nothing to score. Saving will still merge the round into season h2h.</p>';
+      el.innerHTML = html;
       return;
     }
-    var header = saved
-      ? '<p style="font-size:0.74rem;color:#4caf50;margin-bottom:8px">✓ Saved — '+rivalMatchesFound.length+' rivalry match(es) scored</p>'
-      : '<p style="font-size:0.74rem;color:#c9922a;margin-bottom:8px">⏳ '+rivalMatchesFound.length+' rivalry match(es) found — not saved yet. Review, then click ☁ Save to Gist.</p>';
-    el.innerHTML = header +
-      rivalMatchesFound.map(function(rm){
-        var tag = rm.roundType === 'playoff' ? ' <span style="color:#c98c39">[Top Cut]</span>' : '';
-        return '<div style="font-size:0.78rem;color:rgba(245,237,214,0.6);padding:4px 0">⚔ '+rm.a+' vs '+rm.b+' — <span style="color:var(--gold-light)">'+rm.winner+'</span> won '+rm.score+' (+'+rm.points+' pts)'+tag+'</div>';
-      }).join('');
+
+    var totalDesc = rivalMatchesFound.length+' rivalry match(es), '+shadowAwards.length+' shadow award(s)';
+    html += saved
+      ? '<p style="font-size:0.74rem;color:#4caf50;margin-bottom:8px">✓ Saved — '+totalDesc+' scored</p>'
+      : '<p style="font-size:0.74rem;color:#c9922a;margin-bottom:8px">⏳ '+totalDesc+' found — not saved yet. Review, then click ☁ Save to Gist.</p>';
+
+    html += rivalMatchesFound.map(function(rm){
+      var tag = rm.roundType === 'playoff' ? ' <span style="color:#c98c39">[Top Cut]</span>' : '';
+      return '<div style="font-size:0.78rem;color:rgba(245,237,214,0.6);padding:4px 0">⚔ '+rm.a+' vs '+rm.b+' — <span style="color:var(--gold-light)">'+rm.winner+'</span> won '+rm.score+' (+'+rm.points+' pts)'+tag+'</div>';
+    }).join('');
+
+    if(shadowAwards.length){
+      html += '<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(245,237,214,0.08)">'+
+        '<p style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;color:rgba(245,237,214,0.35);margin-bottom:4px">🌑 Shadow Points — rivals who didn\'t meet</p>'+
+        shadowAwards.map(function(sa){
+          return '<div style="font-size:0.78rem;color:rgba(245,237,214,0.5);padding:3px 0">🌑 <span style="color:rgba(245,237,214,0.7)">'+sa.player+'</span> (rival: '+sa.rival+') — '+sa.note+' <span style="color:#9b8cc4">(+'+sa.points+' shadow)</span></div>';
+        }).join('')+
+      '</div>';
+    }
+
+    el.innerHTML = html;
   }
 
   // ── LEADERBOARD ──────────────────────────────────────────────────────────
@@ -4299,7 +4365,7 @@ function swInitTab(){ swRenderSetup(); }
     if(!rvLbClearArmed){
       rvLbClearArmed = true;
       clearLbBtn.textContent = '⚠ Click again to confirm';
-      rvSetLbStatus('Resets all Rivalry Points & event log (h2h history kept)', '#c0392b');
+      rvSetLbStatus('Resets all Rivalry & Shadow Points + event log (h2h history kept)', '#c0392b');
       setTimeout(function(){
         rvLbClearArmed = false;
         clearLbBtn.textContent = '🗑 Clear Leaderboard';
@@ -4359,14 +4425,15 @@ function swInitTab(){ swRenderSetup(); }
       });
 
       var rows = Object.entries(data.rivalryPoints).map(function(kv){
-        return { player: kv[0], points: kv[1].points||0, w: kv[1].rivalWins||0, l: kv[1].rivalLosses||0, ev: kv[1].eventsLogged||0 };
-      }).sort(function(a,b){ return b.points - a.points; });
+        return { player: kv[0], points: kv[1].points||0, shadow: kv[1].shadowPoints||0, w: kv[1].rivalWins||0, l: kv[1].rivalLosses||0, ev: kv[1].eventsLogged||0 };
+      }).sort(function(a,b){ return b.points - a.points || b.shadow - a.shadow; });
 
       body.innerHTML = rows.map(function(r, i){
         return '<tr>'+
           '<td class="c td-mono">'+(i+1)+'</td>'+
           '<td>'+r.player+'</td>'+
           '<td class="c"><span class="rv-score-gold">'+r.points+'</span></td>'+
+          '<td class="c"><span style="color:#9b8cc4">'+r.shadow+'</span></td>'+
           '<td class="c"><span class="rv-rec-w">'+r.w+'W</span> – <span class="rv-rec-l">'+r.l+'L</span></td>'+
           '<td>'+(currentRival[r.player] || '<span style="opacity:0.3">—</span>')+'</td>'+
           '<td class="c td-mono">'+r.ev+'</td>'+
