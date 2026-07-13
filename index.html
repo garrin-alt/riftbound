@@ -1514,7 +1514,6 @@
                   <th class="c">Rank</th>
                   <th>Player</th>
                   <th class="c">Rivalry Pts</th>
-                  <th class="c">Shadow Pts</th>
                   <th class="c">Rival Record (W-L)</th>
                   <th>Current Rival</th>
                   <th class="c">Events Logged</th>
@@ -1525,6 +1524,24 @@
             <div id="rvLeaderboardEmpty" class="rv-empty" style="display:none">
               <div class="rv-empty-icon">🏆</div>
               No Rivalry Points recorded yet — process event results to populate the leaderboard
+            </div>
+
+            <!-- SHADOW LEADERBOARD (separate ladder) -->
+            <div id="rvShadowLbWrap" style="display:none;margin-top:30px">
+              <div class="card-label" style="margin-bottom:6px">🌑 Shadow Points Leaderboard</div>
+              <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic;margin-bottom:12px">Proxy scoring for rivals who didn't meet — tracked entirely separately from Rivalry Points.</p>
+              <table>
+                <thead>
+                  <tr>
+                    <th class="c">Rank</th>
+                    <th>Player</th>
+                    <th class="c">Shadow Pts</th>
+                    <th class="c">Shadow Record (W-D)</th>
+                    <th>Current Rival</th>
+                  </tr>
+                </thead>
+                <tbody id="rvShadowLbBody"></tbody>
+              </table>
             </div>
           </div>
         </div>
@@ -3822,6 +3839,10 @@ function swInitTab(){ swRenderSetup(); }
       if(lbBody) lbBody.innerHTML = '';
       var lbEmpty = document.getElementById('rvLeaderboardEmpty');
       if(lbEmpty) lbEmpty.style.display = 'block';
+      var shWrap = document.getElementById('rvShadowLbWrap');
+      if(shWrap) shWrap.style.display = 'none';
+      var shBody = document.getElementById('rvShadowLbBody');
+      if(shBody) shBody.innerHTML = '';
       clearGistBtn.textContent = '🗑 Clear Rivalry Data';
       rvSetGistStatus('✓ Rivalry data cleared', '#4caf50');
       setTimeout(function(){ rvSetGistStatus('',''); }, 3000);
@@ -4388,6 +4409,10 @@ function swInitTab(){ swRenderSetup(); }
       if(lbBody) lbBody.innerHTML = '';
       var lbEmpty = document.getElementById('rvLeaderboardEmpty');
       if(lbEmpty) lbEmpty.style.display = 'block';
+      var shWrap = document.getElementById('rvShadowLbWrap');
+      if(shWrap) shWrap.style.display = 'none';
+      var shBody = document.getElementById('rvShadowLbBody');
+      if(shBody) shBody.innerHTML = '';
       clearLbBtn.textContent = '🗑 Clear Leaderboard';
       rvSetLbStatus('✓ Leaderboard cleared', '#4caf50');
       setTimeout(function(){ rvSetLbStatus('',''); }, 3000);
@@ -4424,21 +4449,51 @@ function swInitTab(){ swRenderSetup(); }
         currentRival[p.players[1]] = p.players[0];
       });
 
-      var rows = Object.entries(data.rivalryPoints).map(function(kv){
-        return { player: kv[0], points: kv[1].points||0, shadow: kv[1].shadowPoints||0, w: kv[1].rivalWins||0, l: kv[1].rivalLosses||0, ev: kv[1].eventsLogged||0 };
-      }).sort(function(a,b){ return b.points - a.points || b.shadow - a.shadow; });
+      var entries = Object.entries(data.rivalryPoints).map(function(kv){
+        return {
+          player: kv[0], points: kv[1].points||0,
+          w: kv[1].rivalWins||0, l: kv[1].rivalLosses||0, ev: kv[1].eventsLogged||0,
+          shadow: kv[1].shadowPoints||0, shadowW: kv[1].shadowWins||0, shadowD: kv[1].shadowDraws||0
+        };
+      });
+
+      // Main ladder: only players with actual rivalry-match activity
+      var rows = entries.filter(function(r){ return r.points > 0 || r.w > 0 || r.l > 0 || r.ev > 0; })
+        .sort(function(a,b){ return b.points - a.points; });
 
       body.innerHTML = rows.map(function(r, i){
         return '<tr>'+
           '<td class="c td-mono">'+(i+1)+'</td>'+
           '<td>'+r.player+'</td>'+
           '<td class="c"><span class="rv-score-gold">'+r.points+'</span></td>'+
-          '<td class="c"><span style="color:#9b8cc4">'+r.shadow+'</span></td>'+
           '<td class="c"><span class="rv-rec-w">'+r.w+'W</span> – <span class="rv-rec-l">'+r.l+'L</span></td>'+
           '<td>'+(currentRival[r.player] || '<span style="opacity:0.3">—</span>')+'</td>'+
           '<td class="c td-mono">'+r.ev+'</td>'+
         '</tr>';
       }).join('');
+
+      // Shadow ladder: entirely separate ranking
+      var shadowWrap = document.getElementById('rvShadowLbWrap');
+      var shadowBody = document.getElementById('rvShadowLbBody');
+      var shadowRows = entries.filter(function(r){ return r.shadow > 0 || r.shadowW > 0 || r.shadowD > 0; })
+        .sort(function(a,b){ return b.shadow - a.shadow; });
+      if(shadowWrap && shadowBody){
+        if(shadowRows.length){
+          shadowWrap.style.display = 'block';
+          shadowBody.innerHTML = shadowRows.map(function(r, i){
+            return '<tr>'+
+              '<td class="c td-mono">'+(i+1)+'</td>'+
+              '<td>'+r.player+'</td>'+
+              '<td class="c"><span style="color:#9b8cc4;font-weight:600">'+r.shadow+'</span></td>'+
+              '<td class="c"><span class="rv-rec-w">'+r.shadowW+'W</span> – <span style="color:rgba(245,237,214,0.5)">'+r.shadowD+'D</span></td>'+
+              '<td>'+(currentRival[r.player] || '<span style="opacity:0.3">—</span>')+'</td>'+
+            '</tr>';
+          }).join('');
+        } else {
+          shadowWrap.style.display = 'none';
+          shadowBody.innerHTML = '';
+        }
+      }
     } catch(e){
       body.innerHTML = '';
       empty.style.display = 'block';
