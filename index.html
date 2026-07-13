@@ -3575,6 +3575,7 @@ function swInitTab(){ swRenderSetup(); }
         rvH2H[key] = {
           players: e.players.slice().sort(),
           meetings: e.meetings, winsA: e.winsA, winsB: e.winsB,
+          matchWinsA: e.matchWinsA||0, matchWinsB: e.matchWinsB||0,
           close: e.close, swings: e.swings
         };
       });
@@ -3582,11 +3583,14 @@ function swInitTab(){ swRenderSetup(); }
 
     rvMatches.forEach(function(m){
       var key = rvKey(m.playerA, m.playerB);
-      if(!rvH2H[key]) rvH2H[key] = { players: [m.playerA,m.playerB].sort(), meetings:0, winsA:0, winsB:0, close:0, swings:0 };
+      if(!rvH2H[key]) rvH2H[key] = { players: [m.playerA,m.playerB].sort(), meetings:0, winsA:0, winsB:0, matchWinsA:0, matchWinsB:0, close:0, swings:0 };
       var e = rvH2H[key];
       var sorted = e.players[0];
       if(m.playerA===sorted){ e.winsA+=m.winsA; e.winsB+=m.winsB; }
       else { e.winsA+=m.winsB; e.winsB+=m.winsA; }
+      var matchWinner = m.winsA>m.winsB ? m.playerA : (m.winsB>m.winsA ? m.playerB : null);
+      if(matchWinner===sorted) e.matchWinsA = (e.matchWinsA||0)+1;
+      else if(matchWinner) e.matchWinsB = (e.matchWinsB||0)+1;
       e.meetings++;
       if(Math.abs(m.winsA-m.winsB)===1) e.close++;
       if(e.winsA!==e.winsB){
@@ -3627,6 +3631,11 @@ function swInitTab(){ swRenderSetup(); }
     var max = rvScores[0] ? rvScores[0].score : 1;
     document.getElementById('rvGrid').innerHTML = rvScores.slice(0,12).map(function(r,i){
       var pct = Math.round(r.score/max*100);
+      var hasMW = r.matchWinsA != null || r.matchWinsB != null;
+      var leftNum  = hasMW ? (r.matchWinsA||0) : r.winsA;
+      var rightNum = hasMW ? (r.matchWinsB||0) : r.winsB;
+      var winLbl = hasMW ? 'Match Wins' : 'Game Wins';
+      var gamesLine = hasMW ? '<div style="text-align:center;font-size:0.68rem;color:rgba(245,237,214,0.35);margin-top:4px">Games: '+r.winsA+'–'+r.winsB+'</div>' : '';
       return '<div class="rv-card">'+
         '<div class="rv-card-rank">Rivalry #'+(i+1)+'</div>'+
         '<div class="rv-names">'+
@@ -3635,10 +3644,11 @@ function swInitTab(){ swRenderSetup(); }
           '<div class="rv-name" style="text-align:right">'+r.players[1]+'</div>'+
         '</div>'+
         '<div class="rv-mini-stats">'+
-          '<div><div class="rv-mini-num" style="color:var(--gold-light)">'+r.winsA+'</div><div class="rv-mini-lbl">Wins</div></div>'+
+          '<div><div class="rv-mini-num" style="color:var(--gold-light)">'+leftNum+'</div><div class="rv-mini-lbl">'+winLbl+'</div></div>'+
           '<div><div class="rv-mini-num">'+r.meetings+'</div><div class="rv-mini-lbl">Matches</div></div>'+
-          '<div><div class="rv-mini-num" style="color:var(--gold-light)">'+r.winsB+'</div><div class="rv-mini-lbl">Wins</div></div>'+
+          '<div><div class="rv-mini-num" style="color:var(--gold-light)">'+rightNum+'</div><div class="rv-mini-lbl">'+winLbl+'</div></div>'+
         '</div>'+
+        gamesLine+
         '<div class="rv-heat-lbl-row"><span class="rv-heat-lbl">Rivalry Heat</span><span class="rv-heat-pct">'+pct+'%</span></div>'+
         '<div class="rv-heat-bar"><div class="rv-heat-fill" style="width:'+pct+'%"></div></div>'+
       '</div>';
@@ -3647,11 +3657,15 @@ function swInitTab(){ swRenderSetup(); }
 
   function rvRenderH2H(){
     document.getElementById('rvH2HBody').innerHTML = rvScores.map(function(r){
+      var hasMW = r.matchWinsA != null || r.matchWinsB != null;
+      var recCell = hasMW
+        ? '<span class="rv-rec-w">'+(r.matchWinsA||0)+'W</span> – <span class="rv-rec-l">'+(r.matchWinsB||0)+'L</span> <span style="opacity:0.45;font-size:0.85em">('+r.winsA+'–'+r.winsB+'g)</span>'
+        : '<span class="rv-rec-w">'+r.winsA+'W</span> – <span class="rv-rec-l">'+r.winsB+'L</span>';
       return '<tr>'+
         '<td>'+r.players[0]+'</td>'+
         '<td>'+r.players[1]+'</td>'+
         '<td class="c">'+r.meetings+'</td>'+
-        '<td class="c"><span class="rv-rec-w">'+r.winsA+'W</span> – <span class="rv-rec-l">'+r.winsB+'L</span></td>'+
+        '<td class="c">'+recCell+'</td>'+
         '<td class="c">'+r.close+'</td>'+
         '<td class="r"><span class="rv-score-gold">'+Math.round(r.score*100)+'</span></td>'+
       '</tr>';
@@ -3685,9 +3699,9 @@ function swInitTab(){ swRenderSetup(); }
   // Export CSV
   var expCSV = document.getElementById('rvExportCSV');
   if(expCSV) expCSV.addEventListener('click', function(){
-    var rows = ['Player A,Player B,Meetings,Wins A,Wins B,Close Matches,Score'];
+    var rows = ['Player A,Player B,Meetings,Match Wins A,Match Wins B,Game Wins A,Game Wins B,Close Matches,Score'];
     rvPairs.forEach(function(r){
-      rows.push(r.players[0]+','+r.players[1]+','+r.meetings+','+r.winsA+','+r.winsB+','+r.close+','+Math.round(r.score*100));
+      rows.push(r.players[0]+','+r.players[1]+','+r.meetings+','+(r.matchWinsA!=null?r.matchWinsA:'')+','+(r.matchWinsB!=null?r.matchWinsB:'')+','+r.winsA+','+r.winsB+','+r.close+','+Math.round(r.score*100));
     });
     var a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));
@@ -3771,7 +3785,7 @@ function swInitTab(){ swRenderSetup(); }
       var prior = data.rivalry || {};
       data.rivalry = {
         h2h: rvScores.map(function(r){
-          return { players: r.players, meetings: r.meetings, winsA: r.winsA, winsB: r.winsB, close: r.close, swings: r.swings, score: r.score };
+          return { players: r.players, meetings: r.meetings, winsA: r.winsA, winsB: r.winsB, matchWinsA: r.matchWinsA||0, matchWinsB: r.matchWinsB||0, close: r.close, swings: r.swings, score: r.score };
         }),
         savedPairs: rvPairs.map(function(r){ return { players: r.players, score: r.score, meetings: r.meetings }; }),
         eventLog: prior.eventLog || [],
@@ -4125,13 +4139,20 @@ function swInitTab(){ swRenderSetup(); }
     rivalry.h2h.forEach(function(e){ h2hMap[rvKey(e.players[0], e.players[1])] = e; });
     rvResultsMatches.forEach(function(m){
       var key = rvKey(m.playerA, m.playerB);
-      if(!h2hMap[key]) h2hMap[key] = { players: [m.playerA,m.playerB].sort(), meetings:0, winsA:0, winsB:0, close:0, swings:0, score:0 };
+      if(!h2hMap[key]) h2hMap[key] = { players: [m.playerA,m.playerB].sort(), meetings:0, winsA:0, winsB:0, matchWinsA:0, matchWinsB:0, close:0, swings:0, score:0 };
       var e = h2hMap[key];
       var sorted = e.players[0];
       if(m.playerA===sorted){ e.winsA+=m.winsA; e.winsB+=m.winsB; }
       else { e.winsA+=m.winsB; e.winsB+=m.winsA; }
+      var matchWinner = m.winsA>m.winsB ? m.playerA : (m.winsB>m.winsA ? m.playerB : null);
+      if(matchWinner===sorted) e.matchWinsA = (e.matchWinsA||0)+1;
+      else if(matchWinner) e.matchWinsB = (e.matchWinsB||0)+1;
       e.meetings++;
       if(Math.abs(m.winsA-m.winsB)===1) e.close++;
+      if(e.winsA!==e.winsB && matchWinner){
+        var leader = e.winsA>e.winsB ? sorted : e.players[1];
+        if(leader!==matchWinner) e.swings = (e.swings||0)+1;
+      }
     });
     rivalry.h2h = Object.values(h2hMap);
 
