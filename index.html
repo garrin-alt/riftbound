@@ -1488,7 +1488,10 @@
                   <p>Drop round results CSV here or <span>browse</span></p>
                 </div>
                 <div id="rvResultsFileList"></div>
-                <button class="btn" id="rvProcessResultsBtn" style="margin-top:10px" disabled>Process Results &amp; Save to Gist</button>
+                <div style="display:flex;gap:8px;margin-top:10px">
+                  <button class="btn" id="rvProcessResultsBtn" style="flex:1" disabled>Process Results</button>
+                  <button class="btn" id="rvSaveResultsBtn" style="flex:1" disabled>☁ Save to Gist</button>
+                </div>
                 <div id="rvResultsSummary" style="margin-top:12px"></div>
               </div>
             </div>
@@ -4105,6 +4108,11 @@ function swInitTab(){ swRenderSetup(); }
       var rows = rvParseCSV(e.target.result, f.name);
       rvResultsFiles = [{ name: f.name, rows: rows }];
       rvResultsMatches = rows;
+      // New file invalidates any processed-but-unsaved preview
+      rvPendingResults = null;
+      if(saveResultsBtn) saveResultsBtn.disabled = true;
+      var sumEl = document.getElementById('rvResultsSummary');
+      if(sumEl) sumEl.innerHTML = '';
       rvRenderResultsFileList();
       rvMaybeEnableProcessResults();
     };
@@ -4131,13 +4139,16 @@ function swInitTab(){ swRenderSetup(); }
 
   var processBtn = document.getElementById('rvProcessResultsBtn');
   if(processBtn) processBtn.addEventListener('click', rvProcessResults);
+  var saveResultsBtn = document.getElementById('rvSaveResultsBtn');
+  if(saveResultsBtn) saveResultsBtn.addEventListener('click', rvSaveResults);
+
+  var rvPendingResults = null; // processed-but-unsaved results awaiting "Save to Gist"
 
   function rvKeyLower(a,b){ return [a.toLowerCase(),b.toLowerCase()].sort().join('|'); }
 
-  async function rvProcessResults(){
-    processBtn.disabled = true;
-    processBtn.textContent = 'Processing…';
-
+  // Step 1: compute the rivalry matches + points for this upload and show a
+  // preview. Nothing is persisted until the user clicks "Save to Gist".
+  function rvProcessResults(){
     var roundType = document.getElementById('rvRoundPlayoff').checked ? 'playoff' : 'swiss';
     var pointValue = 2;
 
@@ -4161,6 +4172,20 @@ function swInitTab(){ swRenderSetup(); }
       pointsAwarded[winner] = (pointsAwarded[winner]||0) + pointValue;
       rivalMatchesFound.push({ a: m.playerA, b: m.playerB, winner: winner, score: m.winsA+'-'+m.winsB, roundType: roundType, points: pointValue });
     });
+
+    rvPendingResults = { roundType: roundType, pointsAwarded: pointsAwarded, rivalMatchesFound: rivalMatchesFound };
+    rvRenderResultsSummary(rivalMatchesFound, pointsAwarded, false);
+    if(saveResultsBtn){ saveResultsBtn.disabled = false; saveResultsBtn.textContent = '☁ Save to Gist'; }
+  }
+
+  // Step 2: apply the processed results to season data and persist to the Gist.
+  function rvSaveResults(){
+    if(!rvPendingResults) return;
+    saveResultsBtn.disabled = true;
+    saveResultsBtn.textContent = '⟳ Saving…';
+    var roundType = rvPendingResults.roundType;
+    var pointsAwarded = rvPendingResults.pointsAwarded;
+    var rivalMatchesFound = rvPendingResults.rivalMatchesFound;
 
     // Load latest season data fresh (avoid clobbering anything saved since this session started)
     var data = load();
@@ -4225,23 +4250,28 @@ function swInitTab(){ swRenderSetup(); }
 
     try {
       save(data);
-      processBtn.textContent = 'Process Results & Save to Gist';
-      processBtn.disabled = false;
-      rvRenderResultsSummary(rivalMatchesFound, pointsAwarded);
+      saveResultsBtn.textContent = '☁ Save to Gist';
+      rvPendingResults = null; // consumed — a re-save would double-count
+      rvRenderResultsSummary(rivalMatchesFound, pointsAwarded, true);
     } catch(e){
-      processBtn.textContent = 'Save failed — retry';
-      processBtn.disabled = false;
+      saveResultsBtn.textContent = 'Save failed — retry';
+      saveResultsBtn.disabled = false;
     }
   }
 
-  function rvRenderResultsSummary(rivalMatchesFound, pointsAwarded){
+  function rvRenderResultsSummary(rivalMatchesFound, pointsAwarded, saved){
     var el = document.getElementById('rvResultsSummary');
     if(!el) return;
     if(!rivalMatchesFound.length){
-      el.innerHTML = '<p style="font-size:0.78rem;color:rgba(245,237,214,0.4)">No rivalry matchups actually occurred in this round\'s results — nothing to score, but season h2h data was still merged and saved.</p>';
+      el.innerHTML = saved
+        ? '<p style="font-size:0.78rem;color:#4caf50">✓ Saved — no rivalry matchups to score, but this round was merged into season h2h.</p>'
+        : '<p style="font-size:0.78rem;color:rgba(245,237,214,0.4)">No rivalry matchups found in this round\'s results — nothing to score. Saving will still merge the round into season h2h.</p>';
       return;
     }
-    el.innerHTML = '<p style="font-size:0.74rem;color:#4caf50;margin-bottom:8px">✓ Saved — '+rivalMatchesFound.length+' rivalry match(es) scored</p>' +
+    var header = saved
+      ? '<p style="font-size:0.74rem;color:#4caf50;margin-bottom:8px">✓ Saved — '+rivalMatchesFound.length+' rivalry match(es) scored</p>'
+      : '<p style="font-size:0.74rem;color:#c9922a;margin-bottom:8px">⏳ '+rivalMatchesFound.length+' rivalry match(es) found — not saved yet. Review, then click ☁ Save to Gist.</p>';
+    el.innerHTML = header +
       rivalMatchesFound.map(function(rm){
         var tag = rm.roundType === 'playoff' ? ' <span style="color:#c98c39">[Top Cut]</span>' : '';
         return '<div style="font-size:0.78rem;color:rgba(245,237,214,0.6);padding:4px 0">⚔ '+rm.a+' vs '+rm.b+' — <span style="color:var(--gold-light)">'+rm.winner+'</span> won '+rm.score+' (+'+rm.points+' pts)'+tag+'</div>';
