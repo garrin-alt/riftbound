@@ -1495,7 +1495,11 @@
           <div class="rv-tab-panel" id="rvtab-leaderboard">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
               <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic">Cumulative Rivalry Points across the whole season.</p>
-              <button class="btn ghost" id="rvRefreshLeaderboard" style="width:auto;padding:7px 14px;font-size:0.7rem">↻ Load from Gist</button>
+              <div style="display:flex;align-items:center;gap:10px">
+                <span id="rvLbStatus" style="font-size:0.72rem;color:rgba(245,237,214,0.3)"></span>
+                <button class="btn ghost" id="rvClearLeaderboard" style="width:auto;padding:7px 14px;font-size:0.7rem;border-color:rgba(192,57,43,0.3);color:#c0392b">🗑 Clear Leaderboard</button>
+                <button class="btn ghost" id="rvRefreshLeaderboard" style="width:auto;padding:7px 14px;font-size:0.7rem">↻ Load from Gist</button>
+              </div>
             </div>
             <table>
               <thead>
@@ -4198,6 +4202,55 @@ function swInitTab(){ swRenderSetup(); }
   // ── LEADERBOARD ──────────────────────────────────────────────────────────
   var refreshLbBtn = document.getElementById('rvRefreshLeaderboard');
   if(refreshLbBtn) refreshLbBtn.addEventListener('click', rvLoadLeaderboard);
+
+  function rvSetLbStatus(msg, color){
+    var el = document.getElementById('rvLbStatus');
+    if(el){ el.textContent = msg; el.style.color = color || 'rgba(245,237,214,0.3)'; }
+  }
+
+  // Clear ONLY leaderboard data (rivalry points + event log) from the Gist.
+  // Season h2h history and saved pairings are untouched.
+  // Two-click confirm: first click arms it, second click (within 5s) executes.
+  var clearLbBtn = document.getElementById('rvClearLeaderboard');
+  var rvLbClearArmed = false;
+  if(clearLbBtn) clearLbBtn.addEventListener('click', function(){
+    if(typeof getToken==='function' && !getToken()){
+      rvSetLbStatus('⚠ No Gist token set (Settings tab)', '#c0392b'); return;
+    }
+    if(!rvLbClearArmed){
+      rvLbClearArmed = true;
+      clearLbBtn.textContent = '⚠ Click again to confirm';
+      rvSetLbStatus('Resets all Rivalry Points & event log (h2h history kept)', '#c0392b');
+      setTimeout(function(){
+        rvLbClearArmed = false;
+        clearLbBtn.textContent = '🗑 Clear Leaderboard';
+        rvSetLbStatus('','');
+      }, 5000);
+      return;
+    }
+    rvLbClearArmed = false;
+    clearLbBtn.textContent = '⟳ Clearing…';
+    try {
+      var data = load();
+      if(data.rivalry){
+        data.rivalry.rivalryPoints = {};
+        data.rivalry.eventLog = [];
+        data.rivalry.updatedAt = new Date().toISOString();
+        save(data); // persists locally AND triggers syncToGist()
+        rvSavedSeasonData = data.rivalry;
+      }
+      var lbBody = document.getElementById('rvLeaderboardBody');
+      if(lbBody) lbBody.innerHTML = '';
+      var lbEmpty = document.getElementById('rvLeaderboardEmpty');
+      if(lbEmpty) lbEmpty.style.display = 'block';
+      clearLbBtn.textContent = '🗑 Clear Leaderboard';
+      rvSetLbStatus('✓ Leaderboard cleared', '#4caf50');
+      setTimeout(function(){ rvSetLbStatus('',''); }, 3000);
+    } catch(e){
+      clearLbBtn.textContent = '🗑 Clear Leaderboard';
+      rvSetLbStatus('✗ Clear failed', '#c0392b');
+    }
+  });
 
   // Auto-load leaderboard when its tab is opened
   document.querySelectorAll('.rv-tab[data-rvtab="leaderboard"]').forEach(function(tab){
