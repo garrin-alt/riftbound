@@ -1393,6 +1393,7 @@
           <div class="rv-tabs">
             <div class="rv-tab active" data-rvtab="cards">Rivalry Rankings</div>
             <div class="rv-tab" data-rvtab="h2h">Head-to-Head</div>
+            <div class="rv-tab" data-rvtab="player">👤 Players</div>
             <div class="rv-tab" data-rvtab="pairings">Suggested Pairings</div>
             <div class="rv-tab" data-rvtab="eventday">⚔ Event Day</div>
             <div class="rv-tab" data-rvtab="leaderboard">🏆 Leaderboard</div>
@@ -1426,6 +1427,24 @@
               </thead>
               <tbody id="rvH2HBody"></tbody>
             </table>
+          </div>
+
+          <!-- PLAYER DASHBOARD -->
+          <div class="rv-tab-panel" id="rvtab-player">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+              <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic">Season stats for any player, built from the saved head-to-head data.</p>
+              <span id="rvPdStatus" style="font-size:0.72rem;color:rgba(245,237,214,0.3)"></span>
+            </div>
+            <div style="position:relative;max-width:340px;margin-bottom:18px">
+              <input class="lb-search" type="text" id="rvPdSearch" placeholder="Search player…" autocomplete="off"/>
+              <div class="ac-list" id="rvPdAc" style="right:0"></div>
+            </div>
+            <div id="rvPdIndex"></div>
+            <div id="rvPdDash" style="display:none"></div>
+            <div id="rvPdEmpty" class="rv-empty" style="display:none">
+              <div class="rv-empty-icon">👤</div>
+              No season head-to-head data loaded yet — load saved season data or analyze CSVs first
+            </div>
           </div>
 
           <!-- Pairings -->
@@ -4669,6 +4688,260 @@ function swInitTab(){ swRenderSetup(); }
       if(shadowEmpty) shadowEmpty.style.display = 'block';
     }
   }
+
+  // ── PLAYER DASHBOARD ─────────────────────────────────────────────────────
+  // Per-player season stats derived from the same h2h data (in-session analysis
+  // or the saved season loaded from the Gist).
+  var rvPdSelected = null;
+
+  function rvPdEsc(s){
+    return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function rvPdH2H(){
+    if(rvScores.length) return rvScores;
+    if(rvSavedSeasonData && rvSavedSeasonData.h2h) return rvSavedSeasonData.h2h;
+    return [];
+  }
+  async function rvPdEnsureData(){
+    if(rvPdH2H().length) return true;
+    try {
+      var data = await loadFromGist();
+      if(data && data.rivalry){
+        rvSavedSeasonData = data.rivalry;
+        rvRenderSavedSeason();
+      }
+    } catch(e){ /* fall through — empty state is shown */ }
+    return rvPdH2H().length > 0;
+  }
+
+  // Aggregate every h2h pair into per-player season totals.
+  function rvPdTotals(){
+    var totals = {};
+    rvPdH2H().forEach(function(r){
+      for(var i=0;i<2;i++){
+        var p = r.players[i];
+        var t = totals[p] || (totals[p] = { name:p, matches:0, mw:0, ml:0, gw:0, gl:0, close:0, opponents:0 });
+        t.matches   += r.meetings||0;
+        t.opponents += 1;
+        t.mw += i===0 ? (r.matchWinsA||0) : (r.matchWinsB||0);
+        t.ml += i===0 ? (r.matchWinsB||0) : (r.matchWinsA||0);
+        t.gw += i===0 ? (r.winsA||0)      : (r.winsB||0);
+        t.gl += i===0 ? (r.winsB||0)      : (r.winsA||0);
+        t.close += r.close||0;
+      }
+    });
+    return totals;
+  }
+  function rvPdPct(w, l){
+    var d = w + l;
+    return d ? Math.round(w/d*100) : null;
+  }
+  function rvPdPctCell(w, l){
+    var pct = rvPdPct(w, l);
+    if(pct==null) return '<span style="opacity:0.3">—</span>';
+    var col = pct >= 55 ? '#5ec88a' : (pct <= 45 ? '#e08080' : 'rgba(245,237,214,0.7)');
+    return '<span style="color:'+col+';font-family:Cinzel,serif;font-size:0.8rem">'+pct+'%</span>';
+  }
+  function rvPdSetStatus(){
+    var el = document.getElementById('rvPdStatus');
+    if(!el) return;
+    var n = Object.keys(rvPdTotals()).length;
+    var when = (!rvScores.length || (rvSavedSeasonData && rvSavedSeasonData.h2h === rvScores)) &&
+               rvSavedSeasonData && rvSavedSeasonData.updatedAt
+      ? ' · saved ' + new Date(rvSavedSeasonData.updatedAt).toLocaleDateString() : '';
+    el.textContent = n ? n + ' players' + when : '';
+  }
+
+  // Full roster view shown before a player is picked (and behind "← All Players").
+  function rvPdRenderIndex(){
+    rvPdSelected = null;
+    var dash = document.getElementById('rvPdDash');
+    var idx  = document.getElementById('rvPdIndex');
+    var empty= document.getElementById('rvPdEmpty');
+    dash.style.display = 'none'; dash.innerHTML = '';
+    var totals = Object.values(rvPdTotals()).sort(function(a,b){ return b.matches - a.matches || b.mw - a.mw; });
+    if(!totals.length){ idx.innerHTML=''; empty.style.display='block'; rvPdSetStatus(); return; }
+    empty.style.display='none';
+    idx.style.display = 'block';
+    idx.innerHTML =
+      '<table><thead><tr>'+
+        '<th class="c">#</th><th>Player</th>'+
+        '<th class="c">Matches</th><th class="c">Match Record</th><th class="c">Win %</th>'+
+        '<th class="c">Games</th><th class="c">Opponents</th>'+
+      '</tr></thead><tbody>'+
+      totals.map(function(t,i){
+        return '<tr class="rv-pd-row" data-player="'+rvPdEsc(t.name)+'" style="cursor:pointer">'+
+          '<td class="c td-mono">'+(i+1)+'</td>'+
+          '<td style="color:var(--gold-light)">'+rvPdEsc(t.name)+'</td>'+
+          '<td class="c td-mono">'+t.matches+'</td>'+
+          '<td class="c"><span class="rv-rec-w">'+t.mw+'W</span> – <span class="rv-rec-l">'+t.ml+'L</span></td>'+
+          '<td class="c">'+rvPdPctCell(t.mw,t.ml)+'</td>'+
+          '<td class="c td-mono" style="opacity:0.6">'+t.gw+'–'+t.gl+'</td>'+
+          '<td class="c td-mono">'+t.opponents+'</td>'+
+        '</tr>';
+      }).join('')+'</tbody></table>';
+    idx.querySelectorAll('.rv-pd-row').forEach(function(row){
+      row.addEventListener('click', function(){ rvPdShow(row.dataset.player); });
+    });
+    rvPdSetStatus();
+  }
+
+  function rvPdShow(name){
+    var all = rvPdH2H();
+    var mine = all.filter(function(r){ return r.players[0]===name || r.players[1]===name; });
+    if(!mine.length){ rvPdRenderIndex(); return; }
+    rvPdSelected = name;
+    document.getElementById('rvPdEmpty').style.display = 'none';
+    document.getElementById('rvPdIndex').style.display = 'none';
+    var search = document.getElementById('rvPdSearch');
+    if(search) search.value = name;
+
+    // Per-opponent rows from this player's perspective
+    var opps = mine.map(function(r){
+      var me = r.players[0]===name ? 0 : 1;
+      return {
+        opp:   r.players[me?0:1],
+        meetings: r.meetings||0,
+        mw: me===0 ? (r.matchWinsA||0) : (r.matchWinsB||0),
+        ml: me===0 ? (r.matchWinsB||0) : (r.matchWinsA||0),
+        gw: me===0 ? (r.winsA||0) : (r.winsB||0),
+        gl: me===0 ? (r.winsB||0) : (r.winsA||0),
+        close: r.close||0,
+        score: r.score||0
+      };
+    });
+
+    var tot = { matches:0, mw:0, ml:0, gw:0, gl:0, close:0 };
+    opps.forEach(function(o){
+      tot.matches+=o.meetings; tot.mw+=o.mw; tot.ml+=o.ml; tot.gw+=o.gw; tot.gl+=o.gl; tot.close+=o.close;
+    });
+    var draws = Math.max(0, tot.matches - tot.mw - tot.ml);
+
+    // Highlights: top rival by rivalry score; best/worst matchup needs 2+ meetings
+    var topRival = opps.slice().sort(function(a,b){ return b.score-a.score; })[0];
+    var settled  = opps.filter(function(o){ return o.meetings >= 2 && (o.mw+o.ml) > 0; });
+    var best = settled.slice().sort(function(a,b){
+      return (rvPdPct(b.mw,b.ml)-rvPdPct(a.mw,a.ml)) || (b.mw-a.mw); })[0];
+    var worst = settled.slice().sort(function(a,b){
+      return (rvPdPct(a.mw,a.ml)-rvPdPct(b.mw,b.ml)) || (b.ml-a.ml); })[0];
+
+    // Declared season rival (from saved pairings), and points if the ladders have data
+    var declaredRival = '';
+    if(rvSavedSeasonData && rvSavedSeasonData.savedPairs){
+      rvSavedSeasonData.savedPairs.forEach(function(p){
+        if(p.players[0]===name) declaredRival = p.players[1];
+        if(p.players[1]===name) declaredRival = p.players[0];
+      });
+    }
+    var pts = rvSavedSeasonData && rvSavedSeasonData.rivalryPoints && rvSavedSeasonData.rivalryPoints[name];
+
+    function tile(label, val, sub){
+      return '<div class="stat"><div class="stat-l">'+label+'</div><div class="stat-v">'+val+'</div>'+
+        (sub ? '<div style="font-size:0.66rem;color:rgba(245,237,214,0.3);margin-top:2px">'+sub+'</div>' : '')+'</div>';
+    }
+    function hlCard(icon, label, o, invert){
+      if(!o) return '';
+      var pct = rvPdPct(o.mw, o.ml);
+      return '<div class="stat" style="cursor:pointer" data-player="'+rvPdEsc(o.opp)+'">'+
+        '<div class="stat-l">'+icon+' '+label+'</div>'+
+        '<div class="stat-v" style="font-size:0.95rem">'+rvPdEsc(o.opp)+'</div>'+
+        '<div style="font-size:0.68rem;color:rgba(245,237,214,0.4);margin-top:3px">'+
+          o.meetings+' matches · <span class="rv-rec-w">'+o.mw+'W</span>–<span class="rv-rec-l">'+o.ml+'L</span>'+
+          (pct!=null ? ' · '+pct+'%' : '')+
+        '</div></div>';
+    }
+
+    var matchPct = rvPdPct(tot.mw, tot.ml);
+    var gamePct  = rvPdPct(tot.gw, tot.gl);
+    var html =
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px">'+
+        '<div>'+
+          '<div style="font-family:Cinzel,serif;font-size:1.15rem;font-weight:700;color:var(--gold-light);letter-spacing:0.08em">'+rvPdEsc(name)+'</div>'+
+          (declaredRival ? '<div style="font-size:0.74rem;color:rgba(245,237,214,0.4);margin-top:3px">⚔ Declared rival: <span style="color:var(--gold-light)">'+rvPdEsc(declaredRival)+'</span></div>' : '')+
+        '</div>'+
+        '<button class="btn ghost" id="rvPdBack" style="width:auto;padding:7px 14px;font-size:0.7rem">← All Players</button>'+
+      '</div>'+
+
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:16px">'+
+        tile('Matches', tot.matches, draws ? draws+' unreported/draw' : '')+
+        tile('Match Record', '<span class="rv-rec-w" style="font-size:1.05rem">'+tot.mw+'W</span> <span style="opacity:0.4">–</span> <span class="rv-rec-l" style="font-size:1.05rem">'+tot.ml+'L</span>', '')+
+        tile('Match Win %', matchPct!=null ? matchPct+'%' : '—', '')+
+        tile('Game Record', tot.gw+'–'+tot.gl, gamePct!=null ? gamePct+'% of games' : '')+
+        tile('Close Matches', tot.close, 'went the distance')+
+        tile('Opponents', opps.length, 'faced this season')+
+        (pts ? tile('Rivalry Pts', '<span class="rv-score-gold" style="font-size:1.05rem">'+(pts.points||0)+'</span>', (pts.rivalWins||0)+'W–'+(pts.rivalLosses||0)+'L vs rival') : '')+
+        (pts && (pts.shadowPoints||pts.shadowWins||pts.shadowDraws) ? tile('Shadow Pts', '<span style="color:#9b8cc4">'+(pts.shadowPoints||0)+'</span>', (pts.shadowWins||0)+'W–'+(pts.shadowDraws||0)+'D shadow') : '')+
+      '</div>'+
+
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-bottom:18px">'+
+        hlCard('🔥','Hottest Rivalry', topRival)+
+        hlCard('🎯','Best Matchup', best)+
+        hlCard('💀','Nemesis', worst)+
+      '</div>'+
+
+      '<table><thead><tr>'+
+        '<th>Opponent</th><th class="c">Matches</th><th class="c">Record</th>'+
+        '<th class="c">Win %</th><th class="c">Games</th><th class="c">Close</th><th class="r">Rivalry</th>'+
+      '</tr></thead><tbody>'+
+      opps.sort(function(a,b){ return b.meetings-a.meetings || b.score-a.score; }).map(function(o){
+        return '<tr class="rv-pd-row" data-player="'+rvPdEsc(o.opp)+'" style="cursor:pointer">'+
+          '<td>'+rvPdEsc(o.opp)+'</td>'+
+          '<td class="c td-mono">'+o.meetings+'</td>'+
+          '<td class="c"><span class="rv-rec-w">'+o.mw+'W</span> – <span class="rv-rec-l">'+o.ml+'L</span></td>'+
+          '<td class="c">'+rvPdPctCell(o.mw,o.ml)+'</td>'+
+          '<td class="c td-mono" style="opacity:0.6">'+o.gw+'–'+o.gl+'</td>'+
+          '<td class="c td-mono">'+o.close+'</td>'+
+          '<td class="r"><span class="rv-score-gold">'+Math.round(o.score*100)+'</span></td>'+
+        '</tr>';
+      }).join('')+'</tbody></table>';
+
+    var dash = document.getElementById('rvPdDash');
+    dash.innerHTML = html;
+    dash.style.display = 'block';
+    document.getElementById('rvPdBack').addEventListener('click', function(){
+      var s = document.getElementById('rvPdSearch');
+      if(s) s.value = '';
+      rvPdRenderIndex();
+    });
+    dash.querySelectorAll('[data-player]').forEach(function(el){
+      el.addEventListener('click', function(){ rvPdShow(el.dataset.player); });
+    });
+    rvPdSetStatus();
+  }
+
+  // Search with autocomplete
+  var pdSearch = document.getElementById('rvPdSearch');
+  var pdAc = document.getElementById('rvPdAc');
+  function rvPdCloseAc(){ if(pdAc){ pdAc.classList.remove('open'); pdAc.innerHTML=''; } }
+  if(pdSearch){
+    pdSearch.addEventListener('input', function(){
+      var q = pdSearch.value.trim().toLowerCase();
+      if(!q){ rvPdCloseAc(); rvPdRenderIndex(); return; }
+      var names = Object.keys(rvPdTotals()).filter(function(n){ return n.toLowerCase().indexOf(q) !== -1; })
+        .sort().slice(0, 8);
+      if(!names.length){ rvPdCloseAc(); return; }
+      pdAc.innerHTML = names.map(function(n){ return '<div class="ac-opt" data-player="'+rvPdEsc(n)+'">'+rvPdEsc(n)+'</div>'; }).join('');
+      pdAc.classList.add('open');
+      pdAc.querySelectorAll('.ac-opt').forEach(function(opt){
+        opt.addEventListener('mousedown', function(e){ e.preventDefault(); rvPdCloseAc(); rvPdShow(opt.dataset.player); });
+      });
+    });
+    pdSearch.addEventListener('keydown', function(e){
+      if(e.key !== 'Enter') return;
+      var first = pdAc && pdAc.querySelector('.ac-opt');
+      if(first){ rvPdCloseAc(); rvPdShow(first.dataset.player); }
+    });
+    pdSearch.addEventListener('blur', function(){ setTimeout(rvPdCloseAc, 150); });
+  }
+
+  // Auto-load season data + render whenever the tab is opened
+  document.querySelectorAll('.rv-tab[data-rvtab="player"]').forEach(function(tab){
+    tab.addEventListener('click', async function(){
+      await rvPdEnsureData();
+      if(rvPdSelected) rvPdShow(rvPdSelected);
+      else rvPdRenderIndex();
+    });
+  });
 
 })();
 // ==================== END RIVALRY ANALYZER ====================
