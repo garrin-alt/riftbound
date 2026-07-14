@@ -1396,6 +1396,7 @@
             <div class="rv-tab" data-rvtab="pairings">Suggested Pairings</div>
             <div class="rv-tab" data-rvtab="eventday">⚔ Event Day</div>
             <div class="rv-tab" data-rvtab="leaderboard">🏆 Leaderboard</div>
+            <div class="rv-tab" data-rvtab="shadowlb">🌑 Shadow</div>
           </div>
 
           <!-- Rankings -->
@@ -1502,9 +1503,11 @@
           <div class="rv-tab-panel" id="rvtab-leaderboard">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
               <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic">Cumulative Rivalry Points across the whole season.</p>
-              <div style="display:flex;align-items:center;gap:10px">
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                 <span id="rvLbStatus" style="font-size:0.72rem;color:rgba(245,237,214,0.3)"></span>
                 <button class="btn ghost" id="rvClearLeaderboard" style="width:auto;padding:7px 14px;font-size:0.7rem;border-color:rgba(192,57,43,0.3);color:#c0392b">🗑 Clear Leaderboard</button>
+                <button class="btn ghost" id="rvLbExportCSV" style="width:auto;padding:7px 14px;font-size:0.7rem">⬇ Export CSV</button>
+                <button class="btn ghost" id="rvLbExportImg" style="width:auto;padding:7px 14px;font-size:0.7rem">📸 Export Image</button>
                 <button class="btn ghost" id="rvRefreshLeaderboard" style="width:auto;padding:7px 14px;font-size:0.7rem">↻ Load from Gist</button>
               </div>
             </div>
@@ -1526,10 +1529,19 @@
               No Rivalry Points recorded yet — process event results to populate the leaderboard
             </div>
 
-            <!-- SHADOW LEADERBOARD (separate ladder) -->
-            <div id="rvShadowLbWrap" style="display:none;margin-top:30px">
-              <div class="card-label" style="margin-bottom:6px">🌑 Shadow Points Leaderboard</div>
-              <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic;margin-bottom:12px">Proxy scoring for rivals who didn't meet — tracked entirely separately from Rivalry Points.</p>
+          </div>
+
+          <!-- SHADOW LEADERBOARD (separate tab) -->
+          <div class="rv-tab-panel" id="rvtab-shadowlb">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+              <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic">🌑 Proxy scoring for rivals who didn't meet — tracked entirely separately from Rivalry Points.</p>
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                <button class="btn ghost" id="rvShadowExportCSV" style="width:auto;padding:7px 14px;font-size:0.7rem">⬇ Export CSV</button>
+                <button class="btn ghost" id="rvShadowExportImg" style="width:auto;padding:7px 14px;font-size:0.7rem">📸 Export Image</button>
+                <button class="btn ghost" id="rvRefreshShadowLb" style="width:auto;padding:7px 14px;font-size:0.7rem">↻ Load from Gist</button>
+              </div>
+            </div>
+            <div id="rvShadowLbWrap" style="display:none">
               <table>
                 <thead>
                   <tr>
@@ -1542,6 +1554,10 @@
                 </thead>
                 <tbody id="rvShadowLbBody"></tbody>
               </table>
+            </div>
+            <div id="rvShadowLbEmpty" class="rv-empty" style="display:none">
+              <div class="rv-empty-icon">🌑</div>
+              No Shadow Points recorded yet — process event results to populate the shadow leaderboard
             </div>
           </div>
         </div>
@@ -3843,6 +3859,8 @@ function swInitTab(){ swRenderSetup(); }
       if(shWrap) shWrap.style.display = 'none';
       var shBody = document.getElementById('rvShadowLbBody');
       if(shBody) shBody.innerHTML = '';
+      var shEmpty = document.getElementById('rvShadowLbEmpty');
+      if(shEmpty) shEmpty.style.display = 'block';
       clearGistBtn.textContent = '🗑 Clear Rivalry Data';
       rvSetGistStatus('✓ Rivalry data cleared', '#4caf50');
       setTimeout(function(){ rvSetGistStatus('',''); }, 3000);
@@ -4366,8 +4384,12 @@ function swInitTab(){ swRenderSetup(); }
   }
 
   // ── LEADERBOARD ──────────────────────────────────────────────────────────
+  var rvLbCache = { main: [], shadow: [] }; // last-rendered rows, reused by CSV/image exports
+
   var refreshLbBtn = document.getElementById('rvRefreshLeaderboard');
   if(refreshLbBtn) refreshLbBtn.addEventListener('click', rvLoadLeaderboard);
+  var refreshShadowBtn = document.getElementById('rvRefreshShadowLb');
+  if(refreshShadowBtn) refreshShadowBtn.addEventListener('click', rvLoadLeaderboard);
 
   function rvSetLbStatus(msg, color){
     var el = document.getElementById('rvLbStatus');
@@ -4413,6 +4435,8 @@ function swInitTab(){ swRenderSetup(); }
       if(shWrap) shWrap.style.display = 'none';
       var shBody = document.getElementById('rvShadowLbBody');
       if(shBody) shBody.innerHTML = '';
+      var shEmpty = document.getElementById('rvShadowLbEmpty');
+      if(shEmpty) shEmpty.style.display = 'block';
       clearLbBtn.textContent = '🗑 Clear Leaderboard';
       rvSetLbStatus('✓ Leaderboard cleared', '#4caf50');
       setTimeout(function(){ rvSetLbStatus('',''); }, 3000);
@@ -4422,10 +4446,142 @@ function swInitTab(){ swRenderSetup(); }
     }
   });
 
-  // Auto-load leaderboard when its tab is opened
-  document.querySelectorAll('.rv-tab[data-rvtab="leaderboard"]').forEach(function(tab){
+  // Auto-load both ladders when either tab is opened
+  document.querySelectorAll('.rv-tab[data-rvtab="leaderboard"], .rv-tab[data-rvtab="shadowlb"]').forEach(function(tab){
     tab.addEventListener('click', rvLoadLeaderboard);
   });
+
+  // ── LEADERBOARD EXPORTS ──────────────────────────────────────────────────
+  function rvCsvCell(v){ v = String(v==null?'':v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
+  function rvDownloadFile(href, filename){
+    var a = document.createElement('a');
+    a.href = href; a.download = filename; a.click();
+  }
+
+  async function rvExportLbCSV(kind){
+    await rvLoadLeaderboard(); // refresh so the export reflects latest saved data
+    var rows = kind === 'shadow' ? rvLbCache.shadow : rvLbCache.main;
+    if(!rows.length) return false;
+    var out = kind === 'shadow'
+      ? ['Rank,Player,Shadow Pts,Shadow Wins (+2),Shadow Draws (+1),Current Rival'].concat(rows.map(function(r,i){
+          return [i+1, rvCsvCell(r.player), r.shadow, r.shadowW, r.shadowD, rvCsvCell(r.rival)].join(',');
+        }))
+      : ['Rank,Player,Rivalry Pts,Rival Wins,Rival Losses,Current Rival,Events Logged'].concat(rows.map(function(r,i){
+          return [i+1, rvCsvCell(r.player), r.points, r.w, r.l, rvCsvCell(r.rival), r.ev].join(',');
+        }));
+    rvDownloadFile(URL.createObjectURL(new Blob([out.join('\n')],{type:'text/csv'})), 'gnl-'+(kind==='shadow'?'shadow':'rivalry')+'-leaderboard.csv');
+    return true;
+  }
+
+  // Square 1080×1080 social-media card of a ladder's top 10
+  async function rvExportLbImage(kind){
+    await rvLoadLeaderboard();
+    var rows = kind === 'shadow' ? rvLbCache.shadow : rvLbCache.main;
+    if(!rows.length) return false;
+    if(document.fonts && document.fonts.ready){ try { await document.fonts.ready; } catch(e){} }
+
+    var S = 1080;
+    var c = document.createElement('canvas'); c.width = S; c.height = S;
+    var x = c.getContext('2d');
+    var accent = kind === 'shadow' ? '#b3a3e0' : '#e8b84b';
+    var accentRGBA = kind === 'shadow' ? 'rgba(155,140,196,' : 'rgba(201,146,42,';
+    var parch = 'rgba(245,237,214,';
+
+    // Background: deep ink gradient + top glow
+    var g = x.createLinearGradient(0,0,0,S);
+    g.addColorStop(0,'#201709'); g.addColorStop(0.45,'#15100a'); g.addColorStop(1,'#0c0906');
+    x.fillStyle = g; x.fillRect(0,0,S,S);
+    var rg = x.createRadialGradient(S/2,150,40, S/2,150,720);
+    rg.addColorStop(0, accentRGBA+'0.14)'); rg.addColorStop(1, accentRGBA+'0)');
+    x.fillStyle = rg; x.fillRect(0,0,S,S);
+
+    // Double frame
+    x.strokeStyle = accentRGBA+'0.55)'; x.lineWidth = 3; x.strokeRect(34,34,S-68,S-68);
+    x.strokeStyle = accentRGBA+'0.18)'; x.lineWidth = 1; x.strokeRect(46,46,S-92,S-92);
+
+    // Header
+    x.textAlign = 'center';
+    x.fillStyle = parch+'0.5)';
+    x.font = '600 24px Cinzel, Georgia, serif';
+    x.fillText('R I F T B O U N D   L E A G U E', S/2, 118);
+    x.fillStyle = accent;
+    x.font = '700 58px Cinzel, Georgia, serif';
+    x.fillText(kind === 'shadow' ? '🌑 SHADOW LEADERBOARD' : '⚔ RIVALRY LEADERBOARD', S/2, 196);
+    var dg = x.createLinearGradient(S/2-220,0,S/2+220,0);
+    dg.addColorStop(0, accentRGBA+'0)'); dg.addColorStop(0.5, accentRGBA+'0.9)'); dg.addColorStop(1, accentRGBA+'0)');
+    x.fillStyle = dg; x.fillRect(S/2-220,222,440,2);
+    var cityLbl = '';
+    try { var cfg = getCityConfig(); cityLbl = cfg ? cfg.label : ''; } catch(e){}
+    x.fillStyle = parch+'0.45)';
+    x.font = 'italic 26px "Crimson Pro", Georgia, serif';
+    x.fillText((cityLbl ? cityLbl + '  •  ' : '') + new Date().toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}), S/2, 264);
+
+    function fit(txt, maxW){
+      if(x.measureText(txt).width <= maxW) return txt;
+      while(txt.length > 1 && x.measureText(txt+'…').width > maxW) txt = txt.slice(0,-1);
+      return txt+'…';
+    }
+
+    // Rows: top 10
+    var top = rows.slice(0,10);
+    var rowH = 66, startY = 300, left = 76, right = S-76;
+    var rankColors = ['#e8b84b','#c0bfc7','#c08954'];
+    top.forEach(function(r,i){
+      var y = startY + i*rowH;
+      x.fillStyle = parch + (i%2===0 ? '0.045)' : '0.02)');
+      x.fillRect(left, y, right-left, rowH-10);
+      if(i < 3){ x.strokeStyle = accentRGBA+'0.4)'; x.lineWidth = 1; x.strokeRect(left+0.5, y+0.5, right-left-1, rowH-11); }
+      // rank
+      x.textAlign = 'left';
+      x.fillStyle = i < 3 ? rankColors[i] : parch+'0.35)';
+      x.font = '700 30px Cinzel, Georgia, serif';
+      x.fillText('#'+(i+1), left+22, y+38);
+      // name
+      x.fillStyle = parch+'0.92)';
+      x.font = '600 32px "Crimson Pro", Georgia, serif';
+      x.fillText(fit(r.player, 460), left+108, y+39);
+      // record
+      x.textAlign = 'right';
+      x.fillStyle = parch+'0.4)';
+      x.font = '25px "Crimson Pro", Georgia, serif';
+      x.fillText(kind === 'shadow' ? (r.shadowW+'W–'+r.shadowD+'D') : (r.w+'W–'+r.l+'L'), right-160, y+38);
+      // points
+      x.fillStyle = accent;
+      x.font = '700 34px Cinzel, Georgia, serif';
+      x.fillText((kind === 'shadow' ? r.shadow : r.points)+' pts', right-22, y+40);
+    });
+
+    // Footer
+    x.textAlign = 'center';
+    x.fillStyle = parch+'0.3)';
+    x.font = 'italic 24px "Crimson Pro", Georgia, serif';
+    x.fillText('— May the best rival win —', S/2, S-62);
+
+    return new Promise(function(resolve){
+      c.toBlob(function(blob){
+        rvDownloadFile(URL.createObjectURL(blob), 'gnl-'+(kind==='shadow'?'shadow':'rivalry')+'-leaderboard.png');
+        resolve(true);
+      }, 'image/png');
+    });
+  }
+
+  function rvWireExport(btnId, fn){
+    var btn = document.getElementById(btnId);
+    if(!btn) return;
+    btn.addEventListener('click', async function(){
+      var orig = btn.textContent;
+      btn.disabled = true; btn.textContent = '⟳ Working…';
+      var ok = false;
+      try { ok = await fn(); } catch(e){}
+      btn.disabled = false;
+      btn.textContent = ok ? '✓ Exported' : '⚠ No data to export';
+      setTimeout(function(){ btn.textContent = orig; }, 2200);
+    });
+  }
+  rvWireExport('rvLbExportCSV',     function(){ return rvExportLbCSV('main'); });
+  rvWireExport('rvShadowExportCSV', function(){ return rvExportLbCSV('shadow'); });
+  rvWireExport('rvLbExportImg',     function(){ return rvExportLbImage('main'); });
+  rvWireExport('rvShadowExportImg', function(){ return rvExportLbImage('shadow'); });
 
   async function rvLoadLeaderboard(){
     var body = document.getElementById('rvLeaderboardBody');
@@ -4437,7 +4593,10 @@ function swInitTab(){ swRenderSetup(); }
         data = data && data.rivalry;
       }
       if(!data || !data.rivalryPoints || !Object.keys(data.rivalryPoints).length){
-        body.innerHTML = ''; empty.style.display = 'block'; return;
+        body.innerHTML = ''; empty.style.display = 'block';
+        rvLbCache.main = []; rvLbCache.shadow = [];
+        rvRenderShadowLb([]);
+        return;
       }
       rvSavedSeasonData = data;
       empty.style.display = 'none';
@@ -4453,7 +4612,8 @@ function swInitTab(){ swRenderSetup(); }
         return {
           player: kv[0], points: kv[1].points||0,
           w: kv[1].rivalWins||0, l: kv[1].rivalLosses||0, ev: kv[1].eventsLogged||0,
-          shadow: kv[1].shadowPoints||0, shadowW: kv[1].shadowWins||0, shadowD: kv[1].shadowDraws||0
+          shadow: kv[1].shadowPoints||0, shadowW: kv[1].shadowWins||0, shadowD: kv[1].shadowDraws||0,
+          rival: currentRival[kv[0]] || ''
         };
       });
 
@@ -4472,31 +4632,41 @@ function swInitTab(){ swRenderSetup(); }
         '</tr>';
       }).join('');
 
-      // Shadow ladder: entirely separate ranking
-      var shadowWrap = document.getElementById('rvShadowLbWrap');
-      var shadowBody = document.getElementById('rvShadowLbBody');
+      // Shadow ladder: entirely separate ranking, in its own tab
       var shadowRows = entries.filter(function(r){ return r.shadow > 0 || r.shadowW > 0 || r.shadowD > 0; })
         .sort(function(a,b){ return b.shadow - a.shadow; });
-      if(shadowWrap && shadowBody){
-        if(shadowRows.length){
-          shadowWrap.style.display = 'block';
-          shadowBody.innerHTML = shadowRows.map(function(r, i){
-            return '<tr>'+
-              '<td class="c td-mono">'+(i+1)+'</td>'+
-              '<td>'+r.player+'</td>'+
-              '<td class="c"><span style="color:#9b8cc4;font-weight:600">'+r.shadow+'</span></td>'+
-              '<td class="c"><span class="rv-rec-w">'+r.shadowW+'W</span> – <span style="color:rgba(245,237,214,0.5)">'+r.shadowD+'D</span></td>'+
-              '<td>'+(currentRival[r.player] || '<span style="opacity:0.3">—</span>')+'</td>'+
-            '</tr>';
-          }).join('');
-        } else {
-          shadowWrap.style.display = 'none';
-          shadowBody.innerHTML = '';
-        }
-      }
+      rvLbCache.main = rows;
+      rvLbCache.shadow = shadowRows;
+      rvRenderShadowLb(shadowRows);
     } catch(e){
       body.innerHTML = '';
       empty.style.display = 'block';
+      rvLbCache.main = []; rvLbCache.shadow = [];
+      rvRenderShadowLb([]);
+    }
+  }
+
+  function rvRenderShadowLb(shadowRows){
+    var shadowWrap = document.getElementById('rvShadowLbWrap');
+    var shadowBody = document.getElementById('rvShadowLbBody');
+    var shadowEmpty = document.getElementById('rvShadowLbEmpty');
+    if(!shadowWrap || !shadowBody) return;
+    if(shadowRows.length){
+      shadowWrap.style.display = 'block';
+      if(shadowEmpty) shadowEmpty.style.display = 'none';
+      shadowBody.innerHTML = shadowRows.map(function(r, i){
+        return '<tr>'+
+          '<td class="c td-mono">'+(i+1)+'</td>'+
+          '<td>'+r.player+'</td>'+
+          '<td class="c"><span style="color:#9b8cc4;font-weight:600">'+r.shadow+'</span></td>'+
+          '<td class="c"><span class="rv-rec-w">'+r.shadowW+'W</span> – <span style="color:rgba(245,237,214,0.5)">'+r.shadowD+'D</span></td>'+
+          '<td>'+(r.rival || '<span style="opacity:0.3">—</span>')+'</td>'+
+        '</tr>';
+      }).join('');
+    } else {
+      shadowWrap.style.display = 'none';
+      shadowBody.innerHTML = '';
+      if(shadowEmpty) shadowEmpty.style.display = 'block';
     }
   }
 
