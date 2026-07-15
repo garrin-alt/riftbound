@@ -4059,7 +4059,7 @@ function swInitTab(){ swRenderSetup(); }
     var cityLbl = '';
     try { var vCfg = getCityConfig(); cityLbl = vCfg ? vCfg.label : ''; } catch(e){}
     html += '<div style="text-align:center;margin-bottom:14px">'+
-      '<div style="font-family:Cinzel,serif;font-size:1.15rem;font-weight:700;letter-spacing:0.22em;color:var(--gold-light)">⚔ V E N D E T T A ⚔</div>'+
+      '<div style="font-family:Cinzel,serif;font-size:1.15rem;font-weight:700;letter-spacing:0.22em;color:var(--gold-light)">V E N D E T T A</div>'+
       '<div style="font-size:0.76rem;font-style:italic;color:rgba(245,237,214,0.4);margin-top:3px">'+
         (cityLbl ? cityLbl + ' · ' : '') + new Date().toLocaleDateString(undefined,{weekday:'long',year:'numeric',month:'long',day:'numeric'})+
       '</div>'+
@@ -4079,7 +4079,7 @@ function swInitTab(){ swRenderSetup(); }
       var badge = r.random
         ? '<div class="rv-ev-meta fallback-lbl">🎲 new blood<br>(random draw)</div>'
         : r.fallback
-        ? '<div class="rv-ev-meta fallback-lbl">🗡 best available<br>('+rvMeetingsLbl(r.meetings)+')</div>'
+        ? '<div class="rv-ev-meta fallback-lbl">🩸 bad blood<br>('+rvMeetingsLbl(r.meetings)+')</div>'
         : '<div class="rv-ev-meta">🔥 sworn rivals<br>('+rvMeetingsLbl(r.meetings)+')</div>';
       return '<div class="rv-ev-row '+cls+'">'+
         '<div class="rv-pair-num">'+String(i+1).padStart(2,'0')+'</div>'+
@@ -4114,7 +4114,7 @@ function swInitTab(){ swRenderSetup(); }
     document.getElementById('rvEventExportCSV').addEventListener('click', function(){
       var rows = ['Player A,Player B,Meetings,Score,Type'];
       results.forEach(function(r){
-        var type = r.random ? 'New Blood (Random)' : (r.fallback ? 'Best Available' : 'Sworn Rivals');
+        var type = r.random ? 'New Blood (Random)' : (r.fallback ? 'Bad Blood' : 'Sworn Rivals');
         rows.push(r.a+','+r.b+','+r.meetings+','+Math.round(r.score*100)+','+type);
       });
       unmatched.forEach(function(p){ rows.push(p+',,,,Unpaired'); });
@@ -4156,7 +4156,7 @@ function swInitTab(){ swRenderSetup(); }
     var cityLbl = '';
     try { var cfg = getCityConfig(); cityLbl = cfg ? cfg.label : ''; } catch(e){}
     var g = rvVendettaGroups(results);
-    var lines = ['⚔️ *V E N D E T T A* ⚔️'];
+    var lines = ['*V E N D E T T A*'];
     lines.push('_Riftbound League'+(cityLbl ? ' — '+cityLbl : '')+'_');
     lines.push('_'+new Date().toLocaleDateString(undefined,{weekday:'long',year:'numeric',month:'long',day:'numeric'})+'_');
     lines.push('');
@@ -4172,7 +4172,7 @@ function swInitTab(){ swRenderSetup(); }
       });
     }
     block('🔥 *Sworn Rivals*', g.sworn, true);
-    block('🗡️ *Best Available*', g.avail, true);
+    block('🩸 *Bad Blood*', g.avail, true);
     block('🎲 *New Blood*', g.fresh, false);
     if(unmatched.length){
       lines.push('');
@@ -4223,7 +4223,7 @@ function swInitTab(){ swRenderSetup(); }
     x.fillText('R I F T B O U N D   L E A G U E', W/2, 118);
     x.fillStyle = '#e8b84b';
     x.font = '700 64px Cinzel, Georgia, serif';
-    x.fillText('⚔ V E N D E T T A ⚔', W/2, 200);
+    x.fillText('V E N D E T T A', W/2, 200);
     var dg = x.createLinearGradient(W/2-220,0,W/2+220,0);
     dg.addColorStop(0, accentRGBA+'0)'); dg.addColorStop(0.5, accentRGBA+'0.9)'); dg.addColorStop(1, accentRGBA+'0)');
     x.fillStyle = dg; x.fillRect(W/2-220,226,440,2);
@@ -4283,7 +4283,7 @@ function swInitTab(){ swRenderSetup(); }
       });
     }
     drawGroup('🔥 SWORN RIVALS', g.sworn, 'sworn');
-    drawGroup('🗡 BEST AVAILABLE', g.avail, 'avail');
+    drawGroup('🩸 BAD BLOOD', g.avail, 'avail');
     drawGroup('🎲 NEW BLOOD', g.fresh, 'fresh');
 
     if(unmatched.length){
