@@ -1443,7 +1443,7 @@
           <!-- EVENT DAY -->
           <div class="rv-tab-panel" id="rvtab-eventday">
             <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic;margin-bottom:14px;line-height:1.6">
-              Upload today's check-in / pairings CSV. Each attending player gets matched to their best available rival from the saved season Gist — even if that exact rival isn't here today.
+              Upload today's check-in / pairings CSV. Each attending player gets declared a <strong style="color:var(--gold-light)">Vendetta</strong> — their best available rival from the saved season Gist — even if that exact rival isn't here today.
             </p>
 
             <div class="card" style="margin-bottom:14px">
@@ -1465,7 +1465,7 @@
               <div id="rvEventFileList"></div>
             </div>
 
-            <button class="btn" id="rvGeneratePairingsBtn" disabled>Generate Event Rivalries</button>
+            <button class="btn" id="rvGeneratePairingsBtn" disabled>⚔ Generate Vendettas</button>
 
             <div id="rvEventResults" style="margin-top:18px"></div>
 
@@ -1473,7 +1473,7 @@
               <div class="card">
                 <div class="card-label">🏆 Record Results &amp; Award Rivalry Points</div>
                 <p style="font-size:0.74rem;color:rgba(245,237,214,0.4);margin-bottom:10px;line-height:1.5">
-                  Upload a round's results CSV. Any match between declared rivals (above) earns the winner Rivalry Points — <strong style="color:rgba(245,237,214,0.6)">+2 per rivalry win (Swiss and Top Cut/Knockouts alike)</strong>. You can upload multiple rounds from the same event one at a time (e.g. Swiss round 3, then later the Top 8 bracket) — points stack each time the rivalry meets again.
+                  Upload a round's results CSV. Any match between declared Vendettas (above) earns the winner Rivalry Points — <strong style="color:rgba(245,237,214,0.6)">+2 per rivalry win (Swiss and Top Cut/Knockouts alike)</strong>. You can upload multiple rounds from the same event one at a time (e.g. Swiss round 3, then later the Top 8 bracket) — points stack each time the rivalry meets again.
                   <br/><span style="color:#9b8cc4">🌑 Shadow Points:</span> rivals who <em>don't</em> meet are scored by proxy from their own matches — win while your rival doesn't = <strong style="color:rgba(245,237,214,0.6)">+2 shadow</strong>, both win = <strong style="color:rgba(245,237,214,0.6)">+1 each</strong>, lose or draw = 0.
                 </p>
                 <div style="display:flex;gap:14px;margin-bottom:12px">
@@ -4056,6 +4056,15 @@ function swInitTab(){ swRenderSetup(); }
     var wrap = document.getElementById('rvEventResults');
     var html = '';
 
+    var cityLbl = '';
+    try { var vCfg = getCityConfig(); cityLbl = vCfg ? vCfg.label : ''; } catch(e){}
+    html += '<div style="text-align:center;margin-bottom:14px">'+
+      '<div style="font-family:Cinzel,serif;font-size:1.15rem;font-weight:700;letter-spacing:0.22em;color:var(--gold-light)">⚔ V E N D E T T A ⚔</div>'+
+      '<div style="font-size:0.76rem;font-style:italic;color:rgba(245,237,214,0.4);margin-top:3px">'+
+        (cityLbl ? cityLbl + ' · ' : '') + new Date().toLocaleDateString(undefined,{weekday:'long',year:'numeric',month:'long',day:'numeric'})+
+      '</div>'+
+    '</div>';
+
     html += '<div class="rv-ev-stats-bar">'+
       '<div class="stat"><div class="stat-l">Attendees</div><div class="stat-v">'+totalAttendees+'</div></div>'+
       '<div class="stat"><div class="stat-l">Matched</div><div class="stat-v">'+results.length+'</div></div>'+
@@ -4068,10 +4077,10 @@ function swInitTab(){ swRenderSetup(); }
     html += results.map(function(r,i){
       var cls = r.random ? 'fallback' : (r.fallback ? 'fallback' : '');
       var badge = r.random
-        ? '<div class="rv-ev-meta fallback-lbl">random pairing<br>(new player)</div>'
+        ? '<div class="rv-ev-meta fallback-lbl">🎲 new blood<br>(random draw)</div>'
         : r.fallback
-        ? '<div class="rv-ev-meta fallback-lbl">best available<br>('+r.meetings+' meetings)</div>'
-        : '<div class="rv-ev-meta">true rival<br>('+r.meetings+' meetings)</div>';
+        ? '<div class="rv-ev-meta fallback-lbl">🗡 best available<br>('+rvMeetingsLbl(r.meetings)+')</div>'
+        : '<div class="rv-ev-meta">🔥 sworn rivals<br>('+rvMeetingsLbl(r.meetings)+')</div>';
       return '<div class="rv-ev-row '+cls+'">'+
         '<div class="rv-pair-num">'+String(i+1).padStart(2,'0')+'</div>'+
         '<div class="rv-pair-player">'+r.a+'</div>'+
@@ -4082,7 +4091,7 @@ function swInitTab(){ swRenderSetup(); }
     }).join('');
 
     if(unmatched.length){
-      html += '<div style="margin-top:16px;margin-bottom:6px;font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;color:rgba(245,237,214,0.3)">No Rivalry History</div>';
+      html += '<div style="margin-top:16px;margin-bottom:6px;font-size:0.7rem;letter-spacing:0.1em;text-transform:uppercase;color:rgba(245,237,214,0.3)">No Vendetta Today</div>';
       html += unmatched.map(function(p){
         return '<div class="rv-ev-row none">'+
           '<div class="rv-pair-num">–</div>'+
@@ -4094,9 +4103,10 @@ function swInitTab(){ swRenderSetup(); }
       }).join('');
     }
 
-    html += '<div style="display:flex;gap:8px;margin-top:16px">'+
+    html += '<div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">'+
       '<button class="btn ghost" id="rvEventExportCSV" style="width:auto;flex:1">⬇ Export CSV</button>'+
       '<button class="btn ghost" id="rvEventCopyWhatsApp" style="width:auto;flex:1">📋 Copy for WhatsApp</button>'+
+      '<button class="btn ghost" id="rvEventExportImg" style="width:auto;flex:1">📸 Export Image</button>'+
     '</div>';
 
     wrap.innerHTML = html;
@@ -4104,27 +4114,199 @@ function swInitTab(){ swRenderSetup(); }
     document.getElementById('rvEventExportCSV').addEventListener('click', function(){
       var rows = ['Player A,Player B,Meetings,Score,Type'];
       results.forEach(function(r){
-        var type = r.random ? 'Random' : (r.fallback ? 'Best Available' : 'True Rival');
+        var type = r.random ? 'New Blood (Random)' : (r.fallback ? 'Best Available' : 'Sworn Rivals');
         rows.push(r.a+','+r.b+','+r.meetings+','+Math.round(r.score*100)+','+type);
       });
       unmatched.forEach(function(p){ rows.push(p+',,,,Unpaired'); });
       var a = document.createElement('a');
       a.href = URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));
-      a.download = 'gnl-event-rivalries.csv'; a.click();
+      a.download = 'gnl-vendettas.csv'; a.click();
     });
 
     document.getElementById('rvEventCopyWhatsApp').addEventListener('click', function(){
-      var lines = ["⚔️ *TODAY'S RIVALRY MATCHUPS* ⚔️",''];
-      results.forEach(function(r,i){
-        var tag = r.random ? ' (new)' : (r.fallback ? ' (rivalry)' : ' (RIVAL)');
-        lines.push((i+1)+'. '+r.a+' vs '+r.b + tag);
-      });
-      if(unmatched.length) lines.push('', 'Unpaired: '+unmatched.join(', '));
-      lines.push('', 'Good luck out there! 🏆');
-      navigator.clipboard.writeText(lines.join('\n'));
+      navigator.clipboard.writeText(rvVendettaWhatsAppText(results, unmatched));
       var btn = document.getElementById('rvEventCopyWhatsApp');
-      btn.textContent = 'Copied!';
+      btn.textContent = '✓ Copied!';
       setTimeout(function(){ btn.textContent = '📋 Copy for WhatsApp'; }, 1800);
+    });
+
+    document.getElementById('rvEventExportImg').addEventListener('click', async function(){
+      var btn = document.getElementById('rvEventExportImg');
+      btn.disabled = true; btn.textContent = '⟳ Working…';
+      try { await rvExportVendettaImage(results, unmatched); btn.textContent = '✓ Exported'; }
+      catch(e){ btn.textContent = '⚠ Export failed'; }
+      btn.disabled = false;
+      setTimeout(function(){ btn.textContent = '📸 Export Image'; }, 2200);
+    });
+  }
+
+  function rvMeetingsLbl(n){ return n + (n === 1 ? ' meeting' : ' meetings'); }
+
+  // Vendettas grouped by kind, strongest grudges first (same order as the image export)
+  function rvVendettaGroups(results){
+    var byScore = function(a,b){ return b.score - a.score; };
+    return {
+      sworn: results.filter(function(r){ return !r.random && !r.fallback; }).sort(byScore),
+      avail: results.filter(function(r){ return r.fallback && !r.random; }).sort(byScore),
+      fresh: results.filter(function(r){ return r.random; })
+    };
+  }
+
+  function rvVendettaWhatsAppText(results, unmatched){
+    var cityLbl = '';
+    try { var cfg = getCityConfig(); cityLbl = cfg ? cfg.label : ''; } catch(e){}
+    var g = rvVendettaGroups(results);
+    var lines = ['⚔️ *V E N D E T T A* ⚔️'];
+    lines.push('_Riftbound League'+(cityLbl ? ' — '+cityLbl : '')+'_');
+    lines.push('_'+new Date().toLocaleDateString(undefined,{weekday:'long',year:'numeric',month:'long',day:'numeric'})+'_');
+    lines.push('');
+    lines.push('The grudges come due. Find your name — find your enemy.');
+    var n = 0;
+    function block(title, arr, withMeetings){
+      if(!arr.length) return;
+      lines.push('');
+      lines.push(title);
+      arr.forEach(function(r){
+        n++;
+        lines.push(n+'. *'+r.a+'* ⚔ *'+r.b+'*'+(withMeetings ? ' _('+rvMeetingsLbl(r.meetings)+')_' : ''));
+      });
+    }
+    block('🔥 *Sworn Rivals*', g.sworn, true);
+    block('🗡️ *Best Available*', g.avail, true);
+    block('🎲 *New Blood*', g.fresh, false);
+    if(unmatched.length){
+      lines.push('');
+      lines.push('🕳️ _No vendetta today: '+unmatched.join(', ')+'_');
+    }
+    lines.push('');
+    lines.push('Win your vendetta match for *+2 Rivalry Points*.');
+    lines.push("Can't meet your rival? The 🌑 *Shadow* is watching.");
+    lines.push('');
+    lines.push('_May the best rival win._ 🏆');
+    return lines.join('\n');
+  }
+
+  // 1080px-wide social card of the day's vendettas (height grows with the list)
+  async function rvExportVendettaImage(results, unmatched){
+    if(!results.length) return false;
+    if(document.fonts && document.fonts.ready){ try { await document.fonts.ready; } catch(e){} }
+    var g = rvVendettaGroups(results);
+    var ordered = g.sworn.concat(g.avail, g.fresh);
+
+    var W = 1080;
+    var rowH = ordered.length > 16 ? 54 : 64;
+    var headerH = 300;
+    var groupGap = 46; // section label above each group
+    var nGroups = (g.sworn.length?1:0)+(g.avail.length?1:0)+(g.fresh.length?1:0);
+    var unmatchedH = unmatched.length ? 66 : 0;
+    var footerH = 128;
+    var H = Math.max(1080, headerH + nGroups*groupGap + ordered.length*rowH + unmatchedH + footerH);
+
+    var c = document.createElement('canvas'); c.width = W; c.height = H;
+    var x = c.getContext('2d');
+    var accentRGBA = 'rgba(201,146,42,';
+    var parch = 'rgba(245,237,214,';
+
+    var bg = x.createLinearGradient(0,0,0,H);
+    bg.addColorStop(0,'#201709'); bg.addColorStop(0.45,'#15100a'); bg.addColorStop(1,'#0c0906');
+    x.fillStyle = bg; x.fillRect(0,0,W,H);
+    var rg = x.createRadialGradient(W/2,150,40, W/2,150,720);
+    rg.addColorStop(0, accentRGBA+'0.14)'); rg.addColorStop(1, accentRGBA+'0)');
+    x.fillStyle = rg; x.fillRect(0,0,W,H);
+
+    x.strokeStyle = accentRGBA+'0.55)'; x.lineWidth = 3; x.strokeRect(34,34,W-68,H-68);
+    x.strokeStyle = accentRGBA+'0.18)'; x.lineWidth = 1; x.strokeRect(46,46,W-92,H-92);
+
+    x.textAlign = 'center';
+    x.fillStyle = parch+'0.5)';
+    x.font = '600 24px Cinzel, Georgia, serif';
+    x.fillText('R I F T B O U N D   L E A G U E', W/2, 118);
+    x.fillStyle = '#e8b84b';
+    x.font = '700 64px Cinzel, Georgia, serif';
+    x.fillText('⚔ V E N D E T T A ⚔', W/2, 200);
+    var dg = x.createLinearGradient(W/2-220,0,W/2+220,0);
+    dg.addColorStop(0, accentRGBA+'0)'); dg.addColorStop(0.5, accentRGBA+'0.9)'); dg.addColorStop(1, accentRGBA+'0)');
+    x.fillStyle = dg; x.fillRect(W/2-220,226,440,2);
+    var cityLbl = '';
+    try { var cfg = getCityConfig(); cityLbl = cfg ? cfg.label : ''; } catch(e){}
+    x.fillStyle = parch+'0.45)';
+    x.font = 'italic 26px "Crimson Pro", Georgia, serif';
+    x.fillText((cityLbl ? cityLbl + '  •  ' : '') + new Date().toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}), W/2, 268);
+
+    function fit(txt, maxW){
+      if(x.measureText(txt).width <= maxW) return txt;
+      while(txt.length > 1 && x.measureText(txt+'…').width > maxW) txt = txt.slice(0,-1);
+      return txt+'…';
+    }
+
+    var left = 76, right = W-76, cx = W/2;
+    var nameSize = rowH > 56 ? 31 : 27;
+    var y = headerH;
+    var num = 0;
+
+    function drawGroup(label, arr, kind){
+      if(!arr.length) return;
+      x.textAlign = 'left';
+      x.fillStyle = accentRGBA+'0.85)';
+      x.font = '600 21px Cinzel, Georgia, serif';
+      x.fillText(label, left+4, y+28);
+      y += groupGap;
+      arr.forEach(function(r){
+        num++;
+        x.fillStyle = parch + (num%2===1 ? '0.045)' : '0.02)');
+        x.fillRect(left, y, right-left, rowH-8);
+        if(kind === 'sworn'){ x.strokeStyle = accentRGBA+'0.4)'; x.lineWidth = 1; x.strokeRect(left+0.5, y+0.5, right-left-1, rowH-9); }
+        var midY = y + rowH/2 + 3;
+        x.textAlign = 'left';
+        x.fillStyle = parch+'0.35)';
+        x.font = '700 22px Cinzel, Georgia, serif';
+        x.fillText(String(num).padStart(2,'0'), left+18, midY+4);
+        var nameCol = kind === 'fresh' ? parch+'0.72)' : parch+'0.92)';
+        var nameMax = cx - 52 - (left+72);
+        x.fillStyle = nameCol;
+        x.font = '600 '+nameSize+'px "Crimson Pro", Georgia, serif';
+        x.textAlign = 'right';
+        x.fillText(fit(r.a, nameMax), cx-46, midY+4);
+        x.textAlign = 'center';
+        x.fillStyle = accentRGBA+'0.9)';
+        x.font = (nameSize-4)+'px Georgia, serif';
+        x.fillText('⚔', cx, midY+3);
+        x.textAlign = 'left';
+        x.fillStyle = nameCol;
+        x.font = '600 '+nameSize+'px "Crimson Pro", Georgia, serif';
+        x.fillText(fit(r.b, nameMax), cx+46, midY+4);
+        x.textAlign = 'right';
+        x.fillStyle = parch+'0.32)';
+        x.font = 'italic 19px "Crimson Pro", Georgia, serif';
+        x.fillText(kind === 'fresh' ? 'new blood' : rvMeetingsLbl(r.meetings), right-16, midY+3);
+        y += rowH;
+      });
+    }
+    drawGroup('🔥 SWORN RIVALS', g.sworn, 'sworn');
+    drawGroup('🗡 BEST AVAILABLE', g.avail, 'avail');
+    drawGroup('🎲 NEW BLOOD', g.fresh, 'fresh');
+
+    if(unmatched.length){
+      x.textAlign = 'center';
+      x.fillStyle = parch+'0.3)';
+      x.font = 'italic 21px "Crimson Pro", Georgia, serif';
+      x.fillText(fit('No vendetta today: '+unmatched.join(', '), right-left-30), W/2, y+34);
+      y += unmatchedH;
+    }
+
+    x.textAlign = 'center';
+    x.fillStyle = parch+'0.42)';
+    x.font = '22px "Crimson Pro", Georgia, serif';
+    x.fillText('Settle the score — +2 Rivalry Points to the victor', W/2, H-96);
+    x.fillStyle = parch+'0.3)';
+    x.font = 'italic 24px "Crimson Pro", Georgia, serif';
+    x.fillText('— May the best rival win —', W/2, H-60);
+
+    return new Promise(function(resolve){
+      c.toBlob(function(blob){
+        rvDownloadFile(URL.createObjectURL(blob), 'gnl-vendetta.png');
+        resolve(true);
+      }, 'image/png');
     });
   }
 
