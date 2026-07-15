@@ -1497,6 +1497,31 @@
                 <div id="rvResultsSummary" style="margin-top:12px"></div>
               </div>
             </div>
+
+            <!-- POST-EVENT PROCESSING -->
+            <div class="divider" style="margin:28px 0 18px"></div>
+            <div class="card">
+              <div class="card-label">🌙 Post-Event Processing</div>
+              <p style="font-size:0.74rem;color:rgba(245,237,214,0.4);margin-bottom:12px;line-height:1.6">
+                Couldn't be at the event? Process the whole thing afterwards. Upload <strong style="color:rgba(245,237,214,0.6)">every round's results CSV at once</strong> (Swiss rounds and Top Cut together — tag each file below). Scoring uses the Vendetta list declared before the event; if none was declared, one is <strong style="color:rgba(245,237,214,0.6)">generated retroactively</strong> from attendance — including random New Blood pairs — so nobody misses out on points. Each round scores exactly like the live flow, and every match is merged into season head-to-head.
+              </p>
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+                <button class="btn ghost" id="rvPeLoadBtn" style="width:auto;padding:7px 14px;font-size:0.7rem">↻ Check Declared Vendetta</button>
+                <span id="rvPeVendettaStatus" style="font-size:0.72rem;color:rgba(245,237,214,0.3)"></span>
+              </div>
+              <div class="rv-drop-zone" id="rvPeDropZone">
+                <input type="file" id="rvPeFileInput" accept=".csv" multiple/>
+                <div class="rv-drop-icon">🌙</div>
+                <p>Drop ALL round results CSVs here or <span>browse</span></p>
+                <p style="font-size:0.73rem;margin-top:3px;opacity:0.6">One file per round / bracket — same export format as your tournament platform</p>
+              </div>
+              <div id="rvPeFileList"></div>
+              <div style="display:flex;gap:8px;margin-top:10px">
+                <button class="btn" id="rvPeProcessBtn" style="flex:1" disabled>Process Event</button>
+                <button class="btn" id="rvPeSaveBtn" style="flex:1" disabled>☁ Save to Gist</button>
+              </div>
+              <div id="rvPeSummary" style="margin-top:12px"></div>
+            </div>
           </div>
 
           <!-- LEADERBOARD -->
@@ -3979,15 +4004,16 @@ function swInitTab(){ swRenderSetup(); }
   var genBtn = document.getElementById('rvGeneratePairingsBtn');
   if(genBtn) genBtn.addEventListener('click', rvGenerateEventRivalries);
 
-  function rvGenerateEventRivalries(){
-    var attendees = rvGetAttendees();
+  // Pure vendetta assignment: attendees + season h2h in, {results, unmatched} out.
+  // Used by live Event Day generation and by post-event retroactive generation.
+  function rvComputeVendettas(attendees, seasonH2H){
     var attendeeSet = new Set(attendees);
 
     // Build per-player ranked rival lists from season h2h data, restricted to today's attendees
     var candidatesByPlayer = {};
     attendees.forEach(function(p){ candidatesByPlayer[p] = []; });
 
-    rvSeasonH2H.forEach(function(entry){
+    seasonH2H.forEach(function(entry){
       var a = entry.players[0], b = entry.players[1];
       var aHere = attendeeSet.has(a), bHere = attendeeSet.has(b);
       if(aHere && bHere){
@@ -4044,8 +4070,14 @@ function swInitTab(){ swRenderSetup(); }
     // If an odd one out remains, leave them flagged as no-rival (can't pair with self)
     var stillUnmatched = shufflePool.length % 2 === 1 ? [shufflePool[shufflePool.length-1]] : [];
 
-    rvLastEventAssignments = { results: results, unmatched: stillUnmatched, date: new Date().toISOString() };
-    rvRenderEventResults(results, stillUnmatched, attendees.length);
+    return { results: results, unmatched: stillUnmatched };
+  }
+
+  function rvGenerateEventRivalries(){
+    var attendees = rvGetAttendees();
+    var gen = rvComputeVendettas(attendees, rvSeasonH2H);
+    rvLastEventAssignments = { results: gen.results, unmatched: gen.unmatched, date: new Date().toISOString() };
+    rvRenderEventResults(gen.results, gen.unmatched, attendees.length);
 
     var recordWrap = document.getElementById('rvRecordResultsWrap');
     if(recordWrap) recordWrap.style.display = 'block';
@@ -4107,7 +4139,11 @@ function swInitTab(){ swRenderSetup(); }
       '<button class="btn ghost" id="rvEventExportCSV" style="width:auto;flex:1">⬇ Export CSV</button>'+
       '<button class="btn ghost" id="rvEventCopyWhatsApp" style="width:auto;flex:1">📋 Copy for WhatsApp</button>'+
       '<button class="btn ghost" id="rvEventExportImg" style="width:auto;flex:1">📸 Export Image</button>'+
-    '</div>';
+      '<button class="btn ghost" id="rvEventDeclareBtn" style="width:auto;flex:1">☁ Declare Vendettas</button>'+
+    '</div>'+
+    '<p style="font-size:0.7rem;color:rgba(245,237,214,0.3);margin-top:8px;font-style:italic">'+
+      '☁ Declare saves this Vendetta list to the Gist so the event can be processed later (Post-Event section below) — even from another device or another day.'+
+    '</p>';
 
     wrap.innerHTML = html;
 
@@ -4137,6 +4173,29 @@ function swInitTab(){ swRenderSetup(); }
       catch(e){ btn.textContent = '⚠ Export failed'; }
       btn.disabled = false;
       setTimeout(function(){ btn.textContent = '📸 Export Image'; }, 2200);
+    });
+
+    document.getElementById('rvEventDeclareBtn').addEventListener('click', function(){
+      var btn = document.getElementById('rvEventDeclareBtn');
+      if(!getToken()){ btn.textContent = '⚠ No Gist token (Settings)'; setTimeout(function(){ btn.textContent = '☁ Declare Vendettas'; }, 2500); return; }
+      btn.disabled = true; btn.textContent = '⟳ Declaring…';
+      try {
+        var data = load();
+        var rivalry = data.rivalry || { h2h: [], savedPairs: [], eventLog: [], rivalryPoints: {} };
+        rivalry.activeVendetta = {
+          date: new Date().toISOString(),
+          results: results,
+          unmatched: unmatched
+        };
+        data.rivalry = rivalry;
+        rvSavedSeasonData = rivalry;
+        save(data); // persists locally AND syncs to the Gist
+        btn.textContent = '✓ Vendetta declared';
+      } catch(e){
+        btn.textContent = '✗ Declare failed';
+      }
+      btn.disabled = false;
+      setTimeout(function(){ btn.textContent = '☁ Declare Vendettas'; }, 2500);
     });
   }
 
@@ -4369,15 +4428,14 @@ function swInitTab(){ swRenderSetup(); }
 
   function rvKeyLower(a,b){ return [a.toLowerCase(),b.toLowerCase()].sort().join('|'); }
 
-  // Step 1: compute the rivalry matches + points for this upload and show a
-  // preview. Nothing is persisted until the user clicks "Save to Gist".
-  function rvProcessResults(){
-    var roundType = document.getElementById('rvRoundPlayoff').checked ? 'playoff' : 'swiss';
+  // Score one round's matches against a vendetta list. Pure — shared by the
+  // live "Process Results" flow and post-event processing.
+  function rvScoreRound(matches, vendettaResults, roundType){
     var pointValue = 2;
 
-    // Build a quick lookup of today's declared rivalries (from event-day generation)
+    // Build a quick lookup of the declared vendettas
     var rivalSet = {}; // key -> {a,b}
-    rvLastEventAssignments.results.forEach(function(r){
+    vendettaResults.forEach(function(r){
       rivalSet[rvKeyLower(r.a, r.b)] = { a: r.a, b: r.b };
     });
 
@@ -4389,7 +4447,7 @@ function swInitTab(){ swRenderSetup(); }
     var rivalMeetKeys = {}; // pairs that actually met at the table (even if drawn) — excluded from shadow scoring
     var outcome = {}; // lowercased name -> { name, wins, losses, draws } across THIS upload
 
-    rvResultsMatches.forEach(function(m){
+    matches.forEach(function(m){
       [ [m.playerA, m.winsA, m.winsB], [m.playerB, m.winsB, m.winsA] ].forEach(function(side){
         var k = side[0].toLowerCase();
         if(!outcome[k]) outcome[k] = { name: side[0], wins: 0, losses: 0, draws: 0 };
@@ -4418,7 +4476,7 @@ function swInitTab(){ swRenderSetup(); }
     }
     var shadowAwards = []; // { player, rival, points, note }
     var shadowPointsAwarded = {}; // playerName -> shadow points from THIS upload
-    rvLastEventAssignments.results.forEach(function(r){
+    vendettaResults.forEach(function(r){
       var key = rvKeyLower(r.a, r.b);
       if(rivalMeetKeys[key]) return; // they actually played — regular Rivalry Points territory
       [ [r.a, r.b], [r.b, r.a] ].forEach(function(pair){
@@ -4432,26 +4490,26 @@ function swInitTab(){ swRenderSetup(); }
       });
     });
 
-    rvPendingResults = { roundType: roundType, pointsAwarded: pointsAwarded, rivalMatchesFound: rivalMatchesFound, shadowAwards: shadowAwards, shadowPointsAwarded: shadowPointsAwarded };
-    rvRenderResultsSummary(rivalMatchesFound, pointsAwarded, false, shadowAwards);
+    return { roundType: roundType, pointsAwarded: pointsAwarded, rivalMatchesFound: rivalMatchesFound, shadowAwards: shadowAwards, shadowPointsAwarded: shadowPointsAwarded };
+  }
+
+  // Step 1: compute the rivalry matches + points for this upload and show a
+  // preview. Nothing is persisted until the user clicks "Save to Gist".
+  function rvProcessResults(){
+    var roundType = document.getElementById('rvRoundPlayoff').checked ? 'playoff' : 'swiss';
+    rvPendingResults = rvScoreRound(rvResultsMatches, rvLastEventAssignments.results, roundType);
+    rvRenderResultsSummary(rvPendingResults.rivalMatchesFound, rvPendingResults.pointsAwarded, false, rvPendingResults.shadowAwards);
     if(saveResultsBtn){ saveResultsBtn.disabled = false; saveResultsBtn.textContent = '☁ Save to Gist'; }
   }
 
-  // Step 2: apply the processed results to season data and persist to the Gist.
-  function rvSaveResults(){
-    if(!rvPendingResults) return;
-    saveResultsBtn.disabled = true;
-    saveResultsBtn.textContent = '⟳ Saving…';
-    var roundType = rvPendingResults.roundType;
-    var pointsAwarded = rvPendingResults.pointsAwarded;
-    var rivalMatchesFound = rvPendingResults.rivalMatchesFound;
-    var shadowAwards = rvPendingResults.shadowAwards || [];
-
-    // Load latest season data fresh (avoid clobbering anything saved since this session started)
-    var data = load();
-    var rivalry = data.rivalry || { h2h: [], savedPairs: [], eventLog: [], rivalryPoints: {} };
-    rivalry.rivalryPoints = rivalry.rivalryPoints || {};
-    rivalry.eventLog = rivalry.eventLog || [];
+  // Apply one scored round to the season rivalry object: cumulative points,
+  // shadow points, h2h merge of every match, and an eventLog entry.
+  // Shared by the live "Save to Gist" flow and post-event processing.
+  function rvApplyRoundToRivalry(rivalry, scored, matches, vendetta){
+    var roundType = scored.roundType;
+    var pointsAwarded = scored.pointsAwarded;
+    var rivalMatchesFound = scored.rivalMatchesFound;
+    var shadowAwards = scored.shadowAwards || [];
 
     // Update cumulative rivalry points + win/loss vs rival
     Object.keys(pointsAwarded).forEach(function(player){
@@ -4484,7 +4542,7 @@ function swInitTab(){ swRenderSetup(); }
     // Merge this event's full match results into season h2h (same logic as rvAnalyze, applied directly)
     var h2hMap = {};
     rivalry.h2h.forEach(function(e){ h2hMap[rvKey(e.players[0], e.players[1])] = e; });
-    rvResultsMatches.forEach(function(m){
+    matches.forEach(function(m){
       var key = rvKey(m.playerA, m.playerB);
       if(!h2hMap[key]) h2hMap[key] = { players: [m.playerA,m.playerB].sort(), meetings:0, winsA:0, winsB:0, matchWinsA:0, matchWinsB:0, close:0, swings:0, score:0 };
       var e = h2hMap[key];
@@ -4507,12 +4565,32 @@ function swInitTab(){ swRenderSetup(); }
     rivalry.eventLog.push({
       date: new Date().toISOString(),
       roundType: roundType,
-      attendees: rvLastEventAssignments.results.length*2 + rvLastEventAssignments.unmatched.length,
-      rivalryPairings: rvLastEventAssignments.results.length,
+      attendees: vendetta.results.length*2 + vendetta.unmatched.length,
+      rivalryPairings: vendetta.results.length,
       rivalMatchesPlayed: rivalMatchesFound.length,
       results: rivalMatchesFound,
-      shadowAwards: shadowAwards
+      shadowAwards: shadowAwards,
+      retro: !!vendetta.retro,
+      postEvent: !!vendetta.postEvent
     });
+  }
+
+  // Step 2: apply the processed results to season data and persist to the Gist.
+  function rvSaveResults(){
+    if(!rvPendingResults) return;
+    saveResultsBtn.disabled = true;
+    saveResultsBtn.textContent = '⟳ Saving…';
+    var rivalMatchesFound = rvPendingResults.rivalMatchesFound;
+    var pointsAwarded = rvPendingResults.pointsAwarded;
+    var shadowAwards = rvPendingResults.shadowAwards || [];
+
+    // Load latest season data fresh (avoid clobbering anything saved since this session started)
+    var data = load();
+    var rivalry = data.rivalry || { h2h: [], savedPairs: [], eventLog: [], rivalryPoints: {} };
+    rivalry.rivalryPoints = rivalry.rivalryPoints || {};
+    rivalry.eventLog = rivalry.eventLog || [];
+
+    rvApplyRoundToRivalry(rivalry, rvPendingResults, rvResultsMatches, rvLastEventAssignments);
     rivalry.updatedAt = new Date().toISOString();
 
     data.rivalry = rivalry;
@@ -4851,6 +4929,227 @@ function swInitTab(){ swRenderSetup(); }
       if(shadowEmpty) shadowEmpty.style.display = 'block';
     }
   }
+
+  // ── POST-EVENT PROCESSING ──────────────────────────────────────────────
+  // Process an entire event after the fact: all round CSVs in one pass,
+  // scored against the Vendetta declared before the event (rivalry.activeVendetta)
+  // or, if none was declared, one generated retroactively from attendance.
+  // Per league ruling, retroactive random (New Blood) pairs score normally —
+  // nobody misses out on leaderboard points because the organizer was away.
+  var rvPeFiles = [];   // { name, rows, roundType }
+  var rvPePending = null; // { vendetta, retro, rounds:[{name, roundType, matches, scored}] }
+
+  var peDz = document.getElementById('rvPeDropZone');
+  var peFi = document.getElementById('rvPeFileInput');
+  if(peDz){
+    peDz.addEventListener('dragover', function(e){ e.preventDefault(); peDz.classList.add('drag-over'); });
+    peDz.addEventListener('dragleave', function(){ peDz.classList.remove('drag-over'); });
+    peDz.addEventListener('drop', function(e){ e.preventDefault(); peDz.classList.remove('drag-over'); rvPeHandleFiles([].slice.call(e.dataTransfer.files)); });
+  }
+  if(peFi) peFi.addEventListener('change', function(){ rvPeHandleFiles([].slice.call(peFi.files)); });
+
+  function rvPeHandleFiles(incoming){
+    incoming.forEach(function(f){
+      if(!f.name.endsWith('.csv')) return;
+      if(rvPeFiles.find(function(x){ return x.name===f.name; })) return;
+      var reader = new FileReader();
+      reader.onload = function(e){
+        var rows = rvParseCSV(e.target.result, f.name);
+        // Guess playoff rounds from the filename; user can flip the tag per file
+        var guessPlayoff = /top|cut|playoff|knockout|final|bracket/i.test(f.name);
+        rvPeFiles.push({ name: f.name, rows: rows, roundType: guessPlayoff ? 'playoff' : 'swiss' });
+        rvPeInvalidate();
+        rvPeRenderFileList();
+      };
+      reader.readAsText(f);
+    });
+  }
+
+  function rvPeInvalidate(){
+    // Any change to the file set voids a processed-but-unsaved run
+    rvPePending = null;
+    var saveBtn = document.getElementById('rvPeSaveBtn');
+    if(saveBtn){ saveBtn.disabled = true; saveBtn.textContent = '☁ Save to Gist'; }
+    var procBtn = document.getElementById('rvPeProcessBtn');
+    if(procBtn) procBtn.disabled = !rvPeFiles.some(function(f){ return f.rows.length; });
+    var sum = document.getElementById('rvPeSummary');
+    if(sum) sum.innerHTML = '';
+  }
+
+  function rvPeRenderFileList(){
+    var el = document.getElementById('rvPeFileList');
+    if(!el) return;
+    el.innerHTML = rvPeFiles.map(function(f, i){
+      var ok = f.rows.length > 0;
+      return '<div class="rv-file-item">'+
+        '<div class="rv-file-dot" style="background:'+(ok?'var(--gold)':'#c0392b')+'"></div>'+
+        '<div class="rv-file-name">'+f.name+'</div>'+
+        '<select data-idx="'+i+'" class="rv-pe-type" style="background:#1f170c;border:1px solid rgba(201,146,42,0.3);color:rgba(245,237,214,0.7);font-family:inherit;font-size:0.72rem;padding:3px 6px">'+
+          '<option value="swiss"'+(f.roundType==='swiss'?' selected':'')+'>Swiss</option>'+
+          '<option value="playoff"'+(f.roundType==='playoff'?' selected':'')+'>Top Cut</option>'+
+        '</select>'+
+        '<div class="rv-file-rows" style="color:'+(ok?'rgba(245,237,214,0.4)':'#c0392b')+'">'+(ok ? f.rows.length+' rows' : 'parse error')+'</div>'+
+        '<button data-idx="'+i+'" class="rv-pe-rm" style="background:none;border:none;color:#c0392b;cursor:pointer;font-size:0.85rem;padding:0 4px">✕</button>'+
+      '</div>';
+    }).join('');
+    el.querySelectorAll('.rv-pe-type').forEach(function(sel){
+      sel.addEventListener('change', function(){ rvPeFiles[+sel.dataset.idx].roundType = sel.value; rvPeInvalidate(); });
+    });
+    el.querySelectorAll('.rv-pe-rm').forEach(function(btn){
+      btn.addEventListener('click', function(){ rvPeFiles.splice(+btn.dataset.idx, 1); rvPeInvalidate(); rvPeRenderFileList(); });
+    });
+  }
+
+  function rvPeSetStatus(msg, color){
+    var el = document.getElementById('rvPeVendettaStatus');
+    if(el){ el.textContent = msg; el.style.color = color || 'rgba(245,237,214,0.3)'; }
+  }
+
+  var peLoadBtn = document.getElementById('rvPeLoadBtn');
+  if(peLoadBtn) peLoadBtn.addEventListener('click', async function(){
+    rvPeSetStatus('⟳ Checking…', 'rgba(201,146,42,0.7)');
+    try {
+      var data = await loadFromGist();
+      if(data && data.rivalry) rvSavedSeasonData = data.rivalry;
+      var av = rvSavedSeasonData && rvSavedSeasonData.activeVendetta;
+      if(av && av.results && av.results.length){
+        rvPeSetStatus('✓ Vendetta declared '+new Date(av.date).toLocaleDateString()+' — '+av.results.length+' pairs', '#4caf50');
+      } else {
+        rvPeSetStatus('⚠ No declared Vendetta — one will be generated retroactively from attendance', '#c9922a');
+      }
+    } catch(e){
+      rvPeSetStatus('✗ Could not reach Gist', '#c0392b');
+    }
+  });
+
+  var peProcessBtn = document.getElementById('rvPeProcessBtn');
+  if(peProcessBtn) peProcessBtn.addEventListener('click', async function(){
+    var files = rvPeFiles.filter(function(f){ return f.rows.length; });
+    if(!files.length) return;
+    peProcessBtn.disabled = true;
+    peProcessBtn.textContent = '⟳ Processing…';
+    try {
+      // Always work from the freshest gist state
+      var data = await loadFromGist();
+      if(data && data.rivalry) rvSavedSeasonData = data.rivalry;
+      var season = rvSavedSeasonData || {};
+
+      var vendetta = season.activeVendetta;
+      var retro = false;
+      if(!vendetta || !vendetta.results || !vendetta.results.length){
+        if(!season.h2h || !season.h2h.length){
+          document.getElementById('rvPeSummary').innerHTML =
+            '<p style="font-size:0.76rem;color:#c0392b">✗ No declared Vendetta and no season data in the Gist to generate one retroactively.</p>';
+          peProcessBtn.disabled = false; peProcessBtn.textContent = 'Process Event';
+          return;
+        }
+        var att = new Set();
+        files.forEach(function(f){ f.rows.forEach(function(m){ att.add(m.playerA); att.add(m.playerB); }); });
+        var gen = rvComputeVendettas(Array.from(att), season.h2h);
+        vendetta = { date: new Date().toISOString(), results: gen.results, unmatched: gen.unmatched, retro: true };
+        retro = true;
+      }
+      vendetta.postEvent = true;
+
+      var rounds = files.map(function(f){
+        return { name: f.name, roundType: f.roundType, matches: f.rows, scored: rvScoreRound(f.rows, vendetta.results, f.roundType) };
+      });
+      rvPePending = { vendetta: vendetta, retro: retro, rounds: rounds };
+      rvPeRenderSummary(false);
+      var saveBtn = document.getElementById('rvPeSaveBtn');
+      if(saveBtn){ saveBtn.disabled = false; saveBtn.textContent = '☁ Save to Gist'; }
+    } catch(e){
+      document.getElementById('rvPeSummary').innerHTML =
+        '<p style="font-size:0.76rem;color:#c0392b">✗ Processing failed — check the files and try again.</p>';
+    }
+    peProcessBtn.disabled = false;
+    peProcessBtn.textContent = 'Process Event';
+  });
+
+  function rvPeRenderSummary(saved){
+    var el = document.getElementById('rvPeSummary');
+    if(!el || !rvPePending) return;
+    var p = rvPePending;
+    var totalPts = {}, totalShadow = {}, totalRivalMatches = 0, totalMatches = 0;
+    p.rounds.forEach(function(r){
+      totalMatches += r.matches.length;
+      totalRivalMatches += r.scored.rivalMatchesFound.length;
+      Object.keys(r.scored.pointsAwarded).forEach(function(pl){ totalPts[pl] = (totalPts[pl]||0) + r.scored.pointsAwarded[pl]; });
+      Object.keys(r.scored.shadowPointsAwarded).forEach(function(pl){ totalShadow[pl] = (totalShadow[pl]||0) + r.scored.shadowPointsAwarded[pl]; });
+    });
+
+    var html = '';
+    html += saved
+      ? '<p style="font-size:0.76rem;color:#4caf50;margin-bottom:8px">✓ Event saved to Gist — points awarded, matches merged into season H2H, Vendetta archived.</p>'
+      : '<p style="font-size:0.76rem;color:#c9922a;margin-bottom:8px">⏳ Preview — nothing saved yet. Review, then click ☁ Save to Gist.</p>';
+
+    html += '<p style="font-size:0.74rem;color:rgba(245,237,214,0.5);margin-bottom:10px">'+
+      (p.retro
+        ? '🌙 Retroactive Vendetta generated from attendance ('+p.vendetta.results.length+' pairs — random pairs score normally).'
+        : '⚔ Using Vendetta declared '+new Date(p.vendetta.date).toLocaleDateString()+' ('+p.vendetta.results.length+' pairs).')+
+      '<br>'+p.rounds.length+' round'+(p.rounds.length===1?'':'s')+' · '+totalMatches+' matches · '+totalRivalMatches+' vendetta match'+(totalRivalMatches===1?'':'es')+' settled.</p>';
+
+    p.rounds.forEach(function(r){
+      html += '<div style="font-size:0.72rem;color:rgba(245,237,214,0.35);margin-bottom:4px">'+
+        '📄 '+r.name+' — '+(r.roundType==='playoff'?'Top Cut':'Swiss')+' · '+r.matches.length+' matches · '+
+        r.scored.rivalMatchesFound.length+' vendetta, '+r.scored.shadowAwards.length+' shadow</div>';
+    });
+
+    function ptsTable(title, obj, color){
+      var keys = Object.keys(obj).sort(function(a,b){ return obj[b]-obj[a]; });
+      if(!keys.length) return '';
+      return '<div style="margin-top:10px"><div style="font-size:0.68rem;letter-spacing:0.1em;text-transform:uppercase;color:'+color+';margin-bottom:5px">'+title+'</div>'+
+        keys.map(function(k){
+          return '<div style="display:flex;justify-content:space-between;font-size:0.78rem;padding:3px 0;border-bottom:1px solid rgba(201,146,42,0.08)">'+
+            '<span>'+k+'</span><span style="color:'+color+';font-family:Cinzel,serif">+'+obj[k]+'</span></div>';
+        }).join('')+'</div>';
+    }
+    html += ptsTable('⚔ Rivalry Points', totalPts, 'var(--gold-light)');
+    html += ptsTable('🌑 Shadow Points', totalShadow, '#9b8cc4');
+    if(!Object.keys(totalPts).length && !Object.keys(totalShadow).length){
+      html += '<p style="font-size:0.74rem;color:rgba(245,237,214,0.35)">No points earned this event — no vendetta pairs met and no shadow wins.</p>';
+    }
+    el.innerHTML = html;
+  }
+
+  var peSaveBtn = document.getElementById('rvPeSaveBtn');
+  if(peSaveBtn) peSaveBtn.addEventListener('click', function(){
+    if(!rvPePending) return;
+    if(!getToken()){
+      peSaveBtn.textContent = '⚠ No Gist token (Settings)';
+      setTimeout(function(){ peSaveBtn.textContent = '☁ Save to Gist'; }, 2500);
+      return;
+    }
+    peSaveBtn.disabled = true;
+    peSaveBtn.textContent = '⟳ Saving…';
+    try {
+      var data = load();
+      var rivalry = data.rivalry || { h2h: [], savedPairs: [], eventLog: [], rivalryPoints: {} };
+      rivalry.rivalryPoints = rivalry.rivalryPoints || {};
+      rivalry.eventLog = rivalry.eventLog || [];
+
+      rvPePending.rounds.forEach(function(r){
+        rvApplyRoundToRivalry(rivalry, r.scored, r.matches, rvPePending.vendetta);
+      });
+      rivalry.activeVendetta = null; // consumed — next event starts clean
+      rivalry.updatedAt = new Date().toISOString();
+
+      data.rivalry = rivalry;
+      rvSavedSeasonData = rivalry;
+      save(data); // persists locally AND syncs to the Gist
+
+      rvPeRenderSummary(true);
+      rvPePending = null; // a re-save would double-count
+      rvPeFiles = [];
+      rvPeRenderFileList();
+      peSaveBtn.textContent = '✓ Saved';
+      rvPeSetStatus('', '');
+      setTimeout(function(){ peSaveBtn.textContent = '☁ Save to Gist'; }, 2500);
+    } catch(e){
+      peSaveBtn.disabled = false;
+      peSaveBtn.textContent = 'Save failed — retry';
+    }
+  });
 
 })();
 // ==================== END RIVALRY ANALYZER ====================
