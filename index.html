@@ -1474,7 +1474,7 @@
                 <div class="card-label">🏆 Record Results &amp; Award Rivalry Points</div>
                 <p style="font-size:0.74rem;color:rgba(245,237,214,0.4);margin-bottom:10px;line-height:1.5">
                   Upload a round's results CSV. Any match between declared Vendettas (above) earns the winner Rivalry Points — <strong style="color:rgba(245,237,214,0.6)">+2 per rivalry win (Swiss and Top Cut/Knockouts alike)</strong>. You can upload multiple rounds from the same event one at a time (e.g. Swiss round 3, then later the Top 8 bracket) — points stack each time the rivalry meets again.
-                  <br/><span style="color:#9b8cc4">🌑 Shadow Points:</span> rivals who <em>don't</em> meet are scored by proxy from their own matches — win while your rival doesn't = <strong style="color:rgba(245,237,214,0.6)">+2 shadow</strong>, both win = <strong style="color:rgba(245,237,214,0.6)">+1 each</strong>, lose or draw = 0.
+                  <br/><span style="color:#9b8cc4">🌑 Shadow Points:</span> rivals who <em>don't</em> meet are scored by proxy from their own matches — win while your rival doesn't = <strong style="color:rgba(245,237,214,0.6)">+2 shadow</strong>, both win = <strong style="color:rgba(245,237,214,0.6)">+1 each</strong>, lose or draw = 0. A dropped or absent rival counts as "didn't win", and the odd player out with no vendetta duels <em>the field</em> — their wins earn +2 shadow too. <strong style="color:rgba(245,237,214,0.6)">Byes never earn points.</strong>
                 </p>
                 <div style="display:flex;gap:14px;margin-bottom:12px">
                   <label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:rgba(245,237,214,0.6);cursor:pointer">
@@ -3537,6 +3537,13 @@ function swInitTab(){ swRenderSetup(); }
     });
   }
 
+  // "BYE" in any dressing ("BYE", "*** Bye ***", "- bye -") is a placeholder, not a player.
+  // Bye rows are dropped at parse time so they can't earn points, feed shadow scoring,
+  // count as attendance, or pollute season h2h.
+  function rvIsByeName(name){
+    return String(name||'').replace(/[^a-z]/gi,'').toLowerCase() === 'bye';
+  }
+
   function rvParseCSV(text, fname){
     // Normalise line endings, strip BOM
     text = text.replace(/^\uFEFF/,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
@@ -3583,6 +3590,7 @@ function swInitTab(){ swRenderSetup(); }
         var p1 = (c[iP1First]+' '+(c[iP1Last]||'')).trim();
         var p2 = (c[iP2First]+' '+(c[iP2Last]||'')).trim();
         if(!p1 || !p2 || p1===p2) return;
+        if(rvIsByeName(p1) || rvIsByeName(p2)) return; // byes are not matches and never earn points
         if(iStatus!==-1 && c[iStatus] && c[iStatus].toUpperCase().indexOf('COMPLETE')===-1) return;
 
         var resultText = c[iResult] || '';
@@ -3633,7 +3641,8 @@ function swInitTab(){ swRenderSetup(); }
       if(!line.trim()) return;
       var c = splitLine(line).map(unquote);
       var row = { playerA:c[iA]||'', playerB:c[iB]||'', winsA:+(c[iWA])||0, winsB:+(c[iWB])||0, tournament:fname };
-      if(row.playerA && row.playerB && row.playerA!==row.playerB) out.push(row);
+      if(row.playerA && row.playerB && row.playerA!==row.playerB &&
+         !rvIsByeName(row.playerA) && !rvIsByeName(row.playerB)) out.push(row); // byes never count
     });
     return out;
   }
@@ -4130,7 +4139,7 @@ function swInitTab(){ swRenderSetup(); }
           '<div class="rv-pair-num">–</div>'+
           '<div class="rv-pair-player">'+p+'</div>'+
           '<div class="rv-pair-vs">—</div>'+
-          '<div class="rv-pair-player" style="opacity:0.4">no rival present</div>'+
+          '<div class="rv-pair-player" style="opacity:0.4">the field — wins earn shadow points</div>'+
           '<div></div>'+
         '</div>';
       }).join('');
@@ -4250,7 +4259,7 @@ function swInitTab(){ swRenderSetup(); }
     block('🎲 *New Blood*', g.fresh, false);
     if(unmatched.length){
       lines.push('');
-      lines.push('🕳️ _No vendetta today: '+unmatched.join(', ')+'_');
+      lines.push('🕳️ _No vendetta today: '+unmatched.join(', ')+' — they duel the field. Wins still score Shadow._');
     }
     lines.push('');
     lines.push('Win your vendetta match for *+2 Rivalry Points*.');
@@ -4445,7 +4454,11 @@ function swInitTab(){ swRenderSetup(); }
 
   // Score one round's matches against a vendetta list. Pure — shared by the
   // live "Process Results" flow and post-event processing.
-  function rvScoreRound(matches, vendettaResults, roundType){
+  // unmatchedPlayers (odd player out, no declared rival) get phantom shadow
+  // scoring: a clean round win earns +2 shadow "vs the field", so having no
+  // rival never locks anyone out of points. Byes are dropped at CSV parse
+  // time, so a bye round can never register as a win here.
+  function rvScoreRound(matches, vendettaResults, roundType, unmatchedPlayers){
     var pointValue = 2;
 
     // Build a quick lookup of the declared vendettas
@@ -4505,6 +4518,13 @@ function swInitTab(){ swRenderSetup(); }
       });
     });
 
+    // Phantom vendetta for players declared without a rival: they duel the field
+    (unmatchedPlayers || []).forEach(function(p){
+      if(rvRoundSuccess(p) !== true) return; // lost, drew, or no result (incl. byes) → 0
+      shadowPointsAwarded[p] = (shadowPointsAwarded[p]||0) + 2;
+      shadowAwards.push({ player: p, rival: 'the field', points: 2, note: 'phantom vendetta — no rival declared, won anyway' });
+    });
+
     return { roundType: roundType, pointsAwarded: pointsAwarded, rivalMatchesFound: rivalMatchesFound, shadowAwards: shadowAwards, shadowPointsAwarded: shadowPointsAwarded };
   }
 
@@ -4512,7 +4532,7 @@ function swInitTab(){ swRenderSetup(); }
   // preview. Nothing is persisted until the user clicks "Save to Gist".
   function rvProcessResults(){
     var roundType = document.getElementById('rvRoundPlayoff').checked ? 'playoff' : 'swiss';
-    rvPendingResults = rvScoreRound(rvResultsMatches, rvLastEventAssignments.results, roundType);
+    rvPendingResults = rvScoreRound(rvResultsMatches, rvLastEventAssignments.results, roundType, rvLastEventAssignments.unmatched);
     rvRenderResultsSummary(rvPendingResults.rivalMatchesFound, rvPendingResults.pointsAwarded, false, rvPendingResults.shadowAwards);
     if(saveResultsBtn){ saveResultsBtn.disabled = false; saveResultsBtn.textContent = '☁ Save to Gist'; }
   }
@@ -5112,7 +5132,7 @@ function swInitTab(){ swRenderSetup(); }
       vendetta.postEvent = true;
 
       var rounds = files.map(function(f){
-        return { name: f.name, roundType: f.roundType, matches: f.rows, scored: rvScoreRound(f.rows, vendetta.results, f.roundType) };
+        return { name: f.name, roundType: f.roundType, matches: f.rows, scored: rvScoreRound(f.rows, vendetta.results, f.roundType, vendetta.unmatched) };
       });
       rvPePending = { vendetta: vendetta, retro: retro, rounds: rounds };
       rvPeRenderSummary(false);
