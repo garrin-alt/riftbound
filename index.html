@@ -4971,8 +4971,9 @@ function swInitTab(){ swRenderSetup(); }
   // or, if none was declared, one generated retroactively from attendance.
   // Per league ruling, retroactive random (New Blood) pairs score normally —
   // nobody misses out on leaderboard points because the organizer was away.
-  var rvPeFiles = [];   // { name, rows, roundType }
-  var rvPePending = null; // { vendetta, retro, rounds:[{name, roundType, matches, scored}] }
+  var rvPeFiles = [];   // { name, rows, roundType, suspect, excluded }
+  var rvPePending = null; // { vendetta, retro, rounds:[{name, roundType, matches, scored}], lateEntrants }
+  var rvPeReport = null;  // final standings report built at save time (deltas need the pre-save snapshot)
 
   var peDz = document.getElementById('rvPeDropZone');
   var peFi = document.getElementById('rvPeFileInput');
@@ -4992,12 +4993,19 @@ function swInitTab(){ swRenderSetup(); }
         var rows = rvParseCSV(e.target.result, f.name);
         // Guess playoff rounds from the filename; user can flip the tag per file
         var guessPlayoff = /top|cut|playoff|knockout|final|bracket/i.test(f.name);
-        rvPeFiles.push({ name: f.name, rows: rows, roundType: guessPlayoff ? 'playoff' : 'swiss' });
+        // All-0-0 rows means a pairings/check-in export, not results — including it
+        // would flood season h2h with fake 0-0 draws. Exclude unless explicitly kept.
+        var suspect = rows.length > 0 && rows.every(function(m){ return !m.winsA && !m.winsB; });
+        rvPeFiles.push({ name: f.name, rows: rows, roundType: guessPlayoff ? 'playoff' : 'swiss', suspect: suspect, excluded: suspect });
         rvPeInvalidate();
         rvPeRenderFileList();
       };
       reader.readAsText(f);
     });
+  }
+
+  function rvPeUsableFiles(){
+    return rvPeFiles.filter(function(f){ return f.rows.length && !f.excluded; });
   }
 
   function rvPeInvalidate(){
@@ -5006,7 +5014,7 @@ function swInitTab(){ swRenderSetup(); }
     var saveBtn = document.getElementById('rvPeSaveBtn');
     if(saveBtn){ saveBtn.disabled = true; saveBtn.textContent = '☁ Save to Gist'; }
     var procBtn = document.getElementById('rvPeProcessBtn');
-    if(procBtn) procBtn.disabled = !rvPeFiles.some(function(f){ return f.rows.length; });
+    if(procBtn) procBtn.disabled = !rvPeUsableFiles().length;
     var sum = document.getElementById('rvPeSummary');
     if(sum) sum.innerHTML = '';
   }
@@ -5016,19 +5024,30 @@ function swInitTab(){ swRenderSetup(); }
     if(!el) return;
     el.innerHTML = rvPeFiles.map(function(f, i){
       var ok = f.rows.length > 0;
-      return '<div class="rv-file-item">'+
-        '<div class="rv-file-dot" style="background:'+(ok?'var(--gold)':'#c0392b')+'"></div>'+
-        '<div class="rv-file-name">'+f.name+'</div>'+
-        '<select data-idx="'+i+'" class="rv-pe-type" style="background:#1f170c;border:1px solid rgba(201,146,42,0.3);color:rgba(245,237,214,0.7);font-family:inherit;font-size:0.72rem;padding:3px 6px">'+
+      var mid;
+      if(f.excluded){
+        mid = '<div style="font-size:0.7rem;color:#c9922a">⚠ all 0–0 — looks like a pairings/check-in file, excluded</div>'+
+              '<button data-idx="'+i+'" class="rv-pe-inc" style="background:none;border:1px solid rgba(201,146,42,0.3);color:rgba(245,237,214,0.6);cursor:pointer;font-size:0.66rem;padding:2px 8px">include anyway</button>';
+      } else {
+        mid = '<select data-idx="'+i+'" class="rv-pe-type" style="background:#1f170c;border:1px solid rgba(201,146,42,0.3);color:rgba(245,237,214,0.7);font-family:inherit;font-size:0.72rem;padding:3px 6px">'+
           '<option value="swiss"'+(f.roundType==='swiss'?' selected':'')+'>Swiss</option>'+
           '<option value="playoff"'+(f.roundType==='playoff'?' selected':'')+'>Top Cut</option>'+
         '</select>'+
+        (f.suspect ? '<div style="font-size:0.68rem;color:#c9922a">⚠ all 0–0</div>' : '');
+      }
+      return '<div class="rv-file-item"'+(f.excluded ? ' style="opacity:0.55"' : '')+'>'+
+        '<div class="rv-file-dot" style="background:'+(ok ? (f.excluded ? '#c9922a' : 'var(--gold)') : '#c0392b')+'"></div>'+
+        '<div class="rv-file-name">'+f.name+'</div>'+
+        mid+
         '<div class="rv-file-rows" style="color:'+(ok?'rgba(245,237,214,0.4)':'#c0392b')+'">'+(ok ? f.rows.length+' rows' : 'parse error')+'</div>'+
         '<button data-idx="'+i+'" class="rv-pe-rm" style="background:none;border:none;color:#c0392b;cursor:pointer;font-size:0.85rem;padding:0 4px">✕</button>'+
       '</div>';
     }).join('');
     el.querySelectorAll('.rv-pe-type').forEach(function(sel){
       sel.addEventListener('change', function(){ rvPeFiles[+sel.dataset.idx].roundType = sel.value; rvPeInvalidate(); });
+    });
+    el.querySelectorAll('.rv-pe-inc').forEach(function(btn){
+      btn.addEventListener('click', function(){ rvPeFiles[+btn.dataset.idx].excluded = false; rvPeInvalidate(); rvPeRenderFileList(); });
     });
     el.querySelectorAll('.rv-pe-rm').forEach(function(btn){
       btn.addEventListener('click', function(){ rvPeFiles.splice(+btn.dataset.idx, 1); rvPeInvalidate(); rvPeRenderFileList(); });
@@ -5104,7 +5123,7 @@ function swInitTab(){ swRenderSetup(); }
 
   var peProcessBtn = document.getElementById('rvPeProcessBtn');
   if(peProcessBtn) peProcessBtn.addEventListener('click', async function(){
-    var files = rvPeFiles.filter(function(f){ return f.rows.length; });
+    var files = rvPeUsableFiles();
     if(!files.length) return;
     peProcessBtn.disabled = true;
     peProcessBtn.textContent = '⟳ Processing…';
@@ -5114,8 +5133,12 @@ function swInitTab(){ swRenderSetup(); }
       if(data && data.rivalry) rvSavedSeasonData = data.rivalry;
       var season = rvSavedSeasonData || {};
 
+      var att = new Set();
+      files.forEach(function(f){ f.rows.forEach(function(m){ att.add(m.playerA); att.add(m.playerB); }); });
+
       var vendetta = season.activeVendetta;
       var retro = false;
+      var lateEntrants = [];
       if(!vendetta || !vendetta.results || !vendetta.results.length){
         if(!season.h2h || !season.h2h.length){
           document.getElementById('rvPeSummary').innerHTML =
@@ -5123,18 +5146,25 @@ function swInitTab(){ swRenderSetup(); }
           peProcessBtn.disabled = false; peProcessBtn.textContent = 'Process Event';
           return;
         }
-        var att = new Set();
-        files.forEach(function(f){ f.rows.forEach(function(m){ att.add(m.playerA); att.add(m.playerB); }); });
         var gen = rvComputeVendettas(Array.from(att), season.h2h);
         vendetta = { date: new Date().toISOString(), results: gen.results, unmatched: gen.unmatched, retro: true };
         retro = true;
+      } else {
+        // League ruling: late entrants (played rounds but weren't in the declared
+        // roster) score shadow-only vs the field — showing up early and prepared
+        // is what earns a real vendetta.
+        var declaredNames = new Set();
+        vendetta.results.forEach(function(r){ declaredNames.add(r.a.toLowerCase()); declaredNames.add(r.b.toLowerCase()); });
+        (vendetta.unmatched || []).forEach(function(p){ declaredNames.add(p.toLowerCase()); });
+        att.forEach(function(p){ if(!declaredNames.has(p.toLowerCase())) lateEntrants.push(p); });
       }
       vendetta.postEvent = true;
 
+      var phantoms = (vendetta.unmatched || []).concat(lateEntrants);
       var rounds = files.map(function(f){
-        return { name: f.name, roundType: f.roundType, matches: f.rows, scored: rvScoreRound(f.rows, vendetta.results, f.roundType, vendetta.unmatched) };
+        return { name: f.name, roundType: f.roundType, matches: f.rows, scored: rvScoreRound(f.rows, vendetta.results, f.roundType, phantoms) };
       });
-      rvPePending = { vendetta: vendetta, retro: retro, rounds: rounds };
+      rvPePending = { vendetta: vendetta, retro: retro, rounds: rounds, lateEntrants: lateEntrants };
       rvPeRenderSummary(false);
       var saveBtn = document.getElementById('rvPeSaveBtn');
       if(saveBtn){ saveBtn.disabled = false; saveBtn.textContent = '☁ Save to Gist'; }
@@ -5167,7 +5197,11 @@ function swInitTab(){ swRenderSetup(); }
       (p.retro
         ? '🌙 Retroactive Vendetta generated from attendance ('+p.vendetta.results.length+' pairs — random pairs score normally).'
         : '⚔ Using Vendetta declared '+new Date(p.vendetta.date).toLocaleDateString()+' ('+p.vendetta.results.length+' pairs).')+
-      '<br>'+p.rounds.length+' round'+(p.rounds.length===1?'':'s')+' · '+totalMatches+' matches · '+totalRivalMatches+' vendetta match'+(totalRivalMatches===1?'':'es')+' settled.</p>';
+      '<br>'+p.rounds.length+' round'+(p.rounds.length===1?'':'s')+' · '+totalMatches+' matches · '+totalRivalMatches+' vendetta match'+(totalRivalMatches===1?'':'es')+' settled.'+
+      ((p.lateEntrants && p.lateEntrants.length)
+        ? '<br>🚪 Late entrants — not on the declared roster, score shadow-only vs the field: '+p.lateEntrants.join(', ')
+        : '')+
+      '</p>';
 
     p.rounds.forEach(function(r){
       html += '<div style="font-size:0.72rem;color:rgba(245,237,214,0.35);margin-bottom:4px">'+
@@ -5189,7 +5223,155 @@ function swInitTab(){ swRenderSetup(); }
     if(!Object.keys(totalPts).length && !Object.keys(totalShadow).length){
       html += '<p style="font-size:0.74rem;color:rgba(245,237,214,0.35)">No points earned this event — no vendetta pairs met and no shadow wins.</p>';
     }
+    if(saved && rvPeReport){
+      html += '<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">'+
+        '<button class="btn ghost" id="rvPeCopyReport" style="width:auto;flex:1">📋 Copy Final Standings (WhatsApp)</button>'+
+        '<button class="btn ghost" id="rvPeExportReport" style="width:auto;flex:1">⬇ Export Report (CSV)</button>'+
+      '</div>';
+    }
     el.innerHTML = html;
+    if(saved && rvPeReport){
+      document.getElementById('rvPeCopyReport').addEventListener('click', function(){
+        navigator.clipboard.writeText(rvPeReportWhatsApp(rvPeReport));
+        var b = document.getElementById('rvPeCopyReport');
+        b.textContent = '✓ Copied!';
+        setTimeout(function(){ b.textContent = '📋 Copy Final Standings (WhatsApp)'; }, 1800);
+      });
+      document.getElementById('rvPeExportReport').addEventListener('click', function(){
+        rvDownloadFile(URL.createObjectURL(new Blob([rvPeReportCSV(rvPeReport)],{type:'text/csv'})), 'gnl-event-final-standings.csv');
+      });
+    }
+  }
+
+  // ── FINAL STANDINGS REPORT ──────────────────────────────────────────────
+  // Built once at save time: event summary, both season ladders with this
+  // event's deltas, and the key vendetta highlights.
+  function rvPeBuildReport(rivalry, prevPoints, pending){
+    var cityLbl = '';
+    try { var cfg = getCityConfig(); cityLbl = cfg ? cfg.label : ''; } catch(e){}
+
+    var totalMatches = 0, settled = [], fieldWins = {};
+    pending.rounds.forEach(function(r){
+      totalMatches += r.matches.length;
+      r.scored.rivalMatchesFound.forEach(function(rm){
+        // rm.score is "winsA-winsB" in table order — flip it so the winner's games read first
+        var parts = String(rm.score).split('-');
+        var score = (rm.winner === rm.a || parts.length !== 2) ? rm.score : parts[1]+'-'+parts[0];
+        settled.push({ winner: rm.winner, loser: rm.winner === rm.a ? rm.b : rm.a, score: score, roundType: rm.roundType });
+      });
+      r.scored.shadowAwards.forEach(function(sa){
+        if(sa.rival === 'the field') fieldWins[sa.player] = (fieldWins[sa.player]||0) + sa.points;
+      });
+    });
+
+    function ladder(getPts, active){
+      return Object.keys(rivalry.rivalryPoints).map(function(p){
+        var now = rivalry.rivalryPoints[p], prev = prevPoints[p] || {};
+        return { player: p, entry: now, pts: getPts(now), delta: getPts(now) - getPts(prev) };
+      }).filter(active).sort(function(a,b){ return b.pts - a.pts || b.delta - a.delta; });
+    }
+    var vendettaLadder = ladder(
+      function(e){ return e.points||0; },
+      function(r){ var e=r.entry; return (e.points||0)>0 || (e.rivalWins||0)>0 || (e.rivalLosses||0)>0 || (e.eventsLogged||0)>0; });
+    var shadowLadder = ladder(
+      function(e){ return e.shadowPoints||0; },
+      function(r){ var e=r.entry; return (e.shadowPoints||0)>0 || (e.shadowWins||0)>0 || (e.shadowDraws||0)>0; });
+
+    // Highlights: settled grudges, biggest climbers, field victories
+    var topClimber = null, topShadowClimber = null;
+    vendettaLadder.forEach(function(r){ if(r.delta > 0 && (!topClimber || r.delta > topClimber.delta)) topClimber = r; });
+    shadowLadder.forEach(function(r){ if(r.delta > 0 && (!topShadowClimber || r.delta > topShadowClimber.delta)) topShadowClimber = r; });
+
+    return {
+      date: new Date(),
+      city: cityLbl,
+      retro: pending.retro,
+      rounds: pending.rounds.map(function(r){ return { name: r.name, roundType: r.roundType, matches: r.matches.length }; }),
+      totalMatches: totalMatches,
+      pairs: pending.vendetta.results.length,
+      unmatched: pending.vendetta.unmatched || [],
+      lateEntrants: pending.lateEntrants || [],
+      settled: settled,
+      fieldWins: fieldWins,
+      vendettaLadder: vendettaLadder,
+      shadowLadder: shadowLadder,
+      topClimber: topClimber,
+      topShadowClimber: topShadowClimber
+    };
+  }
+
+  function rvPeReportWhatsApp(rep){
+    var lines = ['*F I N A L   S T A N D I N G S*'];
+    lines.push('_Riftbound League'+(rep.city ? ' — '+rep.city : '')+'_');
+    lines.push('_'+rep.date.toLocaleDateString(undefined,{weekday:'long',year:'numeric',month:'long',day:'numeric'})+'_');
+    lines.push('');
+    lines.push('📜 *The Event*');
+    lines.push(rep.rounds.length+' round'+(rep.rounds.length===1?'':'s')+' · '+rep.totalMatches+' matches · '+rep.pairs+' vendettas declared'+(rep.retro ? ' (retroactive)' : ''));
+    lines.push(rep.settled.length+' vendetta'+(rep.settled.length===1?'':'s')+' settled at the table');
+
+    function ladderBlock(title, rows, deltaLabel){
+      if(!rows.length) return;
+      lines.push('');
+      lines.push(title);
+      rows.slice(0, 10).forEach(function(r, i){
+        lines.push((i+1)+'. *'+r.player+'* — '+r.pts+' pts'+(r.delta > 0 ? ' _(+'+r.delta+deltaLabel+')_' : ''));
+      });
+    }
+    ladderBlock('⚔ *Vendetta Leaderboard*', rep.vendettaLadder, ' this event');
+    ladderBlock('🌑 *Shadow Leaderboard*', rep.shadowLadder, '');
+
+    lines.push('');
+    lines.push('🔥 *Highlights*');
+    rep.settled.slice(0, 10).forEach(function(s){
+      lines.push('• *'+s.winner+'* def. '+s.loser+' '+s.score+' ('+(s.roundType==='playoff'?'Top Cut':'Swiss')+')');
+    });
+    if(rep.topClimber) lines.push('• Biggest climber: *'+rep.topClimber.player+'* +'+rep.topClimber.delta+' vendetta pts');
+    if(rep.topShadowClimber) lines.push('• Shadow standout: *'+rep.topShadowClimber.player+'* +'+rep.topShadowClimber.delta+' shadow pts');
+    var fieldNames = Object.keys(rep.fieldWins);
+    if(fieldNames.length) lines.push('• Duelled the field and won: '+fieldNames.map(function(n){ return n+' (+'+rep.fieldWins[n]+')'; }).join(', '));
+    if(rep.lateEntrants.length) lines.push('• Late entrants (shadow-only — show up early!): '+rep.lateEntrants.join(', '));
+    if(!rep.settled.length && !rep.topClimber && !rep.topShadowClimber && !fieldNames.length) lines.push('• A quiet night — no vendetta points changed hands.');
+
+    lines.push('');
+    lines.push('_May the best rival win._ 🏆');
+    return lines.join('\n');
+  }
+
+  function rvPeReportCSV(rep){
+    var out = [];
+    out.push('Riftbound League — Event Final Standings');
+    out.push('City,'+rvCsvCell(rep.city));
+    out.push('Date,'+rep.date.toISOString().slice(0,10));
+    out.push('Vendetta Mode,'+(rep.retro ? 'Retroactive' : 'Declared'));
+    out.push('Rounds,'+rep.rounds.length);
+    out.push('Matches,'+rep.totalMatches);
+    out.push('Vendetta Pairs,'+rep.pairs);
+    out.push('Vendettas Settled,'+rep.settled.length);
+    if(rep.lateEntrants.length) out.push('Late Entrants (shadow-only),'+rvCsvCell(rep.lateEntrants.join(', ')));
+    out.push('');
+    out.push('VENDETTA LEADERBOARD');
+    out.push('Rank,Player,Points,Event Delta,Rival Wins,Rival Losses,Events Logged');
+    rep.vendettaLadder.forEach(function(r, i){
+      out.push([i+1, rvCsvCell(r.player), r.pts, r.delta, r.entry.rivalWins||0, r.entry.rivalLosses||0, r.entry.eventsLogged||0].join(','));
+    });
+    out.push('');
+    out.push('SHADOW LEADERBOARD');
+    out.push('Rank,Player,Shadow Points,Event Delta,Shadow Wins,Shadow Draws');
+    rep.shadowLadder.forEach(function(r, i){
+      out.push([i+1, rvCsvCell(r.player), r.pts, r.delta, r.entry.shadowWins||0, r.entry.shadowDraws||0].join(','));
+    });
+    out.push('');
+    out.push('HIGHLIGHTS');
+    out.push('Type,Detail');
+    rep.settled.forEach(function(s){
+      out.push('Vendetta Settled,'+rvCsvCell(s.winner+' def. '+s.loser+' '+s.score+' ('+(s.roundType==='playoff'?'Top Cut':'Swiss')+')'));
+    });
+    if(rep.topClimber) out.push('Biggest Climber,'+rvCsvCell(rep.topClimber.player+' +'+rep.topClimber.delta+' vendetta pts'));
+    if(rep.topShadowClimber) out.push('Shadow Standout,'+rvCsvCell(rep.topShadowClimber.player+' +'+rep.topShadowClimber.delta+' shadow pts'));
+    Object.keys(rep.fieldWins).forEach(function(n){
+      out.push('Field Win,'+rvCsvCell(n+' +'+rep.fieldWins[n]+' shadow (no declared rival)'));
+    });
+    return out.join('\n');
   }
 
   var peSaveBtn = document.getElementById('rvPeSaveBtn');
@@ -5208,6 +5390,9 @@ function swInitTab(){ swRenderSetup(); }
       rivalry.rivalryPoints = rivalry.rivalryPoints || {};
       rivalry.eventLog = rivalry.eventLog || [];
 
+      // Snapshot points before applying, so the final report can show per-event deltas
+      var prevPoints = JSON.parse(JSON.stringify(rivalry.rivalryPoints));
+
       rvPePending.rounds.forEach(function(r){
         rvApplyRoundToRivalry(rivalry, r.scored, r.matches, rvPePending.vendetta);
       });
@@ -5218,6 +5403,7 @@ function swInitTab(){ swRenderSetup(); }
       rvSavedSeasonData = rivalry;
       save(data); // persists locally AND syncs to the Gist
 
+      rvPeReport = rvPeBuildReport(rivalry, prevPoints, rvPePending);
       rvPeRenderSummary(true);
       rvPePending = null; // a re-save would double-count
       rvPeFiles = [];
