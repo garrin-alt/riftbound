@@ -1507,6 +1507,7 @@
               </p>
               <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
                 <button class="btn ghost" id="rvPeLoadBtn" style="width:auto;padding:7px 14px;font-size:0.7rem">↻ Check Declared Vendetta</button>
+                <button class="btn ghost" id="rvPeClearBtn" style="width:auto;padding:7px 14px;font-size:0.7rem;border-color:rgba(192,57,43,0.3);color:#c0392b;display:none">🗑 Clear Declared Vendetta</button>
                 <span id="rvPeVendettaStatus" style="font-size:0.72rem;color:rgba(245,237,214,0.3)"></span>
               </div>
               <div class="rv-drop-zone" id="rvPeDropZone">
@@ -4175,9 +4176,23 @@ function swInitTab(){ swRenderSetup(); }
       setTimeout(function(){ btn.textContent = '📸 Export Image'; }, 2200);
     });
 
+    var declareArmed = false;
     document.getElementById('rvEventDeclareBtn').addEventListener('click', function(){
       var btn = document.getElementById('rvEventDeclareBtn');
       if(!getToken()){ btn.textContent = '⚠ No Gist token (Settings)'; setTimeout(function(){ btn.textContent = '☁ Declare Vendettas'; }, 2500); return; }
+      // An older declaration in the Gist gets replaced — ask for a second click first
+      var existing = (load().rivalry || {}).activeVendetta;
+      if(existing && existing.results && existing.results.length && !declareArmed){
+        declareArmed = true;
+        btn.textContent = '⚠ Replaces vendetta of '+new Date(existing.date).toLocaleDateString()+' — click again';
+        setTimeout(function(){
+          if(!declareArmed) return;
+          declareArmed = false;
+          btn.textContent = '☁ Declare Vendettas';
+        }, 5000);
+        return;
+      }
+      declareArmed = false;
       btn.disabled = true; btn.textContent = '⟳ Declaring…';
       try {
         var data = load();
@@ -5005,20 +5020,65 @@ function swInitTab(){ swRenderSetup(); }
     if(el){ el.textContent = msg; el.style.color = color || 'rgba(245,237,214,0.3)'; }
   }
 
+  function rvPeShowDeclared(){
+    var av = rvSavedSeasonData && rvSavedSeasonData.activeVendetta;
+    var clearBtn = document.getElementById('rvPeClearBtn');
+    if(av && av.results && av.results.length){
+      var ageDays = Math.floor((Date.now() - new Date(av.date).getTime()) / 86400000);
+      if(ageDays > 7){
+        rvPeSetStatus('⚠ Vendetta declared '+new Date(av.date).toLocaleDateString()+' ('+ageDays+' days ago) — '+av.results.length+' pairs. If that event is done, clear it before processing a new one.', '#c9922a');
+      } else {
+        rvPeSetStatus('✓ Vendetta declared '+new Date(av.date).toLocaleDateString()+' — '+av.results.length+' pairs', '#4caf50');
+      }
+      if(clearBtn) clearBtn.style.display = 'inline-block';
+    } else {
+      rvPeSetStatus('⚠ No declared Vendetta — one will be generated retroactively from attendance', '#c9922a');
+      if(clearBtn) clearBtn.style.display = 'none';
+    }
+  }
+
   var peLoadBtn = document.getElementById('rvPeLoadBtn');
   if(peLoadBtn) peLoadBtn.addEventListener('click', async function(){
     rvPeSetStatus('⟳ Checking…', 'rgba(201,146,42,0.7)');
     try {
       var data = await loadFromGist();
       if(data && data.rivalry) rvSavedSeasonData = data.rivalry;
-      var av = rvSavedSeasonData && rvSavedSeasonData.activeVendetta;
-      if(av && av.results && av.results.length){
-        rvPeSetStatus('✓ Vendetta declared '+new Date(av.date).toLocaleDateString()+' — '+av.results.length+' pairs', '#4caf50');
-      } else {
-        rvPeSetStatus('⚠ No declared Vendetta — one will be generated retroactively from attendance', '#c9922a');
-      }
+      rvPeShowDeclared();
     } catch(e){
       rvPeSetStatus('✗ Could not reach Gist', '#c0392b');
+    }
+  });
+
+  // Manual clear for a declared Vendetta that never got processed post-event
+  // (e.g. the event was scored live, or the event never happened).
+  var peClearBtn = document.getElementById('rvPeClearBtn');
+  var peClearArmed = false;
+  if(peClearBtn) peClearBtn.addEventListener('click', function(){
+    if(!getToken()){ rvPeSetStatus('⚠ No Gist token set (Settings tab)', '#c0392b'); return; }
+    if(!peClearArmed){
+      peClearArmed = true;
+      peClearBtn.textContent = '⚠ Click again to confirm';
+      rvPeSetStatus('Removes the declared Vendetta list — points and H2H are untouched', '#c9922a');
+      setTimeout(function(){
+        if(!peClearArmed) return;
+        peClearArmed = false;
+        peClearBtn.textContent = '🗑 Clear Declared Vendetta';
+        rvPeShowDeclared();
+      }, 5000);
+      return;
+    }
+    peClearArmed = false;
+    peClearBtn.textContent = '⟳ Clearing…';
+    try {
+      var data = load();
+      if(data.rivalry) data.rivalry.activeVendetta = null;
+      rvSavedSeasonData = data.rivalry || rvSavedSeasonData;
+      save(data); // persists locally AND syncs to the Gist
+      peClearBtn.textContent = '🗑 Clear Declared Vendetta';
+      rvPeShowDeclared();
+    } catch(e){
+      peClearBtn.textContent = '🗑 Clear Declared Vendetta';
+      rvPeSetStatus('✗ Clear failed', '#c0392b');
     }
   });
 
@@ -5144,6 +5204,8 @@ function swInitTab(){ swRenderSetup(); }
       rvPeRenderFileList();
       peSaveBtn.textContent = '✓ Saved';
       rvPeSetStatus('', '');
+      var clearBtnAfterSave = document.getElementById('rvPeClearBtn');
+      if(clearBtnAfterSave) clearBtnAfterSave.style.display = 'none';
       setTimeout(function(){ peSaveBtn.textContent = '☁ Save to Gist'; }, 2500);
     } catch(e){
       peSaveBtn.disabled = false;
