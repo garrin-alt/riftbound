@@ -226,6 +226,7 @@
     try {
       var data = await fetchSeason(CITIES[key]);
       season = (data && data.rivalry) || {};
+      eloMap = computeEloMap();
       if(!h2h().length){
         setStatus('');
         show('empty');
@@ -265,6 +266,75 @@
     return n ? n + ' players' + when : '';
   }
 
+  // ── ELO RATINGS ──────────────────────────────────────────────────────────
+  // The league record is aggregate head-to-head (no match dates), so a
+  // sequential Elo would depend on an arbitrary processing order. Instead we
+  // fit a Bradley-Terry model — the order-independent rating Elo approximates —
+  // by minorization-maximization (Hunter 2004) on decisive match wins, with a
+  // prior of TAU virtual win + TAU virtual loss against a fixed average player
+  // so unbeaten or barely-seen players stay finite. Strengths are anchored to
+  // geometric mean 1 and shown on the Elo scale: R = 1500 + 400·log10(s).
+  var eloMap = {}; // player -> { elo, rank, matches, provisional }
+
+  function computeEloMap(){
+    var TAU = 2.0;
+    var winsMap = {}, playerSet = {};
+    h2h().forEach(function(r){
+      var a = r.players[0], b = r.players[1];
+      var wa = r.matchWinsA || 0, wb = r.matchWinsB || 0;
+      playerSet[a] = 1; playerSet[b] = 1;
+      if(wa){ winsMap[a] = winsMap[a] || {}; winsMap[a][b] = (winsMap[a][b] || 0) + wa; }
+      if(wb){ winsMap[b] = winsMap[b] || {}; winsMap[b][a] = (winsMap[b][a] || 0) + wb; }
+    });
+    var players = Object.keys(playerSet);
+    if(!players.length) return {};
+    var opp = {};
+    players.forEach(function(p){ opp[p] = {}; });
+    Object.keys(winsMap).forEach(function(a){
+      Object.keys(winsMap[a]).forEach(function(b){ opp[a][b] = 1; opp[b][a] = 1; });
+    });
+    var s = {};
+    players.forEach(function(p){ s[p] = 1; });
+    for(var it = 0; it < 500; it++){
+      var next = {}, logSum = 0;
+      players.forEach(function(p){
+        var pw = winsMap[p] || {};
+        var W = TAU, denom = 2 * TAU / (s[p] + 1);
+        Object.keys(pw).forEach(function(q){ W += pw[q]; });
+        Object.keys(opp[p]).forEach(function(q){
+          var n = (pw[q] || 0) + ((winsMap[q] || {})[p] || 0);
+          denom += n / (s[p] + s[q]);
+        });
+        next[p] = W / denom;
+      });
+      players.forEach(function(p){ logSum += Math.log(next[p]); });
+      var gm = Math.exp(logSum / players.length);
+      var delta = 0;
+      players.forEach(function(p){
+        next[p] /= gm;
+        delta = Math.max(delta, Math.abs(next[p] - s[p]));
+      });
+      s = next;
+      if(delta < 1e-10) break;
+    }
+    var out = {};
+    players.forEach(function(p){
+      var pw = winsMap[p] || {}, m = 0;
+      Object.keys(opp[p]).forEach(function(q){ m += (pw[q] || 0) + ((winsMap[q] || {})[p] || 0); });
+      out[p] = { elo: 1500 + 400 * Math.log10(s[p]), matches: m, provisional: m < 5 };
+    });
+    players.slice().sort(function(a, b){ return out[b].elo - out[a].elo; })
+      .forEach(function(p, i){ out[p].rank = i + 1; });
+    return out;
+  }
+
+  function eloCell(p){
+    var e = eloMap[p];
+    if(!e) return '<span class="dim">—</span>';
+    return '<span class="mono" style="color:var(--gold-light)">'+Math.round(e.elo)+'</span>'+
+      (e.provisional ? ' <span class="dim" style="font-size:0.62rem">prov</span>' : '');
+  }
+
   // Aggregate every h2h pair into per-player season totals.
   function totals(){
     var out = {};
@@ -297,16 +367,22 @@
     });
   }
 
-  // ── ROSTER INDEX ─────────────────────────────────────────────────────────
+  // ── ROSTER INDEX (Elo ladder) ────────────────────────────────────────────
   function renderIndex(){
     selected = null;
-    var rows = Object.values(totals()).sort(function(a,b){ return b.matches - a.matches || b.mw - a.mw; });
+    var rows = Object.values(totals()).sort(function(a,b){
+      var ea = eloMap[a.name], eb = eloMap[b.name];
+      return ((eb ? eb.elo : -1e9) - (ea ? ea.elo : -1e9)) || (b.matches - a.matches);
+    });
     if(!rows.length){ show('empty'); return; }
     setStatus(dataStamp());
     show('index');
     document.getElementById('index').innerHTML =
+      '<p style="font-size:0.72rem;color:rgba(245,237,214,0.3);font-style:italic;margin-bottom:10px;text-align:center">'+
+        'Elo — Bradley-Terry rating fit to the full season head-to-head record · 1500 = league average · '+
+        '<span class="dim">prov</span> = under 5 decisive matches</p>'+
       '<div class="table-scroll"><table><thead><tr>'+
-        '<th class="c">#</th><th>Player</th>'+
+        '<th class="c">#</th><th>Player</th><th class="c">Elo</th>'+
         '<th class="c">Matches</th><th class="c">Match Record</th><th class="c">Win %</th>'+
         '<th class="c">Games</th><th class="c">Opponents</th>'+
       '</tr></thead><tbody>'+
@@ -314,6 +390,7 @@
         return '<tr class="rowlink" data-player="'+esc(t.name)+'">'+
           '<td class="c mono dim">'+(i+1)+'</td>'+
           '<td class="pname">'+esc(t.name)+'</td>'+
+          '<td class="c">'+eloCell(t.name)+'</td>'+
           '<td class="c mono">'+t.matches+'</td>'+
           '<td class="c"><span class="w">'+t.mw+'W</span> – <span class="l">'+t.ml+'L</span></td>'+
           '<td class="c">'+pctCell(t.mw,t.ml)+'</td>'+
@@ -392,6 +469,12 @@
       '</div>'+
 
       '<div class="tiles">'+
+        (function(){
+          var e = eloMap[name];
+          if(!e) return '';
+          return tile('Elo Rating', Math.round(e.elo),
+            'rank #'+e.rank+' of '+Object.keys(eloMap).length+(e.provisional ? ' · provisional' : ''));
+        })()+
         tile('Matches', tot.matches, draws ? draws+' unreported/draw' : '')+
         tile('Match Record', '<span class="w" style="font-size:1.05rem">'+tot.mw+'W</span> <span class="dim">–</span> <span class="l" style="font-size:1.05rem">'+tot.ml+'L</span>', '')+
         tile('Match Win %', matchPct!=null ? matchPct+'%' : '—', '')+
