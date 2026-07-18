@@ -884,6 +884,9 @@
       <div class="sidebar-nav-item" id="snav-top16" onclick="showTab('top16'); closeSidebar()">
         <span class="sidebar-nav-icon">👑</span> GNL Top 16
       </div>
+      <div class="sidebar-nav-item" id="snav-pstats" onclick="showTab('pstats'); closeSidebar()">
+        <span class="sidebar-nav-icon">📊</span> Player Stats
+      </div>
       <div class="sidebar-nav-item" id="snav-more" onclick="showTab('more'); closeSidebar()">
         <span class="sidebar-nav-icon">🔮</span> More Tools
       </div>
@@ -1601,6 +1604,25 @@
     <div id="t16Body"></div>
   </div>
 
+  <div class="panel" id="tab-pstats">
+    <div class="panel-title">Player Stats</div>
+    <p class="panel-desc">Season records and the Elo ladder, computed from the saved head-to-head data</p>
+    <div class="divider"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+      <div style="position:relative;max-width:340px;flex:1;min-width:220px">
+        <input class="lb-search" type="text" id="pdSearch" placeholder="Search player…" autocomplete="off" style="width:100%"/>
+        <div class="ac-list" id="pdAc" style="right:0"></div>
+      </div>
+      <span id="pdStatus" style="font-size:0.72rem;color:rgba(245,237,214,0.3)"></span>
+    </div>
+    <div id="pdIndex"></div>
+    <div id="pdDash" style="display:none"></div>
+    <div id="pdEmpty" class="rv-empty" style="display:none">
+      <div class="rv-empty-icon">📊</div>
+      No season head-to-head data in the Gist yet
+    </div>
+  </div>
+
 </div>
 
 <!-- RESET MODAL -->
@@ -1735,6 +1757,7 @@ function showTab(id) {
   if (id === 'swiss') swInitTab();
   if (id === 'raffle') renderRaffleEventToggles();
   if (id === 'top16' && typeof t16Init === 'function') t16Init();
+  if (id === 'pstats' && typeof pdInit === 'function') pdInit();
 }
 
 // ── GIST CONFIG ───────────────────────────────────────
@@ -5432,6 +5455,307 @@ function swInitTab(){ swRenderSetup(); }
 
 })();
 // ==================== END RIVALRY ANALYZER ====================
+
+// ==================== PLAYER STATS ====================
+// Per-player season stats + Elo ladder from the saved head-to-head data.
+// The record is aggregate (no match dates), so instead of sequential Elo we
+// fit a Bradley-Terry model — the order-independent rating Elo approximates —
+// via minorization-maximization on decisive match wins, with a prior of one
+// virtual win + loss vs an average player, shown as R = 1500 + 400*log10(s).
+(function(){
+  var pdSeason = null;   // rivalry object from the gist
+  var pdEloMap = {};     // player -> { elo, rank, matches, provisional }
+  var pdSelected = null;
+
+  function pdEsc(s){
+    return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function pdH2H(){ return (pdSeason && pdSeason.h2h) || []; }
+  function pdPct(w,l){ var d=w+l; return d ? Math.round(w/d*100) : null; }
+  function pdPctCell(w,l){
+    var p = pdPct(w,l);
+    if(p==null) return '<span style="opacity:0.3">—</span>';
+    var col = p >= 55 ? '#5ec88a' : (p <= 45 ? '#e08080' : 'rgba(245,237,214,0.7)');
+    return '<span style="color:'+col+';font-family:Cinzel,serif;font-size:0.8rem">'+p+'%</span>';
+  }
+
+  function pdComputeElo(){
+    var TAU = 2.0;
+    var winsMap = {}, playerSet = {};
+    pdH2H().forEach(function(r){
+      var a = r.players[0], b = r.players[1];
+      var wa = r.matchWinsA || 0, wb = r.matchWinsB || 0;
+      playerSet[a] = 1; playerSet[b] = 1;
+      if(wa){ winsMap[a] = winsMap[a] || {}; winsMap[a][b] = (winsMap[a][b] || 0) + wa; }
+      if(wb){ winsMap[b] = winsMap[b] || {}; winsMap[b][a] = (winsMap[b][a] || 0) + wb; }
+    });
+    var players = Object.keys(playerSet);
+    if(!players.length) return {};
+    var opp = {};
+    players.forEach(function(p){ opp[p] = {}; });
+    Object.keys(winsMap).forEach(function(a){
+      Object.keys(winsMap[a]).forEach(function(b){ opp[a][b] = 1; opp[b][a] = 1; });
+    });
+    var s = {};
+    players.forEach(function(p){ s[p] = 1; });
+    for(var it = 0; it < 500; it++){
+      var next = {}, logSum = 0;
+      players.forEach(function(p){
+        var pw = winsMap[p] || {};
+        var W = TAU, denom = 2 * TAU / (s[p] + 1);
+        Object.keys(pw).forEach(function(q){ W += pw[q]; });
+        Object.keys(opp[p]).forEach(function(q){
+          var n = (pw[q] || 0) + ((winsMap[q] || {})[p] || 0);
+          denom += n / (s[p] + s[q]);
+        });
+        next[p] = W / denom;
+      });
+      players.forEach(function(p){ logSum += Math.log(next[p]); });
+      var gm = Math.exp(logSum / players.length);
+      var delta = 0;
+      players.forEach(function(p){
+        next[p] /= gm;
+        delta = Math.max(delta, Math.abs(next[p] - s[p]));
+      });
+      s = next;
+      if(delta < 1e-10) break;
+    }
+    var out = {};
+    players.forEach(function(p){
+      var pw = winsMap[p] || {}, m = 0;
+      Object.keys(opp[p]).forEach(function(q){ m += (pw[q] || 0) + ((winsMap[q] || {})[p] || 0); });
+      out[p] = { elo: 1500 + 400 * Math.log10(s[p]), matches: m, provisional: m < 5 };
+    });
+    players.slice().sort(function(a, b){ return out[b].elo - out[a].elo; })
+      .forEach(function(p, i){ out[p].rank = i + 1; });
+    return out;
+  }
+  function pdEloCell(p){
+    var e = pdEloMap[p];
+    if(!e) return '<span style="opacity:0.3">—</span>';
+    return '<span class="rv-score-gold">'+Math.round(e.elo)+'</span>'+
+      (e.provisional ? ' <span style="opacity:0.35;font-size:0.62rem">prov</span>' : '');
+  }
+
+  function pdTotals(){
+    var totals = {};
+    pdH2H().forEach(function(r){
+      for(var i=0;i<2;i++){
+        var p = r.players[i];
+        var t = totals[p] || (totals[p] = { name:p, matches:0, mw:0, ml:0, gw:0, gl:0, close:0, opponents:0 });
+        t.matches   += r.meetings||0;
+        t.opponents += 1;
+        t.mw += i===0 ? (r.matchWinsA||0) : (r.matchWinsB||0);
+        t.ml += i===0 ? (r.matchWinsB||0) : (r.matchWinsA||0);
+        t.gw += i===0 ? (r.winsA||0)      : (r.winsB||0);
+        t.gl += i===0 ? (r.winsB||0)      : (r.winsA||0);
+        t.close += r.close||0;
+      }
+    });
+    return totals;
+  }
+  function pdSetStatus(){
+    var el = document.getElementById('pdStatus');
+    if(!el) return;
+    var n = Object.keys(pdTotals()).length;
+    var when = pdSeason && pdSeason.updatedAt ? ' · updated ' + new Date(pdSeason.updatedAt).toLocaleDateString() : '';
+    el.textContent = n ? n + ' players' + when : '';
+  }
+  function pdShow(which){
+    document.getElementById('pdIndex').style.display = which==='index' ? 'block' : 'none';
+    document.getElementById('pdDash').style.display  = which==='dash'  ? 'block' : 'none';
+    document.getElementById('pdEmpty').style.display = which==='empty' ? 'block' : 'none';
+  }
+
+  function pdRenderIndex(){
+    pdSelected = null;
+    var rows = Object.values(pdTotals()).sort(function(a,b){
+      var ea = pdEloMap[a.name], eb = pdEloMap[b.name];
+      return ((eb ? eb.elo : -1e9) - (ea ? ea.elo : -1e9)) || (b.matches - a.matches);
+    });
+    if(!rows.length){ document.getElementById('pdIndex').innerHTML=''; pdShow('empty'); pdSetStatus(); return; }
+    pdSetStatus();
+    pdShow('index');
+    document.getElementById('pdIndex').innerHTML =
+      '<p style="font-size:0.72rem;color:rgba(245,237,214,0.3);font-style:italic;margin-bottom:10px">'+
+        'Elo — Bradley-Terry rating fit to the full season head-to-head record · 1500 = league average · prov = under 5 decisive matches</p>'+
+      '<table><thead><tr>'+
+        '<th class="c">#</th><th>Player</th><th class="c">Elo</th>'+
+        '<th class="c">Matches</th><th class="c">Match Record</th><th class="c">Win %</th>'+
+        '<th class="c">Games</th><th class="c">Opponents</th>'+
+      '</tr></thead><tbody>'+
+      rows.map(function(t,i){
+        return '<tr class="pd-row" data-player="'+pdEsc(t.name)+'" style="cursor:pointer">'+
+          '<td class="c td-mono">'+(i+1)+'</td>'+
+          '<td style="color:var(--gold-light)">'+pdEsc(t.name)+'</td>'+
+          '<td class="c">'+pdEloCell(t.name)+'</td>'+
+          '<td class="c td-mono">'+t.matches+'</td>'+
+          '<td class="c"><span class="rv-rec-w">'+t.mw+'W</span> – <span class="rv-rec-l">'+t.ml+'L</span></td>'+
+          '<td class="c">'+pdPctCell(t.mw,t.ml)+'</td>'+
+          '<td class="c td-mono" style="opacity:0.6">'+t.gw+'–'+t.gl+'</td>'+
+          '<td class="c td-mono">'+t.opponents+'</td>'+
+        '</tr>';
+      }).join('')+'</tbody></table>';
+    document.getElementById('pdIndex').querySelectorAll('.pd-row').forEach(function(row){
+      row.addEventListener('click', function(){ pdShowPlayer(row.dataset.player); });
+    });
+  }
+
+  function pdShowPlayer(name){
+    var mine = pdH2H().filter(function(r){ return r.players[0]===name || r.players[1]===name; });
+    if(!mine.length){ pdRenderIndex(); return; }
+    pdSelected = name;
+    var search = document.getElementById('pdSearch');
+    if(search) search.value = name;
+    pdSetStatus();
+
+    var opps = mine.map(function(r){
+      var me = r.players[0]===name ? 0 : 1;
+      return {
+        opp: r.players[me?0:1],
+        meetings: r.meetings||0,
+        mw: me===0 ? (r.matchWinsA||0) : (r.matchWinsB||0),
+        ml: me===0 ? (r.matchWinsB||0) : (r.matchWinsA||0),
+        gw: me===0 ? (r.winsA||0) : (r.winsB||0),
+        gl: me===0 ? (r.winsB||0) : (r.winsA||0),
+        close: r.close||0,
+        score: r.score||0
+      };
+    });
+    var tot = { matches:0, mw:0, ml:0, gw:0, gl:0, close:0 };
+    opps.forEach(function(o){
+      tot.matches+=o.meetings; tot.mw+=o.mw; tot.ml+=o.ml; tot.gw+=o.gw; tot.gl+=o.gl; tot.close+=o.close;
+    });
+    var draws = Math.max(0, tot.matches - tot.mw - tot.ml);
+
+    var topRival = opps.slice().sort(function(a,b){ return b.score-a.score; })[0];
+    var settled = opps.filter(function(o){ return o.meetings >= 2 && (o.mw+o.ml) > 0; });
+    var best = settled.slice().sort(function(a,b){ return (pdPct(b.mw,b.ml)-pdPct(a.mw,a.ml)) || (b.mw-a.mw); })[0];
+    var worst = settled.slice().sort(function(a,b){ return (pdPct(a.mw,a.ml)-pdPct(b.mw,b.ml)) || (b.ml-a.ml); })[0];
+
+    var declaredRival = '';
+    ((pdSeason && pdSeason.savedPairs) || []).forEach(function(p){
+      if(p.players[0]===name) declaredRival = p.players[1];
+      if(p.players[1]===name) declaredRival = p.players[0];
+    });
+    var pts = pdSeason && pdSeason.rivalryPoints && pdSeason.rivalryPoints[name];
+    var eloE = pdEloMap[name];
+
+    function tile(label, val, sub){
+      return '<div class="stat"><div class="stat-l">'+label+'</div><div class="stat-v">'+val+'</div>'+
+        (sub ? '<div style="font-size:0.66rem;color:rgba(245,237,214,0.3);margin-top:2px">'+sub+'</div>' : '')+'</div>';
+    }
+    function hlCard(icon, label, o){
+      if(!o) return '';
+      var p = pdPct(o.mw, o.ml);
+      return '<div class="stat" style="cursor:pointer" data-player="'+pdEsc(o.opp)+'">'+
+        '<div class="stat-l">'+icon+' '+label+'</div>'+
+        '<div class="stat-v" style="font-size:0.95rem">'+pdEsc(o.opp)+'</div>'+
+        '<div style="font-size:0.68rem;color:rgba(245,237,214,0.4);margin-top:3px">'+
+          o.meetings+' matches · <span class="rv-rec-w">'+o.mw+'W</span>–<span class="rv-rec-l">'+o.ml+'L</span>'+
+          (p!=null ? ' · '+p+'%' : '')+
+        '</div></div>';
+    }
+
+    var matchPct = pdPct(tot.mw, tot.ml);
+    var gamePct  = pdPct(tot.gw, tot.gl);
+    var dash = document.getElementById('pdDash');
+    dash.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px">'+
+        '<div>'+
+          '<div style="font-family:Cinzel,serif;font-size:1.15rem;font-weight:700;color:var(--gold-light);letter-spacing:0.08em">'+pdEsc(name)+'</div>'+
+          (declaredRival ? '<div style="font-size:0.74rem;color:rgba(245,237,214,0.4);margin-top:3px">⚔ Declared rival: <span style="color:var(--gold-light)">'+pdEsc(declaredRival)+'</span></div>' : '')+
+        '</div>'+
+        '<button class="btn ghost" id="pdBack" style="width:auto;padding:7px 14px;font-size:0.7rem">← All Players</button>'+
+      '</div>'+
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:16px">'+
+        (eloE ? tile('Elo Rating', Math.round(eloE.elo), 'rank #'+eloE.rank+' of '+Object.keys(pdEloMap).length+(eloE.provisional?' · provisional':'')) : '')+
+        tile('Matches', tot.matches, draws ? draws+' unreported/draw' : '')+
+        tile('Match Record', '<span class="rv-rec-w" style="font-size:1.05rem">'+tot.mw+'W</span> <span style="opacity:0.4">–</span> <span class="rv-rec-l" style="font-size:1.05rem">'+tot.ml+'L</span>', '')+
+        tile('Match Win %', matchPct!=null ? matchPct+'%' : '—', '')+
+        tile('Game Record', tot.gw+'–'+tot.gl, gamePct!=null ? gamePct+'% of games' : '')+
+        tile('Close Matches', tot.close, 'went the distance')+
+        tile('Opponents', opps.length, 'faced this season')+
+        (pts ? tile('Rivalry Pts', '<span class="rv-score-gold" style="font-size:1.05rem">'+(pts.points||0)+'</span>', (pts.rivalWins||0)+'W–'+(pts.rivalLosses||0)+'L vs rival') : '')+
+        (pts && (pts.shadowPoints||pts.shadowWins||pts.shadowDraws) ? tile('Shadow Pts', '<span style="color:#9b8cc4">'+(pts.shadowPoints||0)+'</span>', (pts.shadowWins||0)+'W–'+(pts.shadowDraws||0)+'D shadow') : '')+
+      '</div>'+
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-bottom:18px">'+
+        hlCard('🔥','Hottest Rivalry', topRival)+
+        hlCard('🎯','Best Matchup', best)+
+        hlCard('💀','Nemesis', worst)+
+      '</div>'+
+      '<table><thead><tr>'+
+        '<th>Opponent</th><th class="c">Elo</th><th class="c">Matches</th><th class="c">Record</th>'+
+        '<th class="c">Win %</th><th class="c">Games</th><th class="c">Close</th><th class="r">Rivalry</th>'+
+      '</tr></thead><tbody>'+
+      opps.sort(function(a,b){ return b.meetings-a.meetings || b.score-a.score; }).map(function(o){
+        return '<tr class="pd-row" data-player="'+pdEsc(o.opp)+'" style="cursor:pointer">'+
+          '<td>'+pdEsc(o.opp)+'</td>'+
+          '<td class="c">'+pdEloCell(o.opp)+'</td>'+
+          '<td class="c td-mono">'+o.meetings+'</td>'+
+          '<td class="c"><span class="rv-rec-w">'+o.mw+'W</span> – <span class="rv-rec-l">'+o.ml+'L</span></td>'+
+          '<td class="c">'+pdPctCell(o.mw,o.ml)+'</td>'+
+          '<td class="c td-mono" style="opacity:0.6">'+o.gw+'–'+o.gl+'</td>'+
+          '<td class="c td-mono">'+o.close+'</td>'+
+          '<td class="r"><span class="rv-score-gold">'+Math.round(o.score*100)+'</span></td>'+
+        '</tr>';
+      }).join('')+'</tbody></table>';
+
+    pdShow('dash');
+    document.getElementById('pdBack').addEventListener('click', function(){
+      var s2 = document.getElementById('pdSearch');
+      if(s2) s2.value = '';
+      pdRenderIndex();
+    });
+    dash.querySelectorAll('[data-player]').forEach(function(el){
+      el.addEventListener('click', function(){ pdShowPlayer(el.dataset.player); });
+    });
+  }
+
+  // Search with autocomplete
+  var pdSearchEl = document.getElementById('pdSearch');
+  var pdAcEl = document.getElementById('pdAc');
+  function pdCloseAc(){ if(pdAcEl){ pdAcEl.classList.remove('open'); pdAcEl.innerHTML=''; } }
+  if(pdSearchEl){
+    pdSearchEl.addEventListener('input', function(){
+      var q = pdSearchEl.value.trim().toLowerCase();
+      if(!q){ pdCloseAc(); pdRenderIndex(); return; }
+      var names = Object.keys(pdTotals()).filter(function(n){ return n.toLowerCase().indexOf(q) !== -1; }).sort().slice(0, 8);
+      if(!names.length){ pdCloseAc(); return; }
+      pdAcEl.innerHTML = names.map(function(n){ return '<div class="ac-opt" data-player="'+pdEsc(n)+'">'+pdEsc(n)+'</div>'; }).join('');
+      pdAcEl.classList.add('open');
+      pdAcEl.querySelectorAll('.ac-opt').forEach(function(opt){
+        opt.addEventListener('mousedown', function(e){ e.preventDefault(); pdCloseAc(); pdShowPlayer(opt.dataset.player); });
+      });
+    });
+    pdSearchEl.addEventListener('keydown', function(e){
+      if(e.key !== 'Enter') return;
+      var first = pdAcEl && pdAcEl.querySelector('.ac-opt');
+      if(first){ pdCloseAc(); pdShowPlayer(first.dataset.player); }
+    });
+    pdSearchEl.addEventListener('blur', function(){ setTimeout(pdCloseAc, 150); });
+  }
+
+  var pdLoading = false;
+  async function pdInit(){
+    if(pdLoading) return;
+    pdLoading = true;
+    if(!pdSeason){
+      var idx = document.getElementById('pdIndex');
+      if(idx) idx.innerHTML = '<p style="font-size:0.8rem;color:rgba(245,237,214,0.3);font-style:italic">⟳ Loading from Gist…</p>';
+    }
+    try {
+      var data = await loadFromGist();
+      if(data && data.rivalry) pdSeason = data.rivalry;
+    } catch(e){ /* keep whatever we have */ }
+    pdEloMap = pdComputeElo();
+    pdLoading = false;
+    if(pdSelected && pdEloMap[pdSelected]) pdShowPlayer(pdSelected);
+    else pdRenderIndex();
+  }
+  window.pdInit = pdInit;
+})();
+// ==================== END PLAYER STATS ====================
 
 // ==================== GNL TOP 16 ====================
 // GSL group stage (4 groups of 4, double-elim within group) feeding a fixed
