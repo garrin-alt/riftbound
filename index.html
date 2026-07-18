@@ -881,6 +881,9 @@
       <div class="sidebar-nav-item" id="snav-rivalry" onclick="showTab('rivalry'); closeSidebar()">
         <span class="sidebar-nav-icon">⚔️</span> Rivalry Analyzer
       </div>
+      <div class="sidebar-nav-item" id="snav-top16" onclick="showTab('top16'); closeSidebar()">
+        <span class="sidebar-nav-icon">👑</span> GNL Top 16
+      </div>
       <div class="sidebar-nav-item" id="snav-more" onclick="showTab('more'); closeSidebar()">
         <span class="sidebar-nav-icon">🔮</span> More Tools
       </div>
@@ -1591,6 +1594,13 @@
     </div>
   </div>
 
+  <div class="panel" id="tab-top16">
+    <div class="panel-title">GNL Top 16</div>
+    <p class="panel-desc">GSL group stage into Top 8 single-elimination playoffs — the season's championship bracket</p>
+    <div class="divider"></div>
+    <div id="t16Body"></div>
+  </div>
+
 </div>
 
 <!-- RESET MODAL -->
@@ -1724,6 +1734,7 @@ function showTab(id) {
   if (id === 'infractions') initInfractionsPanel();
   if (id === 'swiss') swInitTab();
   if (id === 'raffle') renderRaffleEventToggles();
+  if (id === 'top16' && typeof t16Init === 'function') t16Init();
 }
 
 // ── GIST CONFIG ───────────────────────────────────────
@@ -5421,6 +5432,363 @@ function swInitTab(){ swRenderSetup(); }
 
 })();
 // ==================== END RIVALRY ANALYZER ====================
+
+// ==================== GNL TOP 16 ====================
+// GSL group stage (4 groups of 4, double-elim within group) feeding a fixed
+// cross-group Top 8 single-elimination bracket. Seeded pairings: within a
+// group, Match 1 = Seed 1 vs Seed 4, Match 2 = Seed 2 vs Seed 3.
+// State lives in data.top16 and syncs to the Gist like everything else.
+(function(){
+  var GROUPS = ['A','B','C','D'];
+  var GROUP_MATCHES = [
+    { k:'m1', label:'Match 1' },
+    { k:'m2', label:'Match 2' },
+    { k:'w',  label:'Winners Match' },
+    { k:'l',  label:'Losers Match' },
+    { k:'d',  label:'Decider Match' }
+  ];
+  var PLAYOFFS = [
+    { k:'qf1', label:'QF1', srcLabel:['1st Group A','2nd Group B'] },
+    { k:'qf2', label:'QF2', srcLabel:['1st Group C','2nd Group D'] },
+    { k:'qf3', label:'QF3', srcLabel:['1st Group B','2nd Group A'] },
+    { k:'qf4', label:'QF4', srcLabel:['1st Group D','2nd Group C'] },
+    { k:'sf1', label:'Semifinal 1', srcLabel:['Winner QF1','Winner QF2'] },
+    { k:'sf2', label:'Semifinal 2', srcLabel:['Winner QF3','Winner QF4'] },
+    { k:'f',   label:'Grand Final', srcLabel:['Winner SF1','Winner SF2'] }
+  ];
+  // Editing a match invalidates everything that fed off its result
+  var ALL_PLAYOFF_KEYS = ['qf1','qf2','qf3','qf4','sf1','sf2','f'];
+  function t16Downstream(key){
+    var m = key.match(/^([A-D])-(m1|m2|w|l|d)$/);
+    if(m){
+      var g = m[1];
+      var chain = { m1:['w','l','d'], m2:['w','l','d'], w:['d'], l:['d'], d:[] }[m[2]]
+        .map(function(k){ return g+'-'+k; });
+      return chain.concat(ALL_PLAYOFF_KEYS);
+    }
+    if(key==='qf1'||key==='qf2') return ['sf1','f'];
+    if(key==='qf3'||key==='qf4') return ['sf2','f'];
+    if(key==='sf1'||key==='sf2') return ['f'];
+    return [];
+  }
+
+  var t16State = null; // { groups:{A:[4 names],...}, results:{key:{a,b}}, startedAt, updatedAt }
+  var t16Armed = {};   // two-click confirms, keyed by action
+
+  function t16Esc(s){
+    return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function t16Res(key){ return t16State && t16State.results && t16State.results[key]; }
+  function t16WinnerLoser(key){
+    var r = t16Res(key), p = t16Players(key);
+    if(!r || !p) return null;
+    return r.a > r.b ? { winner:p.a, loser:p.b } : { winner:p.b, loser:p.a };
+  }
+  function t16Winner(key){ var wl = t16WinnerLoser(key); return wl && wl.winner; }
+  function t16Loser(key){ var wl = t16WinnerLoser(key); return wl && wl.loser; }
+
+  // Who plays in a match, derived from seeds + upstream results. null side = TBD.
+  function t16Players(key){
+    if(!t16State) return null;
+    var m = key.match(/^([A-D])-(m1|m2|w|l|d)$/);
+    if(m){
+      var g = t16State.groups[m[1]];
+      if(!g) return null;
+      switch(m[2]){
+        case 'm1': return { a:g[0], b:g[3] }; // Seed 1 vs Seed 4
+        case 'm2': return { a:g[1], b:g[2] }; // Seed 2 vs Seed 3
+        case 'w':  return t16Pair(t16Winner(m[1]+'-m1'), t16Winner(m[1]+'-m2'));
+        case 'l':  return t16Pair(t16Loser(m[1]+'-m1'),  t16Loser(m[1]+'-m2'));
+        case 'd':  return t16Pair(t16Loser(m[1]+'-w'),   t16Winner(m[1]+'-l'));
+      }
+    }
+    switch(key){
+      case 'qf1': return t16Pair(t16Winner('A-w'), t16Winner('B-d'));
+      case 'qf2': return t16Pair(t16Winner('C-w'), t16Winner('D-d'));
+      case 'qf3': return t16Pair(t16Winner('B-w'), t16Winner('A-d'));
+      case 'qf4': return t16Pair(t16Winner('D-w'), t16Winner('C-d'));
+      case 'sf1': return t16Pair(t16Winner('qf1'), t16Winner('qf2'));
+      case 'sf2': return t16Pair(t16Winner('qf3'), t16Winner('qf4'));
+      case 'f':   return t16Pair(t16Winner('sf1'), t16Winner('sf2'));
+    }
+    return null;
+  }
+  function t16Pair(a, b){ return (a && b) ? { a:a, b:b } : null; }
+
+  function t16GroupDone(g){ return !!t16Res(g+'-d'); }
+  function t16AllGroupsDone(){ return GROUPS.every(t16GroupDone); }
+
+  function t16SaveState(){
+    t16State.updatedAt = new Date().toISOString();
+    var data = load();
+    data.top16 = t16State;
+    save(data); // persists locally AND syncs to the Gist
+  }
+
+  // ── RENDER ──────────────────────────────────────────────────────────────
+  function t16Render(){
+    var body = document.getElementById('t16Body');
+    if(!body) return;
+    t16Armed = {};
+    if(!t16State || !t16State.groups) return t16RenderSetup(body);
+
+    var html = '';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px">'+
+      '<span style="font-size:0.74rem;color:rgba(245,237,214,0.35);font-style:italic">'+
+        (t16State.updatedAt ? 'Last updated '+new Date(t16State.updatedAt).toLocaleString() : '')+'</span>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+        '<button class="btn ghost" id="t16CopyBtn" style="width:auto;padding:7px 14px;font-size:0.7rem">📋 Copy Status for WhatsApp</button>'+
+        '<button class="btn ghost" id="t16ResetBtn" style="width:auto;padding:7px 14px;font-size:0.7rem;border-color:rgba(192,57,43,0.3);color:#c0392b">🗑 Reset Tournament</button>'+
+      '</div></div>';
+
+    // Group stage
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-bottom:24px">';
+    GROUPS.forEach(function(g){ html += t16RenderGroup(g); });
+    html += '</div>';
+
+    // Playoffs
+    html += '<div class="card">';
+    html += '<div class="card-label">👑 Top 8 Playoffs — Single Elimination</div>';
+    if(!t16AllGroupsDone()){
+      var remaining = GROUPS.filter(function(g){ return !t16GroupDone(g); });
+      html += '<p style="font-size:0.76rem;color:rgba(245,237,214,0.35);font-style:italic">Unlocks when every group has a Decider result — waiting on Group'+(remaining.length>1?'s':'')+' '+remaining.join(', ')+'.</p>';
+    } else {
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px">';
+      html += '<div>'+['qf1','qf2','qf3','qf4'].map(function(k){ return t16RenderMatch(k, t16PlayoffDef(k)); }).join('')+'</div>';
+      html += '<div>'+['sf1','sf2'].map(function(k){ return t16RenderMatch(k, t16PlayoffDef(k)); }).join('')+'</div>';
+      html += '<div>'+t16RenderMatch('f', t16PlayoffDef('f'));
+      var champ = t16Winner('f');
+      if(champ){
+        html += '<div style="margin-top:14px;padding:18px;text-align:center;border:1px solid rgba(201,146,42,0.5);background:rgba(201,146,42,0.08)">'+
+          '<div style="font-family:Cinzel,serif;font-size:0.68rem;letter-spacing:0.2em;color:var(--gold);text-transform:uppercase;margin-bottom:6px">GNL Champion</div>'+
+          '<div style="font-family:Cinzel,serif;font-size:1.3rem;font-weight:700;color:var(--gold-light)">🏆 '+t16Esc(champ)+'</div>'+
+        '</div>';
+      }
+      html += '</div>';
+      html += '</div>';
+    }
+    html += '</div>';
+
+    body.innerHTML = html;
+    t16Wire(body);
+  }
+
+  function t16PlayoffDef(k){
+    for(var i=0;i<PLAYOFFS.length;i++) if(PLAYOFFS[i].k===k) return PLAYOFFS[i];
+  }
+
+  function t16RenderSetup(body){
+    var saved = (t16State && t16State.groups) || {};
+    var html = '<div class="card" style="margin-bottom:14px">'+
+      '<div class="card-label">⚙ Setup — Enter the Top 16</div>'+
+      '<p style="font-size:0.76rem;color:rgba(245,237,214,0.4);margin-bottom:14px;line-height:1.6">'+
+        'Type the 16 qualified players into their groups. Order matters: within each group, '+
+        '<strong style="color:rgba(245,237,214,0.6)">Match 1 = Seed 1 vs Seed 4</strong> and '+
+        '<strong style="color:rgba(245,237,214,0.6)">Match 2 = Seed 2 vs Seed 3</strong>, so put the higher league finisher in the higher seed.'+
+      '</p>'+
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">'+
+      GROUPS.map(function(g){
+        return '<div class="card" style="margin:0">'+
+          '<div class="card-label">Group '+g+'</div>'+
+          [0,1,2,3].map(function(i){
+            var v = (saved[g] && saved[g][i]) || '';
+            return '<input class="lb-search" style="margin-bottom:8px" id="t16In-'+g+i+'" placeholder="Seed '+(i+1)+'" autocomplete="off" value="'+t16Esc(v)+'"/>';
+          }).join('')+
+        '</div>';
+      }).join('')+
+      '</div>'+
+      '<button class="btn" id="t16StartBtn" style="margin-top:14px">👑 Start Group Stage</button>'+
+      '<div id="t16SetupErr" style="font-size:0.74rem;color:#c0392b;margin-top:8px"></div>'+
+    '</div>';
+    body.innerHTML = html;
+    document.getElementById('t16StartBtn').addEventListener('click', function(){
+      var groups = {}, all = [], err = '';
+      GROUPS.forEach(function(g){
+        groups[g] = [0,1,2,3].map(function(i){ return document.getElementById('t16In-'+g+i).value.trim(); });
+        groups[g].forEach(function(n){ if(n) all.push(n.toLowerCase()); });
+      });
+      var flat = GROUPS.reduce(function(acc,g){ return acc.concat(groups[g]); }, []);
+      if(flat.some(function(n){ return !n; })) err = '⚠ All 16 slots must be filled.';
+      else if(new Set(all).size !== 16) err = '⚠ Duplicate player names — all 16 must be unique.';
+      if(err){ document.getElementById('t16SetupErr').textContent = err; return; }
+      t16State = { groups: groups, results: {}, startedAt: new Date().toISOString() };
+      t16SaveState();
+      t16Render();
+    });
+  }
+
+  function t16RenderGroup(g){
+    var done = t16GroupDone(g);
+    var first = t16Winner(g+'-w'), second = t16Winner(g+'-d');
+    var third = t16Loser(g+'-d'), fourth = t16Loser(g+'-l');
+    var html = '<div class="card" style="margin:0'+(done ? ';border-color:rgba(201,146,42,0.4)' : '')+'">';
+    html += '<div class="card-label">Group '+g+(done ? ' ✓' : '')+'</div>';
+    html += GROUP_MATCHES.map(function(mm){ return t16RenderMatch(g+'-'+mm.k, { label:mm.label }); }).join('');
+    if(first || second){
+      html += '<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(201,146,42,0.15);font-size:0.76rem;line-height:1.7">';
+      if(first)  html += '<div>🥇 <span style="color:var(--gold-light)">'+t16Esc(first)+'</span> <span style="color:#5ec88a;font-size:0.68rem">ADVANCES (2-0)</span></div>';
+      if(second) html += '<div>🥈 <span style="color:var(--gold-light)">'+t16Esc(second)+'</span> <span style="color:#5ec88a;font-size:0.68rem">ADVANCES</span></div>';
+      if(third)  html += '<div style="opacity:0.45">3rd '+t16Esc(third)+' · eliminated</div>';
+      if(fourth) html += '<div style="opacity:0.45">4th '+t16Esc(fourth)+' · eliminated (0-2)</div>';
+      html += '</div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function t16RenderMatch(key, def){
+    var p = t16Players(key);
+    var r = t16Res(key);
+    var html = '<div style="padding:8px 0;border-bottom:1px solid rgba(201,146,42,0.08)">';
+    html += '<div style="font-size:0.62rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:4px;font-family:Cinzel,serif">'+def.label+'</div>';
+    if(!p){
+      var hint = def.srcLabel ? def.srcLabel.join(' vs ') : 'waiting on earlier results';
+      html += '<div style="font-size:0.78rem;color:rgba(245,237,214,0.25);font-style:italic">'+hint+'</div>';
+    } else if(r){
+      var aWon = r.a > r.b;
+      html += '<div style="display:flex;align-items:center;gap:8px;font-size:0.85rem;flex-wrap:wrap">'+
+        '<span style="'+(aWon?'color:var(--gold-light);font-weight:600':'opacity:0.5')+'">'+t16Esc(p.a)+'</span>'+
+        '<span class="rv-score-gold">'+r.a+'–'+r.b+'</span>'+
+        '<span style="'+(!aWon?'color:var(--gold-light);font-weight:600':'opacity:0.5')+'">'+t16Esc(p.b)+'</span>'+
+        '<button class="t16-edit" data-key="'+key+'" style="background:none;border:none;color:rgba(245,237,214,0.3);cursor:pointer;font-size:0.75rem;margin-left:auto">✎ edit</button>'+
+      '</div>';
+    } else {
+      html += '<div style="display:flex;align-items:center;gap:6px;font-size:0.82rem;flex-wrap:wrap">'+
+        '<span style="flex:1;min-width:80px">'+t16Esc(p.a)+'</span>'+
+        '<input type="number" min="0" max="9" id="t16Sa-'+key+'" style="width:44px;background:rgba(201,146,42,0.05);border:1px solid rgba(201,146,42,0.25);color:var(--parchment);padding:5px;text-align:center;font-family:inherit"/>'+
+        '<span style="opacity:0.4">–</span>'+
+        '<input type="number" min="0" max="9" id="t16Sb-'+key+'" style="width:44px;background:rgba(201,146,42,0.05);border:1px solid rgba(201,146,42,0.25);color:var(--parchment);padding:5px;text-align:center;font-family:inherit"/>'+
+        '<span style="flex:1;min-width:80px;text-align:right">'+t16Esc(p.b)+'</span>'+
+        '<button class="btn ghost t16-save" data-key="'+key+'" style="width:auto;padding:5px 12px;font-size:0.68rem">✓</button>'+
+      '</div>'+
+      '<div id="t16Err-'+key+'" style="font-size:0.68rem;color:#c0392b;margin-top:3px"></div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  // ── WIRING ──────────────────────────────────────────────────────────────
+  function t16Wire(body){
+    body.querySelectorAll('.t16-save').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var key = btn.dataset.key;
+        var a = document.getElementById('t16Sa-'+key).value.trim();
+        var b = document.getElementById('t16Sb-'+key).value.trim();
+        var errEl = document.getElementById('t16Err-'+key);
+        var na = Number(a), nb = Number(b);
+        if(a==='' || b==='' || !Number.isInteger(na) || !Number.isInteger(nb) || na<0 || nb<0){
+          errEl.textContent = '⚠ Enter both game scores'; return;
+        }
+        if(na === nb){ errEl.textContent = '⚠ No draws here — someone has to win'; return; }
+        t16State.results[key] = { a:na, b:nb };
+        t16SaveState();
+        t16Render();
+      });
+    });
+    body.querySelectorAll('.t16-edit').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var key = btn.dataset.key;
+        var downstream = t16Downstream(key).filter(function(k){ return !!t16Res(k); });
+        if(!t16Armed[key] && downstream.length){
+          t16Armed[key] = true;
+          btn.textContent = '⚠ clears '+downstream.length+' later result'+(downstream.length===1?'':'s')+' — click again';
+          btn.style.color = '#c0392b';
+          setTimeout(function(){
+            if(!t16Armed[key]) return;
+            t16Armed[key] = false;
+            btn.textContent = '✎ edit'; btn.style.color = 'rgba(245,237,214,0.3)';
+          }, 5000);
+          return;
+        }
+        t16Armed[key] = false;
+        delete t16State.results[key];
+        downstream.forEach(function(k){ delete t16State.results[k]; });
+        t16SaveState();
+        t16Render();
+      });
+    });
+    var resetBtn = document.getElementById('t16ResetBtn');
+    if(resetBtn) resetBtn.addEventListener('click', function(){
+      if(!t16Armed.reset){
+        t16Armed.reset = true;
+        resetBtn.textContent = '⚠ Deletes the whole tournament — click again';
+        setTimeout(function(){
+          if(!t16Armed.reset) return;
+          t16Armed.reset = false;
+          resetBtn.textContent = '🗑 Reset Tournament';
+        }, 5000);
+        return;
+      }
+      t16Armed.reset = false;
+      t16State = null;
+      var data = load();
+      data.top16 = null;
+      save(data);
+      t16Render();
+    });
+    var copyBtn = document.getElementById('t16CopyBtn');
+    if(copyBtn) copyBtn.addEventListener('click', function(){
+      navigator.clipboard.writeText(t16WhatsAppText());
+      copyBtn.textContent = '✓ Copied!';
+      setTimeout(function(){ copyBtn.textContent = '📋 Copy Status for WhatsApp'; }, 1800);
+    });
+  }
+
+  // ── WHATSAPP STATUS ─────────────────────────────────────────────────────
+  function t16WhatsAppText(){
+    var cityLbl = '';
+    try { var cfg = getCityConfig(); cityLbl = cfg ? cfg.label : ''; } catch(e){}
+    var lines = ['👑 *GNL TOP 16*'];
+    lines.push('_Riftbound League'+(cityLbl ? ' — '+cityLbl : '')+'_');
+    lines.push('');
+    GROUPS.forEach(function(g){
+      lines.push('*Group '+g+'*');
+      if(t16GroupDone(g)){
+        lines.push('🥇 '+t16Winner(g+'-w')+' · 🥈 '+t16Winner(g+'-d')+' advance');
+      } else {
+        GROUP_MATCHES.forEach(function(mm){
+          var key = g+'-'+mm.k, p = t16Players(key), r = t16Res(key);
+          if(r && p) lines.push(mm.label+': *'+(r.a>r.b?p.a:p.b)+'* def. '+(r.a>r.b?p.b:p.a)+' '+Math.max(r.a,r.b)+'–'+Math.min(r.a,r.b));
+        });
+        if(!GROUP_MATCHES.some(function(mm){ return t16Res(g+'-'+mm.k); })) lines.push('_not started_');
+      }
+      lines.push('');
+    });
+    if(t16AllGroupsDone()){
+      lines.push('*Top 8 Playoffs*');
+      PLAYOFFS.forEach(function(pf){
+        var p = t16Players(pf.k), r = t16Res(pf.k);
+        if(r && p) lines.push(pf.label+': *'+(r.a>r.b?p.a:p.b)+'* def. '+(r.a>r.b?p.b:p.a)+' '+Math.max(r.a,r.b)+'–'+Math.min(r.a,r.b));
+        else if(p) lines.push(pf.label+': '+p.a+' vs '+p.b);
+      });
+      var champ = t16Winner('f');
+      if(champ){ lines.push(''); lines.push('🏆 *GNL CHAMPION: '+champ+'* 🏆'); }
+    }
+    lines.push('');
+    lines.push('_May the best rival win._');
+    return lines.join('\n');
+  }
+
+  // ── INIT ────────────────────────────────────────────────────────────────
+  var t16Loading = false;
+  async function t16Init(){
+    var body = document.getElementById('t16Body');
+    if(!body || t16Loading) return;
+    t16Loading = true;
+    if(!t16State) body.innerHTML = '<p style="font-size:0.8rem;color:rgba(245,237,214,0.3);font-style:italic">⟳ Loading from Gist…</p>';
+    try {
+      var data = await loadFromGist();
+      if(data && data.top16) t16State = data.top16;
+    } catch(e){ /* offline — fall back to whatever is local */ }
+    if(!t16State){
+      try { t16State = load().top16 || null; } catch(e){}
+    }
+    t16Loading = false;
+    t16Render();
+  }
+  window.t16Init = t16Init;
+})();
+// ==================== END GNL TOP 16 ====================
 
 </script>
 </body>
