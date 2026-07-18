@@ -3460,6 +3460,7 @@ function swInitTab(){ swRenderSetup(); }
   var rvH2H = {};
   var rvScores = [];
   var rvPairs = [];
+  var rvAttendance = {}; // player -> { eventId: true } — built during analyze, saved as sorted arrays
 
   // Persistent season state (mirrors what's saved in the Gist under data.rivalry)
   var rvSavedSeasonData = null; // { h2h, savedPairs, eventLog, rivalryPoints, updatedAt }
@@ -3571,6 +3572,14 @@ function swInitTab(){ swRenderSetup(); }
     });
   }
 
+  // Tournament-platform filenames look like matchesevent408514round1roundid1054636.csv —
+  // the number right after "event" is the event ID (round numbers and round IDs
+  // appear later in the name, so only the "event" prefix is trusted).
+  function rvEventIdFromName(fname){
+    var m = String(fname||'').match(/event(\d+)/i);
+    return m ? m[1] : null;
+  }
+
   // "BYE" in any dressing ("BYE", "*** Bye ***", "- bye -") is a placeholder, not a player.
   // Bye rows are dropped at parse time so they can't earn points, feed shadow scoring,
   // count as attendance, or pollute season h2h.
@@ -3648,7 +3657,7 @@ function swInitTab(){ swRenderSetup(); }
         } else {
           return; // BYE, blank, or unparseable result — skip this row
         }
-        results.push({ playerA: p1, playerB: p2, winsA: winsA, winsB: winsB, tournament: fname });
+        results.push({ playerA: p1, playerB: p2, winsA: winsA, winsB: winsB, tournament: fname, eventId: rvEventIdFromName(fname) });
       });
       return results;
     }
@@ -3674,7 +3683,7 @@ function swInitTab(){ swRenderSetup(); }
     lines.slice(1).forEach(function(line){
       if(!line.trim()) return;
       var c = splitLine(line).map(unquote);
-      var row = { playerA:c[iA]||'', playerB:c[iB]||'', winsA:+(c[iWA])||0, winsB:+(c[iWB])||0, tournament:fname };
+      var row = { playerA:c[iA]||'', playerB:c[iB]||'', winsA:+(c[iWA])||0, winsB:+(c[iWB])||0, tournament:fname, eventId: rvEventIdFromName(fname) };
       if(row.playerA && row.playerB && row.playerA!==row.playerB &&
          !rvIsByeName(row.playerA) && !rvIsByeName(row.playerB)) out.push(row); // byes never count
     });
@@ -3710,11 +3719,12 @@ function swInitTab(){ swRenderSetup(); }
     var sc = document.getElementById('rvStatsCard');
     if(rvMatches.length===0){ if(sc) sc.style.display='none'; return; }
     if(sc) sc.style.display='block';
-    var players=new Set(), pairs=new Set();
-    rvMatches.forEach(function(m){ players.add(m.playerA); players.add(m.playerB); pairs.add(rvKey(m.playerA,m.playerB)); });
+    var players=new Set(), pairs=new Set(), eventIds=new Set();
+    rvMatches.forEach(function(m){ players.add(m.playerA); players.add(m.playerB); pairs.add(rvKey(m.playerA,m.playerB)); if(m.eventId) eventIds.add(m.eventId); });
     document.getElementById('rvStatMatches').textContent = rvMatches.length;
     document.getElementById('rvStatPlayers').textContent = players.size;
-    document.getElementById('rvStatEvents').textContent  = rvFiles.length;
+    // Distinct event IDs from filenames (matchesevent<ID>round…); falls back to file count
+    document.getElementById('rvStatEvents').textContent  = eventIds.size || rvFiles.length;
     document.getElementById('rvStatPairs').textContent   = pairs.size;
   }
 
@@ -3726,9 +3736,16 @@ function swInitTab(){ swRenderSetup(); }
 
   function rvAnalyze(){
     rvH2H = {};
+    rvAttendance = {};
 
     // If merge mode is on, seed rvH2H with the previously saved season data first
     var mergeBox = document.getElementById('rvMergeMode');
+    if(mergeBox && mergeBox.checked && rvSavedSeasonData && rvSavedSeasonData.attendance){
+      Object.keys(rvSavedSeasonData.attendance).forEach(function(p){
+        rvAttendance[p] = {};
+        (rvSavedSeasonData.attendance[p] || []).forEach(function(id){ rvAttendance[p][id] = true; });
+      });
+    }
     if(mergeBox && mergeBox.checked && rvSavedSeasonData && rvSavedSeasonData.h2h){
       rvSavedSeasonData.h2h.forEach(function(e){
         var key = rvKey(e.players[0], e.players[1]);
@@ -3742,6 +3759,10 @@ function swInitTab(){ swRenderSetup(); }
     }
 
     rvMatches.forEach(function(m){
+      if(m.eventId){
+        (rvAttendance[m.playerA] = rvAttendance[m.playerA] || {})[m.eventId] = true;
+        (rvAttendance[m.playerB] = rvAttendance[m.playerB] || {})[m.eventId] = true;
+      }
       var key = rvKey(m.playerA, m.playerB);
       if(!rvH2H[key]) rvH2H[key] = { players: [m.playerA,m.playerB].sort(), meetings:0, winsA:0, winsB:0, matchWinsA:0, matchWinsB:0, close:0, swings:0 };
       var e = rvH2H[key];
@@ -3949,6 +3970,8 @@ function swInitTab(){ swRenderSetup(); }
     try {
       var data = load();
       var prior = data.rivalry || {};
+      var attendanceOut = {};
+      Object.keys(rvAttendance).forEach(function(p){ attendanceOut[p] = Object.keys(rvAttendance[p]).sort(); });
       data.rivalry = {
         h2h: rvScores.map(function(r){
           return { players: r.players, meetings: r.meetings, winsA: r.winsA, winsB: r.winsB, matchWinsA: r.matchWinsA||0, matchWinsB: r.matchWinsB||0, close: r.close, swings: r.swings, score: r.score };
@@ -3956,6 +3979,9 @@ function swInitTab(){ swRenderSetup(); }
         savedPairs: rvPairs.map(function(r){ return { players: r.players, score: r.score, meetings: r.meetings }; }),
         eventLog: prior.eventLog || [],
         rivalryPoints: prior.rivalryPoints || {},
+        // Saving a re-render of the saved season (no fresh analyze) must not wipe attendance
+        attendance: Object.keys(attendanceOut).length ? attendanceOut : (prior.attendance || {}),
+        activeVendetta: prior.activeVendetta || null,
         updatedAt: new Date().toISOString()
       };
       rvSavedSeasonData = data.rivalry;
@@ -4575,6 +4601,16 @@ function swInitTab(){ swRenderSetup(); }
   // shadow points, h2h merge of every match, and an eventLog entry.
   // Shared by the live "Save to Gist" flow and post-event processing.
   function rvApplyRoundToRivalry(rivalry, scored, matches, vendetta){
+    // Record attendance for every player in this round (event ID from the filename),
+    // so "events completed" keeps accruing through live and post-event processing.
+    rivalry.attendance = rivalry.attendance || {};
+    matches.forEach(function(m){
+      if(!m.eventId) return;
+      [m.playerA, m.playerB].forEach(function(p){
+        var list = rivalry.attendance[p] = rivalry.attendance[p] || [];
+        if(list.indexOf(m.eventId) === -1) list.push(m.eventId);
+      });
+    });
     var roundType = scored.roundType;
     var pointsAwarded = scored.pointsAwarded;
     var rivalMatchesFound = scored.rivalMatchesFound;
@@ -5520,18 +5556,29 @@ function swInitTab(){ swRenderSetup(); }
       s = next;
       if(delta < 1e-10) break;
     }
-    // Ladder eligibility: the h2h record has no per-event breakdown, so
-    // "more than 5 events completed" is proxied by decisive matches played
-    // (a league night is ~4 Swiss rounds → 5 events ≈ 20 matches). Everyone
-    // still gets a rating — unranked players stay in the model fit so their
-    // results keep counting toward opponents' ratings — but only eligible
-    // players receive a ladder rank.
+    // Ladder eligibility: ranked = more than 5 completed events. When the
+    // season was (re)built from CSVs whose filenames carry event IDs
+    // (matchesevent<ID>round…), rivalry.attendance holds each player's
+    // distinct events and the gate uses the real count. Older data without
+    // attendance falls back to a proxy of 20+ decisive matches (~5 events
+    // at ~4 rounds each). Everyone still gets a rating — unranked players
+    // stay in the model fit so their results keep counting toward
+    // opponents' ratings — but only eligible players receive a ladder rank.
     var RANK_MIN_MATCHES = 20;
+    var RANK_MIN_EVENTS  = 6; // "more than 5 events completed"
+    var att = (pdSeason && pdSeason.attendance) || {};
+    var useEvents = Object.keys(att).length > 0;
     var out = {};
     players.forEach(function(p){
       var pw = winsMap[p] || {}, m = 0;
       Object.keys(opp[p]).forEach(function(q){ m += (pw[q] || 0) + ((winsMap[q] || {})[p] || 0); });
-      out[p] = { elo: 1500 + 400 * Math.log10(s[p]), matches: m, ranked: m >= RANK_MIN_MATCHES, rank: null, rankMin: RANK_MIN_MATCHES };
+      var ev = useEvents ? (att[p] || []).length : null;
+      out[p] = {
+        elo: 1500 + 400 * Math.log10(s[p]), matches: m, events: ev,
+        ranked: useEvents ? ev >= RANK_MIN_EVENTS : m >= RANK_MIN_MATCHES,
+        rank: null, gate: useEvents ? 'events' : 'matches',
+        rankMin: useEvents ? RANK_MIN_EVENTS : RANK_MIN_MATCHES
+      };
     });
     var rankedCount = 0;
     players.slice().sort(function(a, b){ return out[b].elo - out[a].elo; })
@@ -5587,13 +5634,17 @@ function swInitTab(){ swRenderSetup(); }
     pdShow('index');
     var ranked   = all.filter(function(t){ var e = pdEloMap[t.name]; return e && e.ranked; });
     var unranked = all.filter(function(t){ var e = pdEloMap[t.name]; return !e || !e.ranked; });
-    var rankMin = ranked.length ? pdEloMap[ranked[0].name].rankMin : 20;
+    var anyEntry = pdEloMap[all[0].name] || { gate:'matches', rankMin:20 };
+    var evGate = anyEntry.gate === 'events';
+    var rankMin = anyEntry.rankMin;
 
     function rowHtml(t, rankLabel, dim){
+      var e = pdEloMap[t.name];
       return '<tr class="pd-row" data-player="'+pdEsc(t.name)+'" style="cursor:pointer'+(dim?';opacity:0.55':'')+'">'+
         '<td class="c td-mono">'+rankLabel+'</td>'+
         '<td style="color:var(--gold-light)">'+pdEsc(t.name)+'</td>'+
         '<td class="c">'+pdEloCell(t.name)+'</td>'+
+        (evGate ? '<td class="c td-mono">'+(e && e.events != null ? e.events : '—')+'</td>' : '')+
         '<td class="c td-mono">'+t.matches+'</td>'+
         '<td class="c"><span class="rv-rec-w">'+t.mw+'W</span> – <span class="rv-rec-l">'+t.ml+'L</span></td>'+
         '<td class="c">'+pdPctCell(t.mw,t.ml)+'</td>'+
@@ -5602,19 +5653,25 @@ function swInitTab(){ swRenderSetup(); }
       '</tr>';
     }
     var head = '<tr><th class="c">#</th><th>Player</th><th class="c">Elo</th>'+
+      (evGate ? '<th class="c">Events</th>' : '')+
       '<th class="c">Matches</th><th class="c">Match Record</th><th class="c">Win %</th>'+
       '<th class="c">Games</th><th class="c">Opponents</th></tr>';
 
+    var gateDesc = evGate
+      ? 'ranked at '+rankMin+'+ completed events'
+      : 'ranked at '+rankMin+'+ decisive matches (≈ 5 completed events — re-upload CSVs with event IDs for exact counts)';
+    var unrankedDesc = evGate
+      ? 'Unranked — fewer than '+rankMin+' completed events'
+      : 'Unranked — fewer than '+rankMin+' decisive matches';
     var html =
       '<p style="font-size:0.72rem;color:rgba(245,237,214,0.3);font-style:italic;margin-bottom:10px">'+
-        'Elo — Bradley-Terry rating fit to the full season head-to-head record · 1500 = league average · '+
-        'ranked at '+rankMin+'+ decisive matches (≈ 5 completed events)</p>'+
+        'Elo — Bradley-Terry rating fit to the full season head-to-head record · 1500 = league average · '+gateDesc+'</p>'+
       '<table><thead>'+head+'</thead><tbody>'+
       ranked.map(function(t){ return rowHtml(t, pdEloMap[t.name].rank, false); }).join('')+
       '</tbody></table>';
     if(unranked.length){
       html += '<div style="margin:22px 0 8px;font-size:0.68rem;letter-spacing:0.12em;text-transform:uppercase;color:rgba(245,237,214,0.3);font-family:Cinzel,serif">'+
-        'Unranked — fewer than '+rankMin+' decisive matches ('+unranked.length+' players, rated but not on the ladder)</div>'+
+        unrankedDesc+' ('+unranked.length+' players, rated but not on the ladder)</div>'+
         '<table><thead>'+head+'</thead><tbody>'+
         unranked.map(function(t){ return rowHtml(t, '–', true); }).join('')+
         '</tbody></table>';
@@ -5696,7 +5753,10 @@ function swInitTab(){ swRenderSetup(); }
         (eloE ? tile('Elo Rating', Math.round(eloE.elo),
           eloE.ranked
             ? 'rank #'+eloE.rank+' of '+Object.keys(pdEloMap).filter(function(k){ return pdEloMap[k].ranked; }).length+' ranked'
-            : 'unranked — '+eloE.matches+' of '+eloE.rankMin+' decisive matches (≈5 events)') : '')+
+            : (eloE.gate === 'events'
+                ? 'unranked — '+eloE.events+' of '+eloE.rankMin+' events completed'
+                : 'unranked — '+eloE.matches+' of '+eloE.rankMin+' decisive matches (≈5 events)')) : '')+
+        (eloE && eloE.events != null ? tile('Events', eloE.events, 'completed') : '')+
         tile('Matches', tot.matches, draws ? draws+' unreported/draw' : '')+
         tile('Match Record', '<span class="rv-rec-w" style="font-size:1.05rem">'+tot.mw+'W</span> <span style="opacity:0.4">–</span> <span class="rv-rec-l" style="font-size:1.05rem">'+tot.ml+'L</span>', '')+
         tile('Match Win %', matchPct!=null ? matchPct+'%' : '—', '')+
