@@ -5520,21 +5520,30 @@ function swInitTab(){ swRenderSetup(); }
       s = next;
       if(delta < 1e-10) break;
     }
+    // Ladder eligibility: the h2h record has no per-event breakdown, so
+    // "more than 5 events completed" is proxied by decisive matches played
+    // (a league night is ~4 Swiss rounds → 5 events ≈ 20 matches). Everyone
+    // still gets a rating — unranked players stay in the model fit so their
+    // results keep counting toward opponents' ratings — but only eligible
+    // players receive a ladder rank.
+    var RANK_MIN_MATCHES = 20;
     var out = {};
     players.forEach(function(p){
       var pw = winsMap[p] || {}, m = 0;
       Object.keys(opp[p]).forEach(function(q){ m += (pw[q] || 0) + ((winsMap[q] || {})[p] || 0); });
-      out[p] = { elo: 1500 + 400 * Math.log10(s[p]), matches: m, provisional: m < 5 };
+      out[p] = { elo: 1500 + 400 * Math.log10(s[p]), matches: m, ranked: m >= RANK_MIN_MATCHES, rank: null, rankMin: RANK_MIN_MATCHES };
     });
+    var rankedCount = 0;
     players.slice().sort(function(a, b){ return out[b].elo - out[a].elo; })
-      .forEach(function(p, i){ out[p].rank = i + 1; });
+      .forEach(function(p){ if(out[p].ranked) out[p].rank = ++rankedCount; });
     return out;
   }
   function pdEloCell(p){
     var e = pdEloMap[p];
     if(!e) return '<span style="opacity:0.3">—</span>';
-    return '<span class="rv-score-gold">'+Math.round(e.elo)+'</span>'+
-      (e.provisional ? ' <span style="opacity:0.35;font-size:0.62rem">prov</span>' : '');
+    return e.ranked
+      ? '<span class="rv-score-gold">'+Math.round(e.elo)+'</span>'
+      : '<span style="font-family:Cinzel,serif;font-size:0.82rem;color:rgba(245,237,214,0.4)">'+Math.round(e.elo)+'</span>';
   }
 
   function pdTotals(){
@@ -5569,33 +5578,48 @@ function swInitTab(){ swRenderSetup(); }
 
   function pdRenderIndex(){
     pdSelected = null;
-    var rows = Object.values(pdTotals()).sort(function(a,b){
+    var all = Object.values(pdTotals()).sort(function(a,b){
       var ea = pdEloMap[a.name], eb = pdEloMap[b.name];
       return ((eb ? eb.elo : -1e9) - (ea ? ea.elo : -1e9)) || (b.matches - a.matches);
     });
-    if(!rows.length){ document.getElementById('pdIndex').innerHTML=''; pdShow('empty'); pdSetStatus(); return; }
+    if(!all.length){ document.getElementById('pdIndex').innerHTML=''; pdShow('empty'); pdSetStatus(); return; }
     pdSetStatus();
     pdShow('index');
-    document.getElementById('pdIndex').innerHTML =
+    var ranked   = all.filter(function(t){ var e = pdEloMap[t.name]; return e && e.ranked; });
+    var unranked = all.filter(function(t){ var e = pdEloMap[t.name]; return !e || !e.ranked; });
+    var rankMin = ranked.length ? pdEloMap[ranked[0].name].rankMin : 20;
+
+    function rowHtml(t, rankLabel, dim){
+      return '<tr class="pd-row" data-player="'+pdEsc(t.name)+'" style="cursor:pointer'+(dim?';opacity:0.55':'')+'">'+
+        '<td class="c td-mono">'+rankLabel+'</td>'+
+        '<td style="color:var(--gold-light)">'+pdEsc(t.name)+'</td>'+
+        '<td class="c">'+pdEloCell(t.name)+'</td>'+
+        '<td class="c td-mono">'+t.matches+'</td>'+
+        '<td class="c"><span class="rv-rec-w">'+t.mw+'W</span> – <span class="rv-rec-l">'+t.ml+'L</span></td>'+
+        '<td class="c">'+pdPctCell(t.mw,t.ml)+'</td>'+
+        '<td class="c td-mono" style="opacity:0.6">'+t.gw+'–'+t.gl+'</td>'+
+        '<td class="c td-mono">'+t.opponents+'</td>'+
+      '</tr>';
+    }
+    var head = '<tr><th class="c">#</th><th>Player</th><th class="c">Elo</th>'+
+      '<th class="c">Matches</th><th class="c">Match Record</th><th class="c">Win %</th>'+
+      '<th class="c">Games</th><th class="c">Opponents</th></tr>';
+
+    var html =
       '<p style="font-size:0.72rem;color:rgba(245,237,214,0.3);font-style:italic;margin-bottom:10px">'+
-        'Elo — Bradley-Terry rating fit to the full season head-to-head record · 1500 = league average · prov = under 5 decisive matches</p>'+
-      '<table><thead><tr>'+
-        '<th class="c">#</th><th>Player</th><th class="c">Elo</th>'+
-        '<th class="c">Matches</th><th class="c">Match Record</th><th class="c">Win %</th>'+
-        '<th class="c">Games</th><th class="c">Opponents</th>'+
-      '</tr></thead><tbody>'+
-      rows.map(function(t,i){
-        return '<tr class="pd-row" data-player="'+pdEsc(t.name)+'" style="cursor:pointer">'+
-          '<td class="c td-mono">'+(i+1)+'</td>'+
-          '<td style="color:var(--gold-light)">'+pdEsc(t.name)+'</td>'+
-          '<td class="c">'+pdEloCell(t.name)+'</td>'+
-          '<td class="c td-mono">'+t.matches+'</td>'+
-          '<td class="c"><span class="rv-rec-w">'+t.mw+'W</span> – <span class="rv-rec-l">'+t.ml+'L</span></td>'+
-          '<td class="c">'+pdPctCell(t.mw,t.ml)+'</td>'+
-          '<td class="c td-mono" style="opacity:0.6">'+t.gw+'–'+t.gl+'</td>'+
-          '<td class="c td-mono">'+t.opponents+'</td>'+
-        '</tr>';
-      }).join('')+'</tbody></table>';
+        'Elo — Bradley-Terry rating fit to the full season head-to-head record · 1500 = league average · '+
+        'ranked at '+rankMin+'+ decisive matches (≈ 5 completed events)</p>'+
+      '<table><thead>'+head+'</thead><tbody>'+
+      ranked.map(function(t){ return rowHtml(t, pdEloMap[t.name].rank, false); }).join('')+
+      '</tbody></table>';
+    if(unranked.length){
+      html += '<div style="margin:22px 0 8px;font-size:0.68rem;letter-spacing:0.12em;text-transform:uppercase;color:rgba(245,237,214,0.3);font-family:Cinzel,serif">'+
+        'Unranked — fewer than '+rankMin+' decisive matches ('+unranked.length+' players, rated but not on the ladder)</div>'+
+        '<table><thead>'+head+'</thead><tbody>'+
+        unranked.map(function(t){ return rowHtml(t, '–', true); }).join('')+
+        '</tbody></table>';
+    }
+    document.getElementById('pdIndex').innerHTML = html;
     document.getElementById('pdIndex').querySelectorAll('.pd-row').forEach(function(row){
       row.addEventListener('click', function(){ pdShowPlayer(row.dataset.player); });
     });
@@ -5669,7 +5693,10 @@ function swInitTab(){ swRenderSetup(); }
         '<button class="btn ghost" id="pdBack" style="width:auto;padding:7px 14px;font-size:0.7rem">← All Players</button>'+
       '</div>'+
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:16px">'+
-        (eloE ? tile('Elo Rating', Math.round(eloE.elo), 'rank #'+eloE.rank+' of '+Object.keys(pdEloMap).length+(eloE.provisional?' · provisional':'')) : '')+
+        (eloE ? tile('Elo Rating', Math.round(eloE.elo),
+          eloE.ranked
+            ? 'rank #'+eloE.rank+' of '+Object.keys(pdEloMap).filter(function(k){ return pdEloMap[k].ranked; }).length+' ranked'
+            : 'unranked — '+eloE.matches+' of '+eloE.rankMin+' decisive matches (≈5 events)') : '')+
         tile('Matches', tot.matches, draws ? draws+' unreported/draw' : '')+
         tile('Match Record', '<span class="rv-rec-w" style="font-size:1.05rem">'+tot.mw+'W</span> <span style="opacity:0.4">–</span> <span class="rv-rec-l" style="font-size:1.05rem">'+tot.ml+'L</span>', '')+
         tile('Match Win %', matchPct!=null ? matchPct+'%' : '—', '')+
