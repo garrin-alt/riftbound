@@ -1568,6 +1568,7 @@
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
               <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic">🌑 Proxy scoring for rivals who didn't meet — tracked entirely separately from Rivalry Points.</p>
               <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                <button class="btn ghost" id="rvClearShadowLb" style="width:auto;padding:7px 14px;font-size:0.7rem;border-color:rgba(192,57,43,0.3);color:#c0392b">🗑 Clear Shadow Leaderboard</button>
                 <button class="btn ghost" id="rvShadowExportCSV" style="width:auto;padding:7px 14px;font-size:0.7rem">⬇ Export CSV</button>
                 <button class="btn ghost" id="rvShadowExportImg" style="width:auto;padding:7px 14px;font-size:0.7rem">📸 Export Image</button>
                 <button class="btn ghost" id="rvRefreshShadowLb" style="width:auto;padding:7px 14px;font-size:0.7rem">↻ Load from Gist</button>
@@ -4868,8 +4869,32 @@ function swInitTab(){ swRenderSetup(); }
     if(el){ el.textContent = msg; el.style.color = color || 'rgba(245,237,214,0.3)'; }
   }
 
-  // Clear ONLY leaderboard data (rivalry points + event log) from the Gist.
-  // Season h2h history and saved pairings are untouched.
+  // Clear ONE ladder from the Gist, leaving the other intact. 'main' resets
+  // Rivalry Points (points, rival W/L, events logged) plus the event log;
+  // 'shadow' resets only Shadow Points/Wins/Draws. Season h2h history, saved
+  // pairings, attendance, and eloState are never touched. Entries with
+  // nothing left on either ladder are dropped entirely.
+  function rvClearLadder(kind){
+    var data = load();
+    if(!data.rivalry) return;
+    var rp = data.rivalry.rivalryPoints || {};
+    Object.keys(rp).forEach(function(p){
+      var e = rp[p];
+      if(kind === 'main'){
+        delete e.points; delete e.rivalWins; delete e.rivalLosses; delete e.eventsLogged;
+      } else {
+        delete e.shadowPoints; delete e.shadowWins; delete e.shadowDraws;
+      }
+      if(!(e.points || e.rivalWins || e.rivalLosses || e.eventsLogged ||
+           e.shadowPoints || e.shadowWins || e.shadowDraws)) delete rp[p];
+    });
+    data.rivalry.rivalryPoints = rp;
+    if(kind === 'main') data.rivalry.eventLog = [];
+    data.rivalry.updatedAt = new Date().toISOString();
+    save(data); // persists locally AND triggers syncToGist()
+    rvSavedSeasonData = data.rivalry;
+  }
+
   // Two-click confirm: first click arms it, second click (within 5s) executes.
   var clearLbBtn = document.getElementById('rvClearLeaderboard');
   var rvLbClearArmed = false;
@@ -4880,7 +4905,7 @@ function swInitTab(){ swRenderSetup(); }
     if(!rvLbClearArmed){
       rvLbClearArmed = true;
       clearLbBtn.textContent = '⚠ Click again to confirm';
-      rvSetLbStatus('Resets all Rivalry & Shadow Points + event log (h2h history kept)', '#c0392b');
+      rvSetLbStatus('Resets Rivalry Points + event log — Shadow Points and h2h history are kept', '#c0392b');
       setTimeout(function(){
         rvLbClearArmed = false;
         clearLbBtn.textContent = '🗑 Clear Leaderboard';
@@ -4891,30 +4916,44 @@ function swInitTab(){ swRenderSetup(); }
     rvLbClearArmed = false;
     clearLbBtn.textContent = '⟳ Clearing…';
     try {
-      var data = load();
-      if(data.rivalry){
-        data.rivalry.rivalryPoints = {};
-        data.rivalry.eventLog = [];
-        data.rivalry.updatedAt = new Date().toISOString();
-        save(data); // persists locally AND triggers syncToGist()
-        rvSavedSeasonData = data.rivalry;
-      }
-      var lbBody = document.getElementById('rvLeaderboardBody');
-      if(lbBody) lbBody.innerHTML = '';
-      var lbEmpty = document.getElementById('rvLeaderboardEmpty');
-      if(lbEmpty) lbEmpty.style.display = 'block';
-      var shWrap = document.getElementById('rvShadowLbWrap');
-      if(shWrap) shWrap.style.display = 'none';
-      var shBody = document.getElementById('rvShadowLbBody');
-      if(shBody) shBody.innerHTML = '';
-      var shEmpty = document.getElementById('rvShadowLbEmpty');
-      if(shEmpty) shEmpty.style.display = 'block';
+      rvClearLadder('main');
       clearLbBtn.textContent = '🗑 Clear Leaderboard';
-      rvSetLbStatus('✓ Leaderboard cleared', '#4caf50');
+      rvSetLbStatus('✓ Rivalry leaderboard cleared — Shadow kept', '#4caf50');
       setTimeout(function(){ rvSetLbStatus('',''); }, 3000);
+      rvLoadLeaderboard(); // re-render both ladders from the cleared state
     } catch(e){
       clearLbBtn.textContent = '🗑 Clear Leaderboard';
       rvSetLbStatus('✗ Clear failed', '#c0392b');
+    }
+  });
+
+  var clearShadowBtn = document.getElementById('rvClearShadowLb');
+  var rvShClearArmed = false;
+  if(clearShadowBtn) clearShadowBtn.addEventListener('click', function(){
+    if(typeof getToken==='function' && !getToken()){
+      clearShadowBtn.textContent = '⚠ No Gist token (Settings)';
+      setTimeout(function(){ clearShadowBtn.textContent = '🗑 Clear Shadow Leaderboard'; }, 2500);
+      return;
+    }
+    if(!rvShClearArmed){
+      rvShClearArmed = true;
+      clearShadowBtn.textContent = '⚠ Click again — resets Shadow only';
+      setTimeout(function(){
+        rvShClearArmed = false;
+        clearShadowBtn.textContent = '🗑 Clear Shadow Leaderboard';
+      }, 5000);
+      return;
+    }
+    rvShClearArmed = false;
+    clearShadowBtn.textContent = '⟳ Clearing…';
+    try {
+      rvClearLadder('shadow');
+      clearShadowBtn.textContent = '✓ Shadow cleared';
+      setTimeout(function(){ clearShadowBtn.textContent = '🗑 Clear Shadow Leaderboard'; }, 2500);
+      rvLoadLeaderboard(); // re-render both ladders from the cleared state
+    } catch(e){
+      clearShadowBtn.textContent = '✗ Clear failed — retry';
+      setTimeout(function(){ clearShadowBtn.textContent = '🗑 Clear Shadow Leaderboard'; }, 2500);
     }
   });
 
@@ -5093,6 +5132,7 @@ function swInitTab(){ swRenderSetup(); }
       var rows = entries.filter(function(r){ return r.points > 0 || r.w > 0 || r.l > 0 || r.ev > 0; })
         .sort(function(a,b){ return b.points - a.points; });
 
+      empty.style.display = rows.length ? 'none' : 'block';
       body.innerHTML = rows.map(function(r, i){
         return '<tr>'+
           '<td class="c td-mono">'+(i+1)+'</td>'+
