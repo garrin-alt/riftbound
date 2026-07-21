@@ -1,0 +1,278 @@
+<style>
+  :root{
+    --ink:#16110a; --ink-2:#1e1810; --ink-3:#241d12;
+    --gold:#c9922a; --gold-lt:#e8b84b; --gold-deep:#a9781f;
+    --parch:#f0e6cf; --parch-dim:rgba(240,230,207,0.58); --parch-faint:rgba(240,230,207,0.32);
+    --rust:#a5442099; --blood:#c65a34; --win:#5ec88a; --shadow:#a999d6; --shadow-deep:#6d5da0;
+    --line:rgba(201,146,42,0.22); --line-soft:rgba(201,146,42,0.12);
+    --serif:"Palatino Linotype","Book Antiqua",Palatino,Georgia,serif;
+    --engrave:Georgia,"Times New Roman",serif;
+    --mono:"Courier New",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  .vg-bg{position:fixed;inset:0;z-index:-2;background:var(--ink)}
+  .vg-bg::before{content:"";position:absolute;inset:0;
+    background:
+      radial-gradient(ellipse 80% 55% at 50% -8%, rgba(201,146,42,0.16), transparent 60%),
+      radial-gradient(ellipse 70% 50% at 50% 108%, rgba(109,93,160,0.10), transparent 60%),
+      repeating-linear-gradient(48deg, transparent 0 6px, rgba(201,146,42,0.014) 6px 7px);}
+  .vg{max-width:780px;margin:0 auto;padding:clamp(28px,6vw,64px) clamp(18px,5vw,40px) 72px;
+    font-family:var(--serif);color:var(--parch);line-height:1.68;
+    -webkit-font-smoothing:antialiased;font-size:clamp(1rem,0.96rem + 0.3vw,1.08rem)}
+
+  .eyebrow{font-family:var(--mono);font-size:0.68rem;letter-spacing:0.34em;text-transform:uppercase;
+    color:var(--gold);font-weight:700}
+  h1,h2,h3{font-family:var(--engrave);text-wrap:balance;font-weight:700;letter-spacing:0.02em}
+
+  /* ── MASTHEAD ── */
+  .mast{position:relative;text-align:center;border:1px solid var(--line);
+    padding:clamp(30px,6vw,52px) clamp(20px,5vw,44px);margin-bottom:16px}
+  .mast::after{content:"";position:absolute;inset:7px;border:1px solid var(--line-soft);pointer-events:none}
+  .mast .kicker{font-family:var(--mono);font-size:0.64rem;letter-spacing:0.4em;text-transform:uppercase;
+    color:var(--parch-faint);margin-bottom:20px}
+  .mast h1{font-size:clamp(2.5rem,8vw,4.3rem);letter-spacing:clamp(0.06em,2vw,0.16em);line-height:0.98;
+    color:var(--gold-lt);text-transform:uppercase;
+    text-shadow:0 1px 0 rgba(0,0,0,0.5),0 0 34px rgba(201,146,42,0.16)}
+  .mast .swords{display:block;font-size:1.5rem;color:var(--gold);margin:6px 0 2px;opacity:0.9}
+  .mast .deck{max-width:44ch;margin:20px auto 0;color:var(--parch-dim);font-size:1.05rem;font-style:italic}
+
+  /* heraldic divider */
+  .rule{display:flex;align-items:center;gap:16px;margin:clamp(40px,7vw,60px) 0 clamp(22px,4vw,30px)}
+  .rule::before,.rule::after{content:"";flex:1;height:1px;
+    background:linear-gradient(90deg,transparent,var(--line) 40%,var(--line) 60%,transparent)}
+  .rule span{font-size:0.85rem;color:var(--gold);letter-spacing:0.1em}
+
+  .lead{color:var(--parch-dim);font-size:1.06rem;max-width:60ch;margin:0 0 26px}
+  h2.sec{font-size:clamp(1.35rem,4.5vw,1.85rem);color:var(--parch);margin:4px 0 6px;line-height:1.15}
+  .sec-eye{margin-bottom:14px;display:block}
+  strong.g{color:var(--gold-lt);font-weight:700}
+  strong.v{color:var(--shadow);font-weight:700}
+
+  /* ── RIVAL GRADES ── */
+  .grades{display:grid;grid-template-columns:1fr;gap:12px}
+  @media(min-width:560px){.grades{grid-template-columns:repeat(3,1fr)}}
+  .grade{background:var(--ink-2);border:1px solid var(--line);border-top:2px solid var(--gd,var(--gold));
+    padding:20px 18px 22px}
+  .grade .glyph{font-size:1.55rem;line-height:1}
+  .grade h3{font-family:var(--mono);font-size:0.78rem;letter-spacing:0.16em;text-transform:uppercase;
+    color:var(--gd,var(--gold-lt));margin:12px 0 8px;font-weight:700}
+  .grade p{font-size:0.95rem;color:var(--parch-dim);line-height:1.55}
+
+  /* ── THE FORK ── */
+  .qbanner{text-align:center;border:1px solid var(--line);background:var(--ink-2);
+    padding:22px 24px;position:relative}
+  .qbanner .qk{font-family:var(--mono);font-size:0.64rem;letter-spacing:0.32em;text-transform:uppercase;
+    color:var(--parch-faint);margin-bottom:8px}
+  .qbanner .q{font-family:var(--engrave);font-size:clamp(1.15rem,3.6vw,1.5rem);color:var(--parch);
+    font-weight:700;letter-spacing:0.01em;line-height:1.25}
+  .stem{width:2px;height:26px;background:linear-gradient(var(--line),transparent);margin:0 auto}
+
+  .paths{display:grid;grid-template-columns:1fr;gap:14px}
+  @media(min-width:560px){.paths{grid-template-columns:1fr 1fr}}
+  .path{position:relative;background:var(--ink-2);border:1px solid var(--pc,var(--gold));
+    border-top-width:2px;padding:26px 22px 24px;text-align:center}
+  .path::before{content:"";position:absolute;top:-9px;left:50%;transform:translateX(-50%);
+    width:15px;height:15px;background:var(--ink-2);border-left:1px solid var(--pc,var(--gold));
+    border-top:1px solid var(--pc,var(--gold));rotate:45deg}
+  .path .answer{font-family:var(--mono);font-size:0.72rem;letter-spacing:0.2em;text-transform:uppercase;
+    color:var(--pc,var(--gold-lt));font-weight:700}
+  .path .sub{font-size:0.95rem;color:var(--parch-dim);margin:12px 0 0;line-height:1.5}
+  .path .pts{font-family:var(--engrave);font-weight:700;font-size:clamp(2.6rem,9vw,3.4rem);line-height:1;
+    color:var(--gold-lt);margin:16px 0 4px;font-variant-numeric:tabular-nums}
+  .path .plabel{font-family:var(--mono);font-size:0.66rem;letter-spacing:0.22em;text-transform:uppercase;
+    color:var(--gold);font-weight:700}
+  .path.shadow{border-color:var(--shadow-deep)}
+  .path.shadow::before{border-color:var(--shadow-deep)}
+  .path.shadow .answer{color:var(--shadow)}
+  .path.shadow .toshadow{font-family:var(--engrave);font-size:1.5rem;color:var(--shadow);margin:14px 0 2px}
+  .path.shadow .plabel{color:var(--shadow-deep)}
+  .fork-note{text-align:center;font-size:0.92rem;color:var(--parch-faint);font-style:italic;margin:18px auto 0;max-width:52ch}
+
+  /* ── SHADOW MATRIX ── */
+  .shadowwrap{border:1px solid var(--shadow-deep);border-left-width:2px;background:linear-gradient(180deg,rgba(109,93,160,0.09),transparent 70%);
+    padding:clamp(20px,4vw,30px)}
+  .matrix{display:flex;flex-direction:column;gap:10px;margin-top:20px}
+  .mrow{display:grid;grid-template-columns:1fr auto;align-items:center;gap:14px;
+    background:var(--ink-2);border:1px solid var(--line-soft);padding:14px 16px}
+  .mrow .case{font-size:0.98rem;line-height:1.4}
+  .mrow .you-w{color:var(--win);font-weight:700}
+  .mrow .you-l{color:var(--blood);font-weight:700}
+  .mrow .rival{color:var(--parch-dim)}
+  .badge{font-family:var(--engrave);font-weight:700;font-size:1.4rem;white-space:nowrap;
+    padding:6px 15px;border:1px solid var(--shadow-deep);color:var(--shadow);
+    font-variant-numeric:tabular-nums;min-width:104px;text-align:center}
+  .badge.zero{color:var(--parch-faint);border-color:var(--line-soft)}
+  .badge .u{font-family:var(--mono);font-size:0.6rem;letter-spacing:0.14em;display:block;
+    text-transform:uppercase;margin-top:2px;color:inherit;opacity:0.8;font-weight:700}
+
+  /* ── EDGE CASES ── */
+  .edges{display:grid;grid-template-columns:1fr;gap:12px}
+  @media(min-width:560px){.edges{grid-template-columns:1fr 1fr}}
+  .edge{background:var(--ink-2);border:1px solid var(--line);padding:18px 18px 20px}
+  .edge h3{font-family:var(--mono);font-size:0.76rem;letter-spacing:0.14em;text-transform:uppercase;
+    color:var(--gold-lt);margin-bottom:8px;font-weight:700}
+  .edge p{font-size:0.94rem;color:var(--parch-dim);line-height:1.55}
+  .edge.dim h3{color:var(--parch-dim)}
+
+  /* ── LADDERS ── */
+  .ladders{display:grid;grid-template-columns:1fr;gap:14px}
+  @media(min-width:560px){.ladders{grid-template-columns:1fr 1fr}}
+  .ladder{border:1px solid var(--lc,var(--gold));border-top-width:2px;background:var(--ink-2);padding:22px 20px 24px}
+  .ladder .lg{font-size:1.5rem;line-height:1}
+  .ladder h3{font-family:var(--engrave);font-size:1.12rem;color:var(--lc,var(--gold-lt));margin:10px 0 8px;
+    text-transform:uppercase;letter-spacing:0.08em}
+  .ladder p{font-size:0.95rem;color:var(--parch-dim);line-height:1.55}
+  .ladder.sh{--lc:var(--shadow)}
+  .ladders-note{grid-column:1/-1;text-align:center;font-style:italic;color:var(--parch-faint);
+    font-size:0.95rem;margin-top:4px}
+
+  /* ── OUTRO ── */
+  .outro{text-align:center;margin-top:clamp(44px,8vw,68px);padding-top:28px;border-top:1px solid var(--line-soft)}
+  .outro .cry{font-family:var(--engrave);font-size:clamp(1.2rem,4vw,1.6rem);color:var(--gold-lt);
+    letter-spacing:0.08em;font-weight:700}
+  .outro .sig{font-family:var(--mono);font-size:0.62rem;letter-spacing:0.34em;text-transform:uppercase;
+    color:var(--parch-faint);margin-top:14px}
+
+  /* transform-only entrance — opacity stays 1 so text is never caught dim */
+  .reveal{transform:translateY(12px);animation:rise 0.6s cubic-bezier(0.2,0.7,0.2,1) forwards}
+  @keyframes rise{to{transform:none}}
+  @media(prefers-reduced-motion:reduce){.reveal{animation:none;transform:none}}
+</style>
+
+<div class="vg-bg"></div>
+<div class="vg">
+
+  <header class="mast reveal">
+    <div class="kicker">Gulf Nexus League · Riftbound</div>
+    <h1>The Vendetta</h1>
+    <span class="swords">&#9876;</span>
+    <p class="deck">Every match you've ever played is on the record. Each event it names your enemy — and hands you two ways to make them pay.</p>
+  </header>
+
+  <div class="rule"><span>&#9876;</span></div>
+
+  <!-- WHO YOU FIGHT -->
+  <section class="reveal">
+    <span class="eyebrow sec-eye">Who you fight</span>
+    <h2 class="sec">You don't pick your rival. The record does.</h2>
+    <p class="lead">Before each event the system reads your full match history and assigns you a <strong class="g">Vendetta</strong> — the fiercest matchup it can find among the players in the room. It arrives in one of three grades.</p>
+    <div class="grades">
+      <div class="grade" style="--gd:var(--blood)">
+        <div class="glyph">&#128293;</div>
+        <h3>Sworn Rivals</h3>
+        <p>You've clashed again and again. The history runs deep and the score is never settled.</p>
+      </div>
+      <div class="grade" style="--gd:var(--gold)">
+        <div class="glyph">&#129656;</div>
+        <h3>Bad Blood</h3>
+        <p>Some history between you — the best grudge available among today's field.</p>
+      </div>
+      <div class="grade" style="--gd:var(--shadow-deep)">
+        <div class="glyph">&#127922;</div>
+        <h3>New Blood</h3>
+        <p>No history yet. A fresh rivalry, drawn at random, waiting to be written.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="rule"><span>&#9876;</span></div>
+
+  <!-- THE FORK -->
+  <section class="reveal">
+    <span class="eyebrow sec-eye">How you score</span>
+    <h2 class="sec">One question decides everything.</h2>
+    <p class="lead">Come event day, whether you earn <strong class="g">Reckoning Points (RP)</strong> or <strong class="v">Shadow Points (SP)</strong> turns on a single fact:</p>
+
+    <div class="qbanner">
+      <div class="qk">The Fork</div>
+      <div class="q">Did you face your Vendetta at the table?</div>
+    </div>
+    <div class="stem"></div>
+
+    <div class="paths">
+      <div class="path" style="--pc:var(--gold)">
+        <div class="answer">Yes &middot; you met</div>
+        <div class="pts">+2</div>
+        <div class="plabel">Reckoning &middot; RP</div>
+        <p class="sub">Beat them and settle the grudge. Swiss round or Top Cut — every meeting between rivals counts, every time.</p>
+      </div>
+      <div class="path shadow">
+        <div class="answer">No &middot; you didn't</div>
+        <div class="toshadow">&#127769;</div>
+        <div class="plabel">Into the Shadow</div>
+        <p class="sub">Pairings sent you elsewhere, or your rival dropped or never came. You're still scored — by proxy.</p>
+      </div>
+    </div>
+    <p class="fork-note">Pairings rarely sit you straight across from your rival — so the Shadow does most of the work all season.</p>
+  </section>
+
+  <div class="rule"><span>&#9876;</span></div>
+
+  <!-- THE SHADOW -->
+  <section class="reveal">
+    <span class="eyebrow sec-eye" style="color:var(--shadow)">The Shadow</span>
+    <h2 class="sec">When you can't meet, the Shadow still watches.</h2>
+    <p class="lead">You didn't play your rival this round — but you both played <em>someone</em>. The Shadow scores you against how your rival did in the same round.</p>
+    <div class="shadowwrap">
+      <div class="matrix">
+        <div class="mrow">
+          <div class="case"><span class="you-w">You win</span> your round <span class="rival">&mdash; and your rival loses, draws, or isn't there</span></div>
+          <div class="badge">+2<span class="u">SP</span></div>
+        </div>
+        <div class="mrow">
+          <div class="case"><span class="you-w">You both win</span> <span class="rival">&mdash; matched strength, honours even</span></div>
+          <div class="badge">+1<span class="u">each</span></div>
+        </div>
+        <div class="mrow">
+          <div class="case"><span class="you-l">You lose or draw</span> <span class="rival">&mdash; the Shadow rewards nothing</span></div>
+          <div class="badge zero">0<span class="u">nothing</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="rule"><span>&#9876;</span></div>
+
+  <!-- EDGE CASES -->
+  <section class="reveal">
+    <span class="eyebrow sec-eye">Two things worth knowing</span>
+    <div class="edges">
+      <div class="edge">
+        <h3>&#127967; No rival in the room? Duel the field.</h3>
+        <p>If the field is odd and you're left without a Vendetta — or you rolled in late — a clean round win still earns you <strong class="v">+2 Shadow</strong>. Show up early and prepared and you're given a real rival; latecomers fight the field.</p>
+      </div>
+      <div class="edge dim">
+        <h3>&#9995; Byes never score.</h3>
+        <p>A bye isn't a fight. It earns no Reckoning Points (RP) and no Shadow Points (SP) — for you or your rival. Only battles at the table move the boards.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="rule"><span>&#9876;</span></div>
+
+  <!-- LADDERS -->
+  <section class="reveal">
+    <span class="eyebrow sec-eye">Where it all lands</span>
+    <h2 class="sec">Two boards. Two crowns.</h2>
+    <p class="lead">Your two kinds of points are ranked entirely separately — a rival who never meets you at the table can still be hunting you in the Shadow.</p>
+    <div class="ladders">
+      <div class="ladder">
+        <div class="lg">&#9876;</div>
+        <h3>The Reckoning</h3>
+        <p>Points won face to face, against the Vendetta you were handed. The record of grudges settled in the open.</p>
+      </div>
+      <div class="ladder sh">
+        <div class="lg">&#127769;</div>
+        <h3>The Shadows</h3>
+        <p>The proxy war — every round you outlasted a rival you never got to face. Tracked and crowned on its own.</p>
+      </div>
+      <p class="ladders-note">Chase both. The best rivals top them together.</p>
+    </div>
+  </section>
+
+  <div class="outro reveal">
+    <div class="cry">&#9876; May the best rival win &#9876;</div>
+    <div class="sig">Riftbound &middot; Gulf Nexus League</div>
+  </div>
+
+</div>
