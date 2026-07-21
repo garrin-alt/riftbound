@@ -1401,8 +1401,8 @@
             <div class="rv-tab" data-rvtab="h2h">Head-to-Head</div>
             <div class="rv-tab" data-rvtab="pairings">Suggested Pairings</div>
             <div class="rv-tab" data-rvtab="eventday">⚔ Event Day</div>
-            <div class="rv-tab" data-rvtab="leaderboard">🏆 Leaderboard</div>
-            <div class="rv-tab" data-rvtab="shadowlb">🌑 Shadow</div>
+            <div class="rv-tab" data-rvtab="leaderboard">⚔ Vendetta Ledger</div>
+            <div class="rv-tab" data-rvtab="shadowlb">🌑 Shadow Board</div>
           </div>
 
           <!-- Rankings -->
@@ -1534,10 +1534,10 @@
           <!-- LEADERBOARD -->
           <div class="rv-tab-panel" id="rvtab-leaderboard">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-              <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic">Cumulative Rivalry Points across the whole season.</p>
+              <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic"><strong style="color:var(--gold-light);font-style:normal">⚔ Vendetta Ledger</strong> — cumulative Rivalry Points across the whole season.</p>
               <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                 <span id="rvLbStatus" style="font-size:0.72rem;color:rgba(245,237,214,0.3)"></span>
-                <button class="btn ghost" id="rvClearLeaderboard" style="width:auto;padding:7px 14px;font-size:0.7rem;border-color:rgba(192,57,43,0.3);color:#c0392b">🗑 Clear Leaderboard</button>
+                <button class="btn ghost" id="rvClearLeaderboard" style="width:auto;padding:7px 14px;font-size:0.7rem;border-color:rgba(192,57,43,0.3);color:#c0392b">🗑 Clear Vendetta Ledger</button>
                 <button class="btn ghost" id="rvLbExportCSV" style="width:auto;padding:7px 14px;font-size:0.7rem">⬇ Export CSV</button>
                 <button class="btn ghost" id="rvLbExportImg" style="width:auto;padding:7px 14px;font-size:0.7rem">📸 Export Image</button>
                 <button class="btn ghost" id="rvRefreshLeaderboard" style="width:auto;padding:7px 14px;font-size:0.7rem">↻ Load from Gist</button>
@@ -1558,7 +1558,7 @@
             </table>
             <div id="rvLeaderboardEmpty" class="rv-empty" style="display:none">
               <div class="rv-empty-icon">🏆</div>
-              No Rivalry Points recorded yet — process event results to populate the leaderboard
+              No Rivalry Points recorded yet — process event results to populate the Vendetta Ledger
             </div>
 
           </div>
@@ -1566,9 +1566,9 @@
           <!-- SHADOW LEADERBOARD (separate tab) -->
           <div class="rv-tab-panel" id="rvtab-shadowlb">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-              <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic">🌑 Proxy scoring for rivals who didn't meet — tracked entirely separately from Rivalry Points.</p>
+              <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic"><strong style="color:#b3a3e0;font-style:normal">🌑 Shadow Board</strong> — proxy scoring for rivals who didn't meet, tracked entirely separately from the Vendetta Ledger.</p>
               <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-                <button class="btn ghost" id="rvClearShadowLb" style="width:auto;padding:7px 14px;font-size:0.7rem;border-color:rgba(192,57,43,0.3);color:#c0392b">🗑 Clear Shadow Leaderboard</button>
+                <button class="btn ghost" id="rvClearShadowLb" style="width:auto;padding:7px 14px;font-size:0.7rem;border-color:rgba(192,57,43,0.3);color:#c0392b">🗑 Clear Shadow Board</button>
                 <button class="btn ghost" id="rvShadowExportCSV" style="width:auto;padding:7px 14px;font-size:0.7rem">⬇ Export CSV</button>
                 <button class="btn ghost" id="rvShadowExportImg" style="width:auto;padding:7px 14px;font-size:0.7rem">📸 Export Image</button>
                 <button class="btn ghost" id="rvRefreshShadowLb" style="width:auto;padding:7px 14px;font-size:0.7rem">↻ Load from Gist</button>
@@ -1590,7 +1590,7 @@
             </div>
             <div id="rvShadowLbEmpty" class="rv-empty" style="display:none">
               <div class="rv-empty-icon">🌑</div>
-              No Shadow Points recorded yet — process event results to populate the shadow leaderboard
+              No Shadow Points recorded yet — process event results to populate the Shadow Board
             </div>
           </div>
         </div>
@@ -4905,10 +4905,10 @@ function swInitTab(){ swRenderSetup(); }
     if(!rvLbClearArmed){
       rvLbClearArmed = true;
       clearLbBtn.textContent = '⚠ Click again to confirm';
-      rvSetLbStatus('Resets Rivalry Points + event log — Shadow Points and h2h history are kept', '#c0392b');
+      rvSetLbStatus('Resets the Vendetta Ledger (Rivalry Points + event log) — the Shadow Board and h2h history are kept', '#c0392b');
       setTimeout(function(){
         rvLbClearArmed = false;
-        clearLbBtn.textContent = '🗑 Clear Leaderboard';
+        clearLbBtn.textContent = '🗑 Clear Vendetta Ledger';
         rvSetLbStatus('','');
       }, 5000);
       return;
@@ -4917,12 +4917,12 @@ function swInitTab(){ swRenderSetup(); }
     clearLbBtn.textContent = '⟳ Clearing…';
     try {
       rvClearLadder('main');
-      clearLbBtn.textContent = '🗑 Clear Leaderboard';
-      rvSetLbStatus('✓ Rivalry leaderboard cleared — Shadow kept', '#4caf50');
+      clearLbBtn.textContent = '🗑 Clear Vendetta Ledger';
+      rvSetLbStatus('✓ Vendetta Ledger cleared — Shadow Board kept', '#4caf50');
       setTimeout(function(){ rvSetLbStatus('',''); }, 3000);
       rvLoadLeaderboard(); // re-render both ladders from the cleared state
     } catch(e){
-      clearLbBtn.textContent = '🗑 Clear Leaderboard';
+      clearLbBtn.textContent = '🗑 Clear Vendetta Ledger';
       rvSetLbStatus('✗ Clear failed', '#c0392b');
     }
   });
@@ -4932,15 +4932,15 @@ function swInitTab(){ swRenderSetup(); }
   if(clearShadowBtn) clearShadowBtn.addEventListener('click', function(){
     if(typeof getToken==='function' && !getToken()){
       clearShadowBtn.textContent = '⚠ No Gist token (Settings)';
-      setTimeout(function(){ clearShadowBtn.textContent = '🗑 Clear Shadow Leaderboard'; }, 2500);
+      setTimeout(function(){ clearShadowBtn.textContent = '🗑 Clear Shadow Board'; }, 2500);
       return;
     }
     if(!rvShClearArmed){
       rvShClearArmed = true;
-      clearShadowBtn.textContent = '⚠ Click again — resets Shadow only';
+      clearShadowBtn.textContent = '⚠ Click again — resets Shadow Board only';
       setTimeout(function(){
         rvShClearArmed = false;
-        clearShadowBtn.textContent = '🗑 Clear Shadow Leaderboard';
+        clearShadowBtn.textContent = '🗑 Clear Shadow Board';
       }, 5000);
       return;
     }
@@ -4949,11 +4949,11 @@ function swInitTab(){ swRenderSetup(); }
     try {
       rvClearLadder('shadow');
       clearShadowBtn.textContent = '✓ Shadow cleared';
-      setTimeout(function(){ clearShadowBtn.textContent = '🗑 Clear Shadow Leaderboard'; }, 2500);
+      setTimeout(function(){ clearShadowBtn.textContent = '🗑 Clear Shadow Board'; }, 2500);
       rvLoadLeaderboard(); // re-render both ladders from the cleared state
     } catch(e){
       clearShadowBtn.textContent = '✗ Clear failed — retry';
-      setTimeout(function(){ clearShadowBtn.textContent = '🗑 Clear Shadow Leaderboard'; }, 2500);
+      setTimeout(function(){ clearShadowBtn.textContent = '🗑 Clear Shadow Board'; }, 2500);
     }
   });
 
@@ -4980,7 +4980,7 @@ function swInitTab(){ swRenderSetup(); }
       : ['Rank,Player,Rivalry Pts,Rival Wins,Rival Losses,Current Rival,Events Logged'].concat(rows.map(function(r,i){
           return [i+1, rvCsvCell(r.player), r.points, r.w, r.l, rvCsvCell(r.rival), r.ev].join(',');
         }));
-    rvDownloadFile(URL.createObjectURL(new Blob([out.join('\n')],{type:'text/csv'})), 'gnl-'+(kind==='shadow'?'shadow':'rivalry')+'-leaderboard.csv');
+    rvDownloadFile(URL.createObjectURL(new Blob([out.join('\n')],{type:'text/csv'})), 'gnl-'+(kind==='shadow'?'shadow-board':'vendetta-ledger')+'.csv');
     return true;
   }
 
@@ -5017,7 +5017,7 @@ function swInitTab(){ swRenderSetup(); }
     x.fillText('R I F T B O U N D   L E A G U E', S/2, 118);
     x.fillStyle = accent;
     x.font = '700 58px Cinzel, Georgia, serif';
-    x.fillText(kind === 'shadow' ? '🌑 SHADOW LEADERBOARD' : '⚔ RIVALRY LEADERBOARD', S/2, 196);
+    x.fillText(kind === 'shadow' ? '🌑 SHADOW BOARD' : '⚔ VENDETTA LEDGER', S/2, 196);
     var dg = x.createLinearGradient(S/2-220,0,S/2+220,0);
     dg.addColorStop(0, accentRGBA+'0)'); dg.addColorStop(0.5, accentRGBA+'0.9)'); dg.addColorStop(1, accentRGBA+'0)');
     x.fillStyle = dg; x.fillRect(S/2-220,222,440,2);
@@ -5070,7 +5070,7 @@ function swInitTab(){ swRenderSetup(); }
 
     return new Promise(function(resolve){
       c.toBlob(function(blob){
-        rvDownloadFile(URL.createObjectURL(blob), 'gnl-'+(kind==='shadow'?'shadow':'rivalry')+'-leaderboard.png');
+        rvDownloadFile(URL.createObjectURL(blob), 'gnl-'+(kind==='shadow'?'shadow-board':'vendetta-ledger')+'.png');
         resolve(true);
       }, 'image/png');
     });
@@ -5540,8 +5540,8 @@ function swInitTab(){ swRenderSetup(); }
         lines.push((i+1)+'. *'+r.player+'* — '+r.pts+' pts'+(r.delta > 0 ? ' _(+'+r.delta+deltaLabel+')_' : ''));
       });
     }
-    ladderBlock('⚔ *Vendetta Leaderboard*', rep.vendettaLadder, ' this event');
-    ladderBlock('🌑 *Shadow Leaderboard*', rep.shadowLadder, '');
+    ladderBlock('⚔ *Vendetta Ledger*', rep.vendettaLadder, ' this event');
+    ladderBlock('🌑 *Shadow Board*', rep.shadowLadder, '');
 
     lines.push('');
     lines.push('🔥 *Highlights*');
@@ -5572,13 +5572,13 @@ function swInitTab(){ swRenderSetup(); }
     out.push('Vendettas Settled,'+rep.settled.length);
     if(rep.lateEntrants.length) out.push('Late Entrants (shadow-only),'+rvCsvCell(rep.lateEntrants.join(', ')));
     out.push('');
-    out.push('VENDETTA LEADERBOARD');
+    out.push('VENDETTA LEDGER');
     out.push('Rank,Player,Points,Event Delta,Rival Wins,Rival Losses,Events Logged');
     rep.vendettaLadder.forEach(function(r, i){
       out.push([i+1, rvCsvCell(r.player), r.pts, r.delta, r.entry.rivalWins||0, r.entry.rivalLosses||0, r.entry.eventsLogged||0].join(','));
     });
     out.push('');
-    out.push('SHADOW LEADERBOARD');
+    out.push('SHADOW BOARD');
     out.push('Rank,Player,Shadow Points,Event Delta,Shadow Wins,Shadow Draws');
     rep.shadowLadder.forEach(function(r, i){
       out.push([i+1, rvCsvCell(r.player), r.pts, r.delta, r.entry.shadowWins||0, r.entry.shadowDraws||0].join(','));
