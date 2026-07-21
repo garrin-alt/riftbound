@@ -1401,8 +1401,10 @@
             <div class="rv-tab" data-rvtab="h2h">Head-to-Head</div>
             <div class="rv-tab" data-rvtab="pairings">Suggested Pairings</div>
             <div class="rv-tab" data-rvtab="eventday">⚔ Event Day</div>
-            <div class="rv-tab" data-rvtab="leaderboard">⚔ Vendetta Ledger</div>
-            <div class="rv-tab" data-rvtab="shadowlb">🌑 Shadow Board</div>
+            <div class="rv-tab" data-rvtab="leaderboard">⚔ The Reckoning</div>
+            <div class="rv-tab" data-rvtab="shadowlb">🌑 The Shadows</div>
+            <!-- Board/point display names are also published to the gist (rivalry.display) so a public site can read them -->
+
           </div>
 
           <!-- Rankings -->
@@ -1477,10 +1479,10 @@
 
             <div id="rvRecordResultsWrap" style="display:none;margin-top:22px">
               <div class="card">
-                <div class="card-label">🏆 Record Results &amp; Award Rivalry Points</div>
+                <div class="card-label">🏆 Record Results &amp; Award Reckoning Points</div>
                 <p style="font-size:0.74rem;color:rgba(245,237,214,0.4);margin-bottom:10px;line-height:1.5">
-                  Upload a round's results CSV. Any match between declared Vendettas (above) earns the winner Rivalry Points — <strong style="color:rgba(245,237,214,0.6)">+2 per rivalry win (Swiss and Top Cut/Knockouts alike)</strong>. You can upload multiple rounds from the same event one at a time (e.g. Swiss round 3, then later the Top 8 bracket) — points stack each time the rivalry meets again.
-                  <br/><span style="color:#9b8cc4">🌑 Shadow Points:</span> rivals who <em>don't</em> meet are scored by proxy from their own matches — win while your rival doesn't = <strong style="color:rgba(245,237,214,0.6)">+2 shadow</strong>, both win = <strong style="color:rgba(245,237,214,0.6)">+1 each</strong>, lose or draw = 0. A dropped or absent rival counts as "didn't win", and the odd player out with no vendetta duels <em>the field</em> — their wins earn +2 shadow too. <strong style="color:rgba(245,237,214,0.6)">Byes never earn points.</strong>
+                  Upload a round's results CSV. Any match between declared Vendettas (above) earns the winner Reckoning Points (RP) — <strong style="color:rgba(245,237,214,0.6)">+2 per Reckoning win (Swiss and Top Cut/Knockouts alike)</strong>. You can upload multiple rounds from the same event one at a time (e.g. Swiss round 3, then later the Top 8 bracket) — points stack each time the rivalry meets again.
+                  <br/><span style="color:#9b8cc4">🌑 Shadow Points (SP):</span> rivals who <em>don't</em> meet are scored by proxy from their own matches — win while your rival doesn't = <strong style="color:rgba(245,237,214,0.6)">+2 shadow</strong>, both win = <strong style="color:rgba(245,237,214,0.6)">+1 each</strong>, lose or draw = 0. A dropped or absent rival counts as "didn't win", and the odd player out with no vendetta duels <em>the field</em> — their wins earn +2 shadow too. <strong style="color:rgba(245,237,214,0.6)">Byes never earn points.</strong>
                 </p>
                 <div style="display:flex;gap:14px;margin-bottom:12px">
                   <label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:rgba(245,237,214,0.6);cursor:pointer">
@@ -1534,10 +1536,10 @@
           <!-- LEADERBOARD -->
           <div class="rv-tab-panel" id="rvtab-leaderboard">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-              <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic"><strong style="color:var(--gold-light);font-style:normal">⚔ Vendetta Ledger</strong> — cumulative Rivalry Points across the whole season.</p>
+              <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic"><strong style="color:var(--gold-light);font-style:normal">⚔ The Reckoning</strong> — cumulative Reckoning Points (RP) across the whole season.</p>
               <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                 <span id="rvLbStatus" style="font-size:0.72rem;color:rgba(245,237,214,0.3)"></span>
-                <button class="btn ghost" id="rvClearLeaderboard" style="width:auto;padding:7px 14px;font-size:0.7rem;border-color:rgba(192,57,43,0.3);color:#c0392b">🗑 Clear Vendetta Ledger</button>
+                <button class="btn ghost" id="rvClearLeaderboard" style="width:auto;padding:7px 14px;font-size:0.7rem;border-color:rgba(192,57,43,0.3);color:#c0392b">🗑 Clear The Reckoning</button>
                 <button class="btn ghost" id="rvLbExportCSV" style="width:auto;padding:7px 14px;font-size:0.7rem">⬇ Export CSV</button>
                 <button class="btn ghost" id="rvLbExportImg" style="width:auto;padding:7px 14px;font-size:0.7rem">📸 Export Image</button>
                 <button class="btn ghost" id="rvRefreshLeaderboard" style="width:auto;padding:7px 14px;font-size:0.7rem">↻ Load from Gist</button>
@@ -1548,7 +1550,7 @@
                 <tr>
                   <th class="c">Rank</th>
                   <th>Player</th>
-                  <th class="c">Rivalry Pts</th>
+                  <th class="c">Reckoning Pts (RP)</th>
                   <th class="c">Rival Record (W-L)</th>
                   <th>Current Rival</th>
                   <th class="c">Events Logged</th>
@@ -1558,7 +1560,7 @@
             </table>
             <div id="rvLeaderboardEmpty" class="rv-empty" style="display:none">
               <div class="rv-empty-icon">🏆</div>
-              No Rivalry Points recorded yet — process event results to populate the Vendetta Ledger
+              No Reckoning Points recorded yet — process event results to populate The Reckoning
             </div>
 
           </div>
@@ -1566,9 +1568,9 @@
           <!-- SHADOW LEADERBOARD (separate tab) -->
           <div class="rv-tab-panel" id="rvtab-shadowlb">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-              <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic"><strong style="color:#b3a3e0;font-style:normal">🌑 Shadow Board</strong> — proxy scoring for rivals who didn't meet, tracked entirely separately from the Vendetta Ledger.</p>
+              <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic"><strong style="color:#b3a3e0;font-style:normal">🌑 The Shadows</strong> — proxy scoring for rivals who didn't meet, tracked entirely separately from The Reckoning.</p>
               <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-                <button class="btn ghost" id="rvClearShadowLb" style="width:auto;padding:7px 14px;font-size:0.7rem;border-color:rgba(192,57,43,0.3);color:#c0392b">🗑 Clear Shadow Board</button>
+                <button class="btn ghost" id="rvClearShadowLb" style="width:auto;padding:7px 14px;font-size:0.7rem;border-color:rgba(192,57,43,0.3);color:#c0392b">🗑 Clear The Shadows</button>
                 <button class="btn ghost" id="rvShadowExportCSV" style="width:auto;padding:7px 14px;font-size:0.7rem">⬇ Export CSV</button>
                 <button class="btn ghost" id="rvShadowExportImg" style="width:auto;padding:7px 14px;font-size:0.7rem">📸 Export Image</button>
                 <button class="btn ghost" id="rvRefreshShadowLb" style="width:auto;padding:7px 14px;font-size:0.7rem">↻ Load from Gist</button>
@@ -1580,7 +1582,7 @@
                   <tr>
                     <th class="c">Rank</th>
                     <th>Player</th>
-                    <th class="c">Shadow Pts</th>
+                    <th class="c">Shadow Pts (SP)</th>
                     <th class="c">Shadow Record (W-D)</th>
                     <th>Current Rival</th>
                   </tr>
@@ -1590,7 +1592,7 @@
             </div>
             <div id="rvShadowLbEmpty" class="rv-empty" style="display:none">
               <div class="rv-empty-icon">🌑</div>
-              No Shadow Points recorded yet — process event results to populate the Shadow Board
+              No Shadow Points recorded yet — process event results to populate The Shadows
             </div>
           </div>
         </div>
@@ -1777,6 +1779,16 @@ function save(d) {
   localStorage.setItem(key, JSON.stringify(d));
   syncToGist(d);
 }
+
+// Public-facing display names for the two rivalry ladders, written into the
+// gist as data.rivalry.display so a public site pulling the gist knows what to
+// call each board and which rivalryPoints field backs each currency. Display
+// only — the stored data keys (rivalryPoints, points, shadowPoints) are unchanged.
+var RV_DISPLAY = {
+  reckoning: { board: 'The Reckoning', points: 'Reckoning Points', abbr: 'RP', field: 'points',       desc: 'Points won facing your declared Vendetta at the table.' },
+  shadow:    { board: 'The Shadows',   points: 'Shadow Points',    abbr: 'SP', field: 'shadowPoints', desc: 'Proxy points for rounds a rival did not meet you at the table.' }
+};
+function rvStampDisplay(rivalry) { if (rivalry) rivalry.display = RV_DISPLAY; return rivalry; }
 
 function setSyncStatus(msg, color) {
   const el = document.getElementById('syncStatus');
@@ -4057,6 +4069,7 @@ function swInitTab(){ swRenderSetup(); }
         // Saving a re-render of the saved season (no fresh analyze) must not wipe attendance
         attendance: Object.keys(attendanceOut).length ? attendanceOut : (prior.attendance || {}),
         activeVendetta: prior.activeVendetta || null,
+        display: RV_DISPLAY,
         updatedAt: new Date().toISOString()
       };
       // A full analyzer save redefines the backfill: re-freeze the Elo baseline
@@ -4350,6 +4363,7 @@ function swInitTab(){ swRenderSetup(); }
           unmatched: unmatched
         };
         data.rivalry = rivalry;
+        rvStampDisplay(rivalry);
         rvSavedSeasonData = rivalry;
         save(data); // persists locally AND syncs to the Gist
         btn.textContent = '✓ Vendetta declared';
@@ -4400,7 +4414,7 @@ function swInitTab(){ swRenderSetup(); }
       lines.push('🕳️ _No vendetta today: '+unmatched.join(', ')+' — they duel the field. Wins still score Shadow._');
     }
     lines.push('');
-    lines.push('Win your vendetta match for *+2 Rivalry Points*.');
+    lines.push('Win your vendetta match for *+2 Reckoning Points (RP)*.');
     lines.push("Can't meet your rival? The 🌑 *Shadow* is watching.");
     lines.push('');
     lines.push('_May the best rival win._ 🏆');
@@ -4518,7 +4532,7 @@ function swInitTab(){ swRenderSetup(); }
     x.textAlign = 'center';
     x.fillStyle = parch+'0.42)';
     x.font = '22px "Crimson Pro", Georgia, serif';
-    x.fillText('Settle the score — +2 Rivalry Points to the victor', W/2, H-96);
+    x.fillText('Settle the score — +2 Reckoning Points (RP) to the victor', W/2, H-96);
     x.fillStyle = parch+'0.3)';
     x.font = 'italic 24px "Crimson Pro", Georgia, serif';
     x.fillText('— May the best rival win —', W/2, H-60);
@@ -4531,7 +4545,7 @@ function swInitTab(){ swRenderSetup(); }
     });
   }
 
-  // ── RECORD RESULTS: upload final results, score Rivalry Points, merge + save ──
+  // ── RECORD RESULTS: upload final results, score Reckoning Points, merge + save ──
   var rvResultsFiles = [];
   var rvResultsMatches = [];
 
@@ -4644,7 +4658,7 @@ function swInitTab(){ swRenderSetup(); }
     var shadowPointsAwarded = {}; // playerName -> shadow points from THIS upload
     vendettaResults.forEach(function(r){
       var key = rvKeyLower(r.a, r.b);
-      if(rivalMeetKeys[key]) return; // they actually played — regular Rivalry Points territory
+      if(rivalMeetKeys[key]) return; // they actually played — regular Reckoning Points territory
       [ [r.a, r.b], [r.b, r.a] ].forEach(function(pair){
         var p = pair[0], rival = pair[1];
         if(rvRoundSuccess(p) !== true) return; // lost, drew, or didn't play → 0
@@ -4679,6 +4693,7 @@ function swInitTab(){ swRenderSetup(); }
   // shadow points, h2h merge of every match, and an eventLog entry.
   // Shared by the live "Save to Gist" flow and post-event processing.
   function rvApplyRoundToRivalry(rivalry, scored, matches, vendetta){
+    rvStampDisplay(rivalry); // keep the public board/point labels current in the gist
     // ── SEQUENTIAL ELO ──
     // League ruling: the h2h state as of the last full upload is the Elo
     // backfill — frozen as a Bradley-Terry baseline the first time an event
@@ -4870,7 +4885,7 @@ function swInitTab(){ swRenderSetup(); }
   }
 
   // Clear ONE ladder from the Gist, leaving the other intact. 'main' resets
-  // Rivalry Points (points, rival W/L, events logged) plus the event log;
+  // Reckoning Points (points, rival W/L, events logged) plus the event log;
   // 'shadow' resets only Shadow Points/Wins/Draws. Season h2h history, saved
   // pairings, attendance, and eloState are never touched. Entries with
   // nothing left on either ladder are dropped entirely.
@@ -4890,6 +4905,7 @@ function swInitTab(){ swRenderSetup(); }
     });
     data.rivalry.rivalryPoints = rp;
     if(kind === 'main') data.rivalry.eventLog = [];
+    rvStampDisplay(data.rivalry);
     data.rivalry.updatedAt = new Date().toISOString();
     save(data); // persists locally AND triggers syncToGist()
     rvSavedSeasonData = data.rivalry;
@@ -4905,10 +4921,10 @@ function swInitTab(){ swRenderSetup(); }
     if(!rvLbClearArmed){
       rvLbClearArmed = true;
       clearLbBtn.textContent = '⚠ Click again to confirm';
-      rvSetLbStatus('Resets the Vendetta Ledger (Rivalry Points + event log) — the Shadow Board and h2h history are kept', '#c0392b');
+      rvSetLbStatus('Resets The Reckoning (Reckoning Points + event log) — The Shadows and h2h history are kept', '#c0392b');
       setTimeout(function(){
         rvLbClearArmed = false;
-        clearLbBtn.textContent = '🗑 Clear Vendetta Ledger';
+        clearLbBtn.textContent = '🗑 Clear The Reckoning';
         rvSetLbStatus('','');
       }, 5000);
       return;
@@ -4917,12 +4933,12 @@ function swInitTab(){ swRenderSetup(); }
     clearLbBtn.textContent = '⟳ Clearing…';
     try {
       rvClearLadder('main');
-      clearLbBtn.textContent = '🗑 Clear Vendetta Ledger';
-      rvSetLbStatus('✓ Vendetta Ledger cleared — Shadow Board kept', '#4caf50');
+      clearLbBtn.textContent = '🗑 Clear The Reckoning';
+      rvSetLbStatus('✓ The Reckoning cleared — The Shadows kept', '#4caf50');
       setTimeout(function(){ rvSetLbStatus('',''); }, 3000);
       rvLoadLeaderboard(); // re-render both ladders from the cleared state
     } catch(e){
-      clearLbBtn.textContent = '🗑 Clear Vendetta Ledger';
+      clearLbBtn.textContent = '🗑 Clear The Reckoning';
       rvSetLbStatus('✗ Clear failed', '#c0392b');
     }
   });
@@ -4932,15 +4948,15 @@ function swInitTab(){ swRenderSetup(); }
   if(clearShadowBtn) clearShadowBtn.addEventListener('click', function(){
     if(typeof getToken==='function' && !getToken()){
       clearShadowBtn.textContent = '⚠ No Gist token (Settings)';
-      setTimeout(function(){ clearShadowBtn.textContent = '🗑 Clear Shadow Board'; }, 2500);
+      setTimeout(function(){ clearShadowBtn.textContent = '🗑 Clear The Shadows'; }, 2500);
       return;
     }
     if(!rvShClearArmed){
       rvShClearArmed = true;
-      clearShadowBtn.textContent = '⚠ Click again — resets Shadow Board only';
+      clearShadowBtn.textContent = '⚠ Click again — resets The Shadows only';
       setTimeout(function(){
         rvShClearArmed = false;
-        clearShadowBtn.textContent = '🗑 Clear Shadow Board';
+        clearShadowBtn.textContent = '🗑 Clear The Shadows';
       }, 5000);
       return;
     }
@@ -4949,11 +4965,11 @@ function swInitTab(){ swRenderSetup(); }
     try {
       rvClearLadder('shadow');
       clearShadowBtn.textContent = '✓ Shadow cleared';
-      setTimeout(function(){ clearShadowBtn.textContent = '🗑 Clear Shadow Board'; }, 2500);
+      setTimeout(function(){ clearShadowBtn.textContent = '🗑 Clear The Shadows'; }, 2500);
       rvLoadLeaderboard(); // re-render both ladders from the cleared state
     } catch(e){
       clearShadowBtn.textContent = '✗ Clear failed — retry';
-      setTimeout(function(){ clearShadowBtn.textContent = '🗑 Clear Shadow Board'; }, 2500);
+      setTimeout(function(){ clearShadowBtn.textContent = '🗑 Clear The Shadows'; }, 2500);
     }
   });
 
@@ -4974,13 +4990,13 @@ function swInitTab(){ swRenderSetup(); }
     var rows = kind === 'shadow' ? rvLbCache.shadow : rvLbCache.main;
     if(!rows.length) return false;
     var out = kind === 'shadow'
-      ? ['Rank,Player,Shadow Pts,Shadow Wins (+2),Shadow Draws (+1),Current Rival'].concat(rows.map(function(r,i){
+      ? ['Rank,Player,Shadow Pts (SP),Shadow Wins (+2),Shadow Draws (+1),Current Rival'].concat(rows.map(function(r,i){
           return [i+1, rvCsvCell(r.player), r.shadow, r.shadowW, r.shadowD, rvCsvCell(r.rival)].join(',');
         }))
-      : ['Rank,Player,Rivalry Pts,Rival Wins,Rival Losses,Current Rival,Events Logged'].concat(rows.map(function(r,i){
+      : ['Rank,Player,Reckoning Pts (RP),Rival Wins,Rival Losses,Current Rival,Events Logged'].concat(rows.map(function(r,i){
           return [i+1, rvCsvCell(r.player), r.points, r.w, r.l, rvCsvCell(r.rival), r.ev].join(',');
         }));
-    rvDownloadFile(URL.createObjectURL(new Blob([out.join('\n')],{type:'text/csv'})), 'gnl-'+(kind==='shadow'?'shadow-board':'vendetta-ledger')+'.csv');
+    rvDownloadFile(URL.createObjectURL(new Blob([out.join('\n')],{type:'text/csv'})), 'gnl-'+(kind==='shadow'?'the-shadows':'the-reckoning')+'.csv');
     return true;
   }
 
@@ -5017,7 +5033,7 @@ function swInitTab(){ swRenderSetup(); }
     x.fillText('R I F T B O U N D   L E A G U E', S/2, 118);
     x.fillStyle = accent;
     x.font = '700 58px Cinzel, Georgia, serif';
-    x.fillText(kind === 'shadow' ? '🌑 SHADOW BOARD' : '⚔ VENDETTA LEDGER', S/2, 196);
+    x.fillText(kind === 'shadow' ? '🌑 THE SHADOWS' : '⚔ THE RECKONING', S/2, 196);
     var dg = x.createLinearGradient(S/2-220,0,S/2+220,0);
     dg.addColorStop(0, accentRGBA+'0)'); dg.addColorStop(0.5, accentRGBA+'0.9)'); dg.addColorStop(1, accentRGBA+'0)');
     x.fillStyle = dg; x.fillRect(S/2-220,222,440,2);
@@ -5070,7 +5086,7 @@ function swInitTab(){ swRenderSetup(); }
 
     return new Promise(function(resolve){
       c.toBlob(function(blob){
-        rvDownloadFile(URL.createObjectURL(blob), 'gnl-'+(kind==='shadow'?'shadow-board':'vendetta-ledger')+'.png');
+        rvDownloadFile(URL.createObjectURL(blob), 'gnl-'+(kind==='shadow'?'the-shadows':'the-reckoning')+'.png');
         resolve(true);
       }, 'image/png');
     });
@@ -5441,8 +5457,8 @@ function swInitTab(){ swRenderSetup(); }
             '<span>'+k+'</span><span style="color:'+color+';font-family:Cinzel,serif">+'+obj[k]+'</span></div>';
         }).join('')+'</div>';
     }
-    html += ptsTable('⚔ Rivalry Points', totalPts, 'var(--gold-light)');
-    html += ptsTable('🌑 Shadow Points', totalShadow, '#9b8cc4');
+    html += ptsTable('⚔ Reckoning Points (RP)', totalPts, 'var(--gold-light)');
+    html += ptsTable('🌑 Shadow Points (SP)', totalShadow, '#9b8cc4');
     if(!Object.keys(totalPts).length && !Object.keys(totalShadow).length){
       html += '<p style="font-size:0.74rem;color:rgba(245,237,214,0.35)">No points earned this event — no vendetta pairs met and no shadow wins.</p>';
     }
@@ -5540,8 +5556,8 @@ function swInitTab(){ swRenderSetup(); }
         lines.push((i+1)+'. *'+r.player+'* — '+r.pts+' pts'+(r.delta > 0 ? ' _(+'+r.delta+deltaLabel+')_' : ''));
       });
     }
-    ladderBlock('⚔ *Vendetta Ledger*', rep.vendettaLadder, ' this event');
-    ladderBlock('🌑 *Shadow Board*', rep.shadowLadder, '');
+    ladderBlock('⚔ *The Reckoning*', rep.vendettaLadder, ' this event');
+    ladderBlock('🌑 *The Shadows*', rep.shadowLadder, '');
 
     lines.push('');
     lines.push('🔥 *Highlights*');
@@ -5572,14 +5588,14 @@ function swInitTab(){ swRenderSetup(); }
     out.push('Vendettas Settled,'+rep.settled.length);
     if(rep.lateEntrants.length) out.push('Late Entrants (shadow-only),'+rvCsvCell(rep.lateEntrants.join(', ')));
     out.push('');
-    out.push('VENDETTA LEDGER');
-    out.push('Rank,Player,Points,Event Delta,Rival Wins,Rival Losses,Events Logged');
+    out.push('THE RECKONING');
+    out.push('Rank,Player,Reckoning Points (RP),Event Delta,Rival Wins,Rival Losses,Events Logged');
     rep.vendettaLadder.forEach(function(r, i){
       out.push([i+1, rvCsvCell(r.player), r.pts, r.delta, r.entry.rivalWins||0, r.entry.rivalLosses||0, r.entry.eventsLogged||0].join(','));
     });
     out.push('');
-    out.push('SHADOW BOARD');
-    out.push('Rank,Player,Shadow Points,Event Delta,Shadow Wins,Shadow Draws');
+    out.push('THE SHADOWS');
+    out.push('Rank,Player,Shadow Points (SP),Event Delta,Shadow Wins,Shadow Draws');
     rep.shadowLadder.forEach(function(r, i){
       out.push([i+1, rvCsvCell(r.player), r.pts, r.delta, r.entry.shadowWins||0, r.entry.shadowDraws||0].join(','));
     });
@@ -5895,7 +5911,7 @@ function swInitTab(){ swRenderSetup(); }
         tile('Game Record', tot.gw+'–'+tot.gl, gamePct!=null ? gamePct+'% of games' : '')+
         tile('Close Matches', tot.close, 'went the distance')+
         tile('Opponents', opps.length, 'faced this season')+
-        (pts ? tile('Rivalry Pts', '<span class="rv-score-gold" style="font-size:1.05rem">'+(pts.points||0)+'</span>', (pts.rivalWins||0)+'W–'+(pts.rivalLosses||0)+'L vs rival') : '')+
+        (pts ? tile('Reckoning Pts', '<span class="rv-score-gold" style="font-size:1.05rem">'+(pts.points||0)+'</span>', (pts.rivalWins||0)+'W–'+(pts.rivalLosses||0)+'L vs rival') : '')+
         (pts && (pts.shadowPoints||pts.shadowWins||pts.shadowDraws) ? tile('Shadow Pts', '<span style="color:#9b8cc4">'+(pts.shadowPoints||0)+'</span>', (pts.shadowWins||0)+'W–'+(pts.shadowDraws||0)+'D shadow') : '')+
       '</div>'+
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-bottom:18px">'+
