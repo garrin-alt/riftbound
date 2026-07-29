@@ -1609,7 +1609,7 @@
 
   <div class="panel" id="tab-pstats">
     <div class="panel-title">Player Stats</div>
-    <p class="panel-desc">Season records and the Elo ladder, computed from the saved head-to-head data</p>
+    <p class="panel-desc">Season records for every player, computed from the saved head-to-head data</p>
     <div class="divider"></div>
     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
       <div style="position:relative;max-width:340px;flex:1;min-width:220px">
@@ -1836,76 +1836,6 @@ async function loadFromGist() {
     setSyncStatus('✗ Gist load failed — using local', '#c0392b');
   }
   return load();
-}
-
-// ── BRADLEY-TERRY RATINGS (shared) ────────────────────
-// Order-independent strength ratings fit to aggregate h2h decisive match wins
-// via minorization-maximization (Hunter 2004), with a prior of one virtual
-// win + loss vs a fixed average player. Returned on the Elo scale:
-// R = 1500 + 400*log10(s), geometric mean anchored to 1500.
-// Used for the Elo backfill baseline and as the display fallback.
-function rbComputeBT(h2hArr) {
-  var TAU = 2.0;
-  var winsMap = {}, playerSet = {};
-  (h2hArr || []).forEach(function(r){
-    var a = r.players[0], b = r.players[1];
-    var wa = r.matchWinsA || 0, wb = r.matchWinsB || 0;
-    playerSet[a] = 1; playerSet[b] = 1;
-    if(wa){ winsMap[a] = winsMap[a] || {}; winsMap[a][b] = (winsMap[a][b] || 0) + wa; }
-    if(wb){ winsMap[b] = winsMap[b] || {}; winsMap[b][a] = (winsMap[b][a] || 0) + wb; }
-  });
-  var players = Object.keys(playerSet);
-  if(!players.length) return {};
-  var opp = {};
-  players.forEach(function(p){ opp[p] = {}; });
-  Object.keys(winsMap).forEach(function(a){
-    Object.keys(winsMap[a]).forEach(function(b){ opp[a][b] = 1; opp[b][a] = 1; });
-  });
-  var s = {};
-  players.forEach(function(p){ s[p] = 1; });
-  for(var it = 0; it < 500; it++){
-    var next = {}, logSum = 0;
-    players.forEach(function(p){
-      var pw = winsMap[p] || {};
-      var W = TAU, denom = 2 * TAU / (s[p] + 1);
-      Object.keys(pw).forEach(function(q){ W += pw[q]; });
-      Object.keys(opp[p]).forEach(function(q){
-        var n = (pw[q] || 0) + ((winsMap[q] || {})[p] || 0);
-        denom += n / (s[p] + s[q]);
-      });
-      next[p] = W / denom;
-    });
-    players.forEach(function(p){ logSum += Math.log(next[p]); });
-    var gm = Math.exp(logSum / players.length);
-    var delta = 0;
-    players.forEach(function(p){
-      next[p] /= gm;
-      delta = Math.max(delta, Math.abs(next[p] - s[p]));
-    });
-    s = next;
-    if(delta < 1e-10) break;
-  }
-  var out = {};
-  players.forEach(function(p){
-    var pw = winsMap[p] || {}, m = 0;
-    Object.keys(opp[p]).forEach(function(q){ m += (pw[q] || 0) + ((winsMap[q] || {})[p] || 0); });
-    out[p] = { elo: 1500 + 400 * Math.log10(s[p]), matches: m };
-  });
-  return out;
-}
-
-// Freeze a Bradley-Terry fit of the given h2h as the sequential-Elo starting
-// point. Everything processed after this baseline moves ratings match by
-// match; the backfill itself stays order-free.
-function rbMakeEloState(h2hArr) {
-  var bt = rbComputeBT(h2hArr);
-  var baseline = {}, ratings = {};
-  Object.keys(bt).forEach(function(p){
-    var r = Math.round(bt[p].elo * 10) / 10;
-    baseline[p] = r;
-    ratings[p] = { r: r, m: 0 };
-  });
-  return { baselinedAt: new Date().toISOString(), baseline: baseline, ratings: ratings, log: [] };
 }
 
 // ── SCORING ───────────────────────────────────────────
@@ -4072,9 +4002,6 @@ function swInitTab(){ swRenderSetup(); }
         display: RV_DISPLAY,
         updatedAt: new Date().toISOString()
       };
-      // A full analyzer save redefines the backfill: re-freeze the Elo baseline
-      // from the new h2h and restart sequential tracking from here.
-      data.rivalry.eloState = rbMakeEloState(data.rivalry.h2h);
       rvSavedSeasonData = data.rivalry;
       save(data); // existing save() persists locally AND triggers syncToGist()
       rvSetGistStatus('✓ Saved to Gist', '#4caf50');
@@ -4694,35 +4621,7 @@ function swInitTab(){ swRenderSetup(); }
   // Shared by the live "Save to Gist" flow and post-event processing.
   function rvApplyRoundToRivalry(rivalry, scored, matches, vendetta){
     rvStampDisplay(rivalry); // keep the public board/point labels current in the gist
-    // ── SEQUENTIAL ELO ──
-    // League ruling: the h2h state as of the last full upload is the Elo
-    // backfill — frozen as a Bradley-Terry baseline the first time an event
-    // is processed after it. From then on every processed round moves ratings
-    // match by match, sequenced by processing order (time of upload).
-    // Draws count 0.5; players with no baseline rating start at 1500.
-    if(!rivalry.eloState || !rivalry.eloState.ratings){
-      rivalry.eloState = rbMakeEloState(rivalry.h2h || []); // pre-merge h2h = the backfill
-    }
-    var ELO_K = 32;
-    var eloDeltas = {};
-    var rat = rivalry.eloState.ratings;
-    matches.forEach(function(m){
-      var A = rat[m.playerA] || (rat[m.playerA] = { r: 1500, m: 0 });
-      var B = rat[m.playerB] || (rat[m.playerB] = { r: 1500, m: 0 });
-      var expA = 1 / (1 + Math.pow(10, (B.r - A.r) / 400));
-      var scoreA = m.winsA > m.winsB ? 1 : (m.winsA < m.winsB ? 0 : 0.5);
-      var d = ELO_K * (scoreA - expA);
-      A.r = Math.round((A.r + d) * 10) / 10; A.m++;
-      B.r = Math.round((B.r - d) * 10) / 10; B.m++;
-      eloDeltas[m.playerA] = Math.round(((eloDeltas[m.playerA] || 0) + d) * 10) / 10;
-      eloDeltas[m.playerB] = Math.round(((eloDeltas[m.playerB] || 0) - d) * 10) / 10;
-    });
-    rivalry.eloState.log.push({
-      at: new Date().toISOString(),
-      eventId: (matches[0] && matches[0].eventId) || null,
-      roundType: scored.roundType,
-      deltas: eloDeltas
-    });
+    delete rivalry.eloState; // player ratings were retired — drop any legacy state
 
     // Record attendance for every player in this round (event ID from the filename),
     // so "events completed" keeps accruing through live and post-event processing.
@@ -4887,7 +4786,7 @@ function swInitTab(){ swRenderSetup(); }
   // Clear ONE ladder from the Gist, leaving the other intact. 'main' resets
   // Reckoning Points (points, rival W/L, events logged) plus the event log;
   // 'shadow' resets only Shadow Points/Wins/Draws. Season h2h history, saved
-  // pairings, attendance, and eloState are never touched. Entries with
+  // pairings and attendance are never touched. Entries with
   // nothing left on either ladder are dropped entirely.
   function rvClearLadder(kind){
     var data = load();
@@ -5394,8 +5293,8 @@ function swInitTab(){ swRenderSetup(); }
       vendetta.postEvent = true;
 
       var phantoms = (vendetta.unmatched || []).concat(lateEntrants);
-      // Deterministic round order regardless of file-read completion order —
-      // sequential Elo depends on it. Sort by event ID, then round number.
+      // Deterministic round order regardless of file-read completion order, so
+      // the event log reads chronologically. Sort by event ID, then round number.
       var ordered = files.slice().sort(function(x, y){
         return (+rvEventIdFromName(x.name) || 0) - (+rvEventIdFromName(y.name) || 0) ||
                rvRoundNumFromName(x.name) - rvRoundNumFromName(y.name);
@@ -5662,14 +5561,13 @@ function swInitTab(){ swRenderSetup(); }
 // ==================== END RIVALRY ANALYZER ====================
 
 // ==================== PLAYER STATS ====================
-// Per-player season stats + Elo ladder from the saved head-to-head data.
-// The record is aggregate (no match dates), so instead of sequential Elo we
-// fit a Bradley-Terry model — the order-independent rating Elo approximates —
-// via minorization-maximization on decisive match wins, with a prior of one
-// virtual win + loss vs an average player, shown as R = 1500 + 400*log10(s).
+// Per-player season stats from the saved head-to-head data: match and game
+// records, win rates, rivalry highlights, and an opponent-by-opponent
+// breakdown. No ratings or ranking positions — players with 10+ completed
+// events are listed first, everyone else follows in a second table.
 (function(){
   var pdSeason = null;   // rivalry object from the gist
-  var pdEloMap = {};     // player -> { elo, rank, matches, provisional }
+  var pdMeta = {};       // player -> { matches, events, established, gate, min }
   var pdSelected = null;
 
   function pdEsc(s){
@@ -5684,58 +5582,40 @@ function swInitTab(){ swRenderSetup(); }
     return '<span style="color:'+col+';font-family:Cinzel,serif;font-size:0.8rem">'+p+'%</span>';
   }
 
-  function pdComputeElo(){
-    // Bradley-Terry over the full h2h is both the display fallback and the
-    // decisive-match counter; when a sequential eloState exists (backfill
-    // baseline + live updates from processed events) its ratings win.
-    var bt = rbComputeBT(pdH2H());
-    var players = Object.keys(bt);
-    if(!players.length) return {};
-    var st = pdSeason && pdSeason.eloState;
-    var seq = !!(st && st.ratings && Object.keys(st.ratings).length);
-
-    // Ladder eligibility: ranked = 10+ completed events (league minimum).
-    // rivalry.attendance holds distinct event IDs per player once CSVs with
-    // event-ID filenames have been uploaded; without it, fall back to a
-    // proxy of 40+ decisive matches (~10 events at ~4 rounds each).
-    // Everyone still gets a rating — unranked players stay in the model and
-    // sequential updates — but only eligible players receive a ladder rank.
-    var RANK_MIN_MATCHES = 40;
-    var RANK_MIN_EVENTS  = 10;
+  // Establishment gate only — no ratings or rankings. A player counts as
+  // established once they have 10+ completed events (rivalry.attendance,
+  // populated from the event IDs in CSV filenames). Seasons saved before
+  // attendance tracking existed fall back to a proxy of 40+ decisive matches
+  // (~10 events at ~4 rounds each). Everyone's stats are shown either way;
+  // the gate only decides which table a player appears in.
+  function pdEligibility(){
+    var MIN_MATCHES = 40;
+    var MIN_EVENTS  = 10;
     var att = (pdSeason && pdSeason.attendance) || {};
     var useEvents = Object.keys(att).length > 0;
-    var out = {};
-    // Sequential ratings may include post-baseline players not yet in bt keys
-    // (they will be, since saves merge h2h too — but stay safe).
+
+    // Decisive matches per player, straight from the h2h pair totals
+    var dm = {};
+    pdH2H().forEach(function(r){
+      var t = (r.matchWinsA || 0) + (r.matchWinsB || 0);
+      r.players.forEach(function(p){ dm[p] = (dm[p] || 0) + t; });
+    });
+
     var names = {};
-    players.forEach(function(p){ names[p] = 1; });
-    if(seq) Object.keys(st.ratings).forEach(function(p){ names[p] = 1; });
+    Object.keys(dm).forEach(function(p){ names[p] = 1; });
+    Object.keys(att).forEach(function(p){ names[p] = 1; });
+    var out = {};
     Object.keys(names).forEach(function(p){
-      var cur = seq && st.ratings[p];
-      var base = seq && st.baseline ? st.baseline[p] : null;
-      var m = bt[p] ? bt[p].matches : 0;
+      var m = dm[p] || 0;
       var ev = useEvents ? (att[p] || []).length : null;
       out[p] = {
-        elo: cur ? cur.r : (bt[p] ? bt[p].elo : 1500),
-        delta: (cur && base != null) ? Math.round((cur.r - base) * 10) / 10 : null,
-        seq: !!cur,
         matches: m, events: ev,
-        ranked: useEvents ? ev >= RANK_MIN_EVENTS : m >= RANK_MIN_MATCHES,
-        rank: null, gate: useEvents ? 'events' : 'matches',
-        rankMin: useEvents ? RANK_MIN_EVENTS : RANK_MIN_MATCHES
+        established: useEvents ? ev >= MIN_EVENTS : m >= MIN_MATCHES,
+        gate: useEvents ? 'events' : 'matches',
+        min: useEvents ? MIN_EVENTS : MIN_MATCHES
       };
     });
-    var rankedCount = 0;
-    Object.keys(out).sort(function(a, b){ return out[b].elo - out[a].elo; })
-      .forEach(function(p){ if(out[p].ranked) out[p].rank = ++rankedCount; });
     return out;
-  }
-  function pdEloCell(p){
-    var e = pdEloMap[p];
-    if(!e) return '<span style="opacity:0.3">—</span>';
-    return e.ranked
-      ? '<span class="rv-score-gold">'+Math.round(e.elo)+'</span>'
-      : '<span style="font-family:Cinzel,serif;font-size:0.82rem;color:rgba(245,237,214,0.4)">'+Math.round(e.elo)+'</span>';
   }
 
   function pdTotals(){
@@ -5770,57 +5650,54 @@ function swInitTab(){ swRenderSetup(); }
 
   function pdRenderIndex(){
     pdSelected = null;
+    // Plain data table — most active first, no ranking positions
     var all = Object.values(pdTotals()).sort(function(a,b){
-      var ea = pdEloMap[a.name], eb = pdEloMap[b.name];
-      return ((eb ? eb.elo : -1e9) - (ea ? ea.elo : -1e9)) || (b.matches - a.matches);
+      return (b.matches - a.matches) || (b.mw - a.mw) || a.name.localeCompare(b.name);
     });
     if(!all.length){ document.getElementById('pdIndex').innerHTML=''; pdShow('empty'); pdSetStatus(); return; }
     pdSetStatus();
     pdShow('index');
-    var ranked   = all.filter(function(t){ var e = pdEloMap[t.name]; return e && e.ranked; });
-    var unranked = all.filter(function(t){ var e = pdEloMap[t.name]; return !e || !e.ranked; });
-    var anyEntry = pdEloMap[all[0].name] || { gate:'matches', rankMin:20 };
+    var established = all.filter(function(t){ var e = pdMeta[t.name]; return e && e.established; });
+    var newer       = all.filter(function(t){ var e = pdMeta[t.name]; return !e || !e.established; });
+    var anyEntry = pdMeta[all[0].name] || { gate:'matches', min:40 };
     var evGate = anyEntry.gate === 'events';
-    var rankMin = anyEntry.rankMin;
+    var gateMin = anyEntry.min;
 
-    function rowHtml(t, rankLabel, dim){
-      var e = pdEloMap[t.name];
+    function rowHtml(t, dim){
+      var e = pdMeta[t.name];
       return '<tr class="pd-row" data-player="'+pdEsc(t.name)+'" style="cursor:pointer'+(dim?';opacity:0.55':'')+'">'+
-        '<td class="c td-mono">'+rankLabel+'</td>'+
         '<td style="color:var(--gold-light)">'+pdEsc(t.name)+'</td>'+
-        '<td class="c">'+pdEloCell(t.name)+'</td>'+
         (evGate ? '<td class="c td-mono">'+(e && e.events != null ? e.events : '—')+'</td>' : '')+
         '<td class="c td-mono">'+t.matches+'</td>'+
         '<td class="c"><span class="rv-rec-w">'+t.mw+'W</span> – <span class="rv-rec-l">'+t.ml+'L</span></td>'+
         '<td class="c">'+pdPctCell(t.mw,t.ml)+'</td>'+
         '<td class="c td-mono" style="opacity:0.6">'+t.gw+'–'+t.gl+'</td>'+
+        '<td class="c td-mono">'+t.close+'</td>'+
         '<td class="c td-mono">'+t.opponents+'</td>'+
       '</tr>';
     }
-    var head = '<tr><th class="c">#</th><th>Player</th><th class="c">Elo</th>'+
+    var head = '<tr><th>Player</th>'+
       (evGate ? '<th class="c">Events</th>' : '')+
       '<th class="c">Matches</th><th class="c">Match Record</th><th class="c">Win %</th>'+
-      '<th class="c">Games</th><th class="c">Opponents</th></tr>';
+      '<th class="c">Games</th><th class="c">Close</th><th class="c">Opponents</th></tr>';
 
-    var seqMode = pdSeason && pdSeason.eloState && pdSeason.eloState.baselinedAt;
     var gateDesc = evGate
-      ? 'ranked at '+rankMin+'+ completed events'
-      : 'ranked at '+rankMin+'+ decisive matches (≈ 10 completed events — re-upload CSVs with event IDs for exact counts)';
-    if(seqMode) gateDesc = 'live since the '+new Date(pdSeason.eloState.baselinedAt).toLocaleDateString()+' backfill (Bradley-Terry baseline, sequential per event since) · '+gateDesc;
-    var unrankedDesc = evGate
-      ? 'Unranked — fewer than '+rankMin+' completed events'
-      : 'Unranked — fewer than '+rankMin+' decisive matches';
+      ? 'Players with '+gateMin+'+ completed events appear first; everyone else follows below.'
+      : 'Players with '+gateMin+'+ decisive matches (≈ '+gateMin/4+' events) appear first — re-upload CSVs with event IDs for exact event counts.';
+    var newerDesc = evGate
+      ? 'Fewer than '+gateMin+' completed events'
+      : 'Fewer than '+gateMin+' decisive matches';
     var html =
       '<p style="font-size:0.72rem;color:rgba(245,237,214,0.3);font-style:italic;margin-bottom:10px">'+
-        'Elo — Bradley-Terry rating fit to the full season head-to-head record · 1500 = league average · '+gateDesc+'</p>'+
+        'Season records from the saved head-to-head data. '+gateDesc+'</p>'+
       '<table><thead>'+head+'</thead><tbody>'+
-      ranked.map(function(t){ return rowHtml(t, pdEloMap[t.name].rank, false); }).join('')+
+      established.map(function(t){ return rowHtml(t, false); }).join('')+
       '</tbody></table>';
-    if(unranked.length){
+    if(newer.length){
       html += '<div style="margin:22px 0 8px;font-size:0.68rem;letter-spacing:0.12em;text-transform:uppercase;color:rgba(245,237,214,0.3);font-family:Cinzel,serif">'+
-        unrankedDesc+' ('+unranked.length+' players, rated but not on the ladder)</div>'+
+        newerDesc+' ('+newer.length+' players)</div>'+
         '<table><thead>'+head+'</thead><tbody>'+
-        unranked.map(function(t){ return rowHtml(t, '–', true); }).join('')+
+        newer.map(function(t){ return rowHtml(t, true); }).join('')+
         '</tbody></table>';
     }
     document.getElementById('pdIndex').innerHTML = html;
@@ -5867,7 +5744,7 @@ function swInitTab(){ swRenderSetup(); }
       if(p.players[1]===name) declaredRival = p.players[0];
     });
     var pts = pdSeason && pdSeason.rivalryPoints && pdSeason.rivalryPoints[name];
-    var eloE = pdEloMap[name];
+    var meta = pdMeta[name];
 
     function tile(label, val, sub){
       return '<div class="stat"><div class="stat-l">'+label+'</div><div class="stat-v">'+val+'</div>'+
@@ -5897,14 +5774,9 @@ function swInitTab(){ swRenderSetup(); }
         '<button class="btn ghost" id="pdBack" style="width:auto;padding:7px 14px;font-size:0.7rem">← All Players</button>'+
       '</div>'+
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:16px">'+
-        (eloE ? tile('Elo Rating', Math.round(eloE.elo),
-          (eloE.ranked
-            ? 'rank #'+eloE.rank+' of '+Object.keys(pdEloMap).filter(function(k){ return pdEloMap[k].ranked; }).length+' ranked'
-            : (eloE.gate === 'events'
-                ? 'unranked — '+eloE.events+' of '+eloE.rankMin+' events completed'
-                : 'unranked — '+eloE.matches+' of '+eloE.rankMin+' decisive matches (≈10 events)'))+
-          (eloE.delta != null && eloE.delta !== 0 ? ' · '+(eloE.delta>0?'+':'')+eloE.delta+' since backfill' : '')) : '')+
-        (eloE && eloE.events != null ? tile('Events', eloE.events, 'completed') : '')+
+        (meta && meta.events != null
+          ? tile('Events', meta.events, meta.established ? 'completed' : 'of '+meta.min+' needed to establish')
+          : '')+
         tile('Matches', tot.matches, draws ? draws+' unreported/draw' : '')+
         tile('Match Record', '<span class="rv-rec-w" style="font-size:1.05rem">'+tot.mw+'W</span> <span style="opacity:0.4">–</span> <span class="rv-rec-l" style="font-size:1.05rem">'+tot.ml+'L</span>', '')+
         tile('Match Win %', matchPct!=null ? matchPct+'%' : '—', '')+
@@ -5920,13 +5792,12 @@ function swInitTab(){ swRenderSetup(); }
         hlCard('💀','Nemesis', worst)+
       '</div>'+
       '<table><thead><tr>'+
-        '<th>Opponent</th><th class="c">Elo</th><th class="c">Matches</th><th class="c">Record</th>'+
+        '<th>Opponent</th><th class="c">Matches</th><th class="c">Record</th>'+
         '<th class="c">Win %</th><th class="c">Games</th><th class="c">Close</th><th class="r">Rivalry</th>'+
       '</tr></thead><tbody>'+
       opps.sort(function(a,b){ return b.meetings-a.meetings || b.score-a.score; }).map(function(o){
         return '<tr class="pd-row" data-player="'+pdEsc(o.opp)+'" style="cursor:pointer">'+
           '<td>'+pdEsc(o.opp)+'</td>'+
-          '<td class="c">'+pdEloCell(o.opp)+'</td>'+
           '<td class="c td-mono">'+o.meetings+'</td>'+
           '<td class="c"><span class="rv-rec-w">'+o.mw+'W</span> – <span class="rv-rec-l">'+o.ml+'L</span></td>'+
           '<td class="c">'+pdPctCell(o.mw,o.ml)+'</td>'+
@@ -5983,9 +5854,9 @@ function swInitTab(){ swRenderSetup(); }
       var data = await loadFromGist();
       if(data && data.rivalry) pdSeason = data.rivalry;
     } catch(e){ /* keep whatever we have */ }
-    pdEloMap = pdComputeElo();
+    pdMeta = pdEligibility();
     pdLoading = false;
-    if(pdSelected && pdEloMap[pdSelected]) pdShowPlayer(pdSelected);
+    if(pdSelected && pdMeta[pdSelected]) pdShowPlayer(pdSelected);
     else pdRenderIndex();
   }
   window.pdInit = pdInit;
