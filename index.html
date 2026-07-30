@@ -1683,8 +1683,8 @@ const CITIES = {
 let activeCity = null; // set on unlock
 
 function getCityConfig()    { return CITIES[activeCity]; }
-function getPassword()      { return load().config?.password      || getCityConfig().pwDefault; }
-function getAdminPassword() { return load().config?.adminPassword || getCityConfig().adminDefault; }
+function getPassword()      { return load().config?.password      || getCityConfig()?.pwDefault; }
+function getAdminPassword() { return load().config?.adminPassword || getCityConfig()?.adminDefault; }
 
 function detectCity(pw) {
   // Check against stored passwords for each city (checking local data first)
@@ -1725,9 +1725,11 @@ function lockOut() {
   sessionStorage.removeItem('rb_auth');
   sessionStorage.removeItem('rb_city');
   activeCity = null;
-  document.getElementById('lockScreen').style.display = 'flex';
-  document.getElementById('app').style.display = 'none';
-  document.getElementById('pwInput').value = '';
+  // Full reload, so no in-memory state (rivalry caches, Top 16 bracket, Player
+  // Stats, Swiss) can survive into the next city's session and be saved into
+  // the wrong Gist. Without this, locking out of one city and signing into the
+  // other in the same tab carries the previous city's data across.
+  location.reload();
 }
 document.getElementById('pwInput').addEventListener('keydown', e => { if (e.key === 'Enter') unlock(); });
 if (sessionStorage.getItem('rb_auth') === '1') {
@@ -1776,7 +1778,11 @@ function load() {
   catch { return { events: [] }; }
 }
 function save(d) {
-  const key = getCityConfig()?.localKey || 'rb_league_abudhabi';
+  const cfg = getCityConfig();
+  // Stamp which city this data belongs to, so a backup restored into the wrong
+  // city can be detected instead of silently overwriting it.
+  if (cfg) d.city = cfg.label;
+  const key = cfg?.localKey || 'rb_league_abudhabi';
   localStorage.setItem(key, JSON.stringify(d));
   syncToGist(d);
 }
@@ -3021,6 +3027,19 @@ function restoreBackup(input) {
     try {
       const data = JSON.parse(e.target.result);
       if (!data.events) throw new Error('Invalid backup file');
+      // A backup carries the city it was taken from. Restoring one city's
+      // backup over another would overwrite that league's whole season.
+      const here = getCityConfig()?.label;
+      if (data.city && here && data.city !== here) {
+        if (!confirm('This backup is from ' + data.city + ', but you are signed into ' + here +
+                     '.\n\nRestoring it will overwrite ' + here + "'s entire season with " +
+                     data.city + " data.\n\nContinue anyway?")) {
+          const cancelEl = document.getElementById('backupStatus');
+          if (cancelEl) { cancelEl.textContent = '✗ Restore cancelled — wrong city'; cancelEl.style.color = '#c0392b'; setTimeout(() => cancelEl.textContent = '', 4000); }
+          input.value = '';
+          return;
+        }
+      }
       save(data);
       renderAll();
       const el = document.getElementById('backupStatus');
@@ -5020,11 +5039,10 @@ function swInitTab(){ swRenderSetup(); }
     var body = document.getElementById('rvLeaderboardBody');
     var empty = document.getElementById('rvLeaderboardEmpty');
     try {
-      var data = rvSavedSeasonData;
-      if(!data || !data.rivalryPoints){
-        data = await loadFromGist();
-        data = data && data.rivalry;
-      }
+      // Always read the active city's Gist rather than trusting the cache,
+      // which may still hold another city's season.
+      var fresh = await loadFromGist();
+      var data = (fresh && fresh.rivalry) || null;
       if(!data || !data.rivalryPoints || !Object.keys(data.rivalryPoints).length){
         body.innerHTML = ''; empty.style.display = 'block';
         rvLbCache.main = []; rvLbCache.shadow = [];
@@ -5220,7 +5238,7 @@ function swInitTab(){ swRenderSetup(); }
     rvPeSetStatus('⟳ Checking…', 'rgba(201,146,42,0.7)');
     try {
       var data = await loadFromGist();
-      if(data && data.rivalry) rvSavedSeasonData = data.rivalry;
+      rvSavedSeasonData = (data && data.rivalry) || null; // clear, don't inherit another city's season
       rvPeShowDeclared();
     } catch(e){
       rvPeSetStatus('✗ Could not reach Gist', '#c0392b');
@@ -5269,7 +5287,7 @@ function swInitTab(){ swRenderSetup(); }
     try {
       // Always work from the freshest gist state
       var data = await loadFromGist();
-      if(data && data.rivalry) rvSavedSeasonData = data.rivalry;
+      rvSavedSeasonData = (data && data.rivalry) || null; // clear, don't inherit another city's season
       var season = rvSavedSeasonData || {};
 
       var att = new Set();
@@ -5859,7 +5877,7 @@ function swInitTab(){ swRenderSetup(); }
     }
     try {
       var data = await loadFromGist();
-      if(data && data.rivalry) pdSeason = data.rivalry;
+      pdSeason = (data && data.rivalry) || null; // clear, don't inherit another city's season
     } catch(e){ /* keep whatever we have */ }
     pdMeta = pdEligibility();
     pdLoading = false;
@@ -6215,7 +6233,7 @@ function swInitTab(){ swRenderSetup(); }
     if(!t16State) body.innerHTML = '<p style="font-size:0.8rem;color:rgba(245,237,214,0.3);font-style:italic">⟳ Loading from Gist…</p>';
     try {
       var data = await loadFromGist();
-      if(data && data.top16) t16State = data.top16;
+      t16State = (data && data.top16) || null; // clear, don't inherit another city's bracket
     } catch(e){ /* offline — fall back to whatever is local */ }
     if(!t16State){
       try { t16State = load().top16 || null; } catch(e){}
