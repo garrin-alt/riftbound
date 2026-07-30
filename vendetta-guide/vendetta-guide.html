@@ -3,7 +3,7 @@
     --ink:#16110a; --ink-2:#1e1810; --ink-3:#241d12;
     --gold:#c9922a; --gold-lt:#e8b84b; --gold-deep:#a9781f;
     --parch:#f0e6cf; --parch-dim:rgba(240,230,207,0.58); --parch-faint:rgba(240,230,207,0.32);
-    --rust:#a5442099; --blood:#c65a34; --win:#5ec88a; --shadow:#a999d6; --shadow-deep:#6d5da0;
+    --rust:#a5442099; --blood:#c65a34; --win:#5ec88a;
     --line:rgba(201,146,42,0.22); --line-soft:rgba(201,146,42,0.12);
     --serif:"Palatino Linotype","Book Antiqua",Palatino,Georgia,serif;
     --engrave:Georgia,"Times New Roman",serif;
@@ -14,7 +14,7 @@
   .vg-bg::before{content:"";position:absolute;inset:0;
     background:
       radial-gradient(ellipse 80% 55% at 50% -8%, rgba(201,146,42,0.16), transparent 60%),
-      radial-gradient(ellipse 70% 50% at 50% 108%, rgba(109,93,160,0.10), transparent 60%),
+      radial-gradient(ellipse 70% 50% at 50% 108%, rgba(165,68,32,0.09), transparent 60%),
       repeating-linear-gradient(48deg, transparent 0 6px, rgba(201,146,42,0.014) 6px 7px);}
   .vg{max-width:780px;margin:0 auto;padding:clamp(28px,6vw,64px) clamp(18px,5vw,40px) 72px;
     font-family:var(--serif);color:var(--parch);line-height:1.68;
@@ -46,7 +46,6 @@
   h2.sec{font-size:clamp(1.35rem,4.5vw,1.85rem);color:var(--parch);margin:4px 0 6px;line-height:1.15}
   .sec-eye{margin-bottom:14px;display:block}
   strong.g{color:var(--gold-lt);font-weight:700}
-  strong.v{color:var(--shadow);font-weight:700}
 
   /* ── RIVAL GRADES ── */
   .grades{display:grid;grid-template-columns:1fr;gap:12px}
@@ -58,52 +57,44 @@
     color:var(--gd,var(--gold-lt));margin:12px 0 8px;font-weight:700}
   .grade p{font-size:0.95rem;color:var(--parch-dim);line-height:1.55}
 
-  /* ── THE FORK ── */
-  .qbanner{text-align:center;border:1px solid var(--line);background:var(--ink-2);
-    padding:22px 24px;position:relative}
-  .qbanner .qk{font-family:var(--mono);font-size:0.64rem;letter-spacing:0.32em;text-transform:uppercase;
-    color:var(--parch-faint);margin-bottom:8px}
-  .qbanner .q{font-family:var(--engrave);font-size:clamp(1.15rem,3.6vw,1.5rem);color:var(--parch);
-    font-weight:700;letter-spacing:0.01em;line-height:1.25}
-  .stem{width:2px;height:26px;background:linear-gradient(var(--line),transparent);margin:0 auto}
-
-  .paths{display:grid;grid-template-columns:1fr;gap:14px}
-  @media(min-width:560px){.paths{grid-template-columns:1fr 1fr}}
-  .path{position:relative;background:var(--ink-2);border:1px solid var(--pc,var(--gold));
-    border-top-width:2px;padding:26px 22px 24px;text-align:center}
-  .path::before{content:"";position:absolute;top:-9px;left:50%;transform:translateX(-50%);
-    width:15px;height:15px;background:var(--ink-2);border-left:1px solid var(--pc,var(--gold));
-    border-top:1px solid var(--pc,var(--gold));rotate:45deg}
-  .path .answer{font-family:var(--mono);font-size:0.72rem;letter-spacing:0.2em;text-transform:uppercase;
-    color:var(--pc,var(--gold-lt));font-weight:700}
-  .path .sub{font-size:0.95rem;color:var(--parch-dim);margin:12px 0 0;line-height:1.5}
-  .path .pts{font-family:var(--engrave);font-weight:700;font-size:clamp(2.6rem,9vw,3.4rem);line-height:1;
-    color:var(--gold-lt);margin:16px 0 4px;font-variant-numeric:tabular-nums}
-  .path .plabel{font-family:var(--mono);font-size:0.66rem;letter-spacing:0.22em;text-transform:uppercase;
-    color:var(--gold);font-weight:700}
-  .path.shadow{border-color:var(--shadow-deep)}
-  .path.shadow::before{border-color:var(--shadow-deep)}
-  .path.shadow .answer{color:var(--shadow)}
-  .path.shadow .toshadow{font-family:var(--engrave);font-size:1.5rem;color:var(--shadow);margin:14px 0 2px}
-  .path.shadow .plabel{color:var(--shadow-deep)}
-  .fork-note{text-align:center;font-size:0.92rem;color:var(--parch-faint);font-style:italic;margin:18px auto 0;max-width:52ch}
-
-  /* ── SHADOW MATRIX ── */
-  .shadowwrap{border:1px solid var(--shadow-deep);border-left-width:2px;background:linear-gradient(180deg,rgba(109,93,160,0.09),transparent 70%);
-    padding:clamp(20px,4vw,30px)}
-  .matrix{display:flex;flex-direction:column;gap:10px;margin-top:20px}
-  .mrow{display:grid;grid-template-columns:1fr auto;align-items:center;gap:14px;
-    background:var(--ink-2);border:1px solid var(--line-soft);padding:14px 16px}
-  .mrow .case{font-size:0.98rem;line-height:1.4}
-  .mrow .you-w{color:var(--win);font-weight:700}
-  .mrow .you-l{color:var(--blood);font-weight:700}
-  .mrow .rival{color:var(--parch-dim)}
-  .badge{font-family:var(--engrave);font-weight:700;font-size:1.4rem;white-space:nowrap;
-    padding:6px 15px;border:1px solid var(--shadow-deep);color:var(--shadow);
-    font-variant-numeric:tabular-nums;min-width:104px;text-align:center}
+  /* ── SCORING TABLE ── */
+  .scoring{display:flex;flex-direction:column;gap:10px}
+  .srow{display:grid;grid-template-columns:1fr auto;align-items:center;gap:14px;
+    background:var(--ink-2);border:1px solid var(--line-soft);padding:15px 18px}
+  .srow.hero{border:1px solid var(--gold);border-left-width:3px;
+    background:linear-gradient(90deg,rgba(201,146,42,0.10),var(--ink-2) 62%)}
+  .srow .case{font-size:1rem;line-height:1.4}
+  .srow .w{color:var(--win);font-weight:700}
+  .srow .l{color:var(--blood);font-weight:700}
+  .srow .note{color:var(--parch-dim)}
+  .badge{font-family:var(--engrave);font-weight:700;font-size:1.5rem;white-space:nowrap;
+    padding:7px 16px;border:1px solid var(--gold-deep);color:var(--gold-lt);
+    font-variant-numeric:tabular-nums;min-width:112px;text-align:center}
   .badge.zero{color:var(--parch-faint);border-color:var(--line-soft)}
   .badge .u{font-family:var(--mono);font-size:0.6rem;letter-spacing:0.14em;display:block;
     text-transform:uppercase;margin-top:2px;color:inherit;opacity:0.8;font-weight:700}
+  .scoring-note{text-align:center;font-size:0.95rem;color:var(--parch-faint);font-style:italic;
+    margin:18px auto 0;max-width:54ch}
+
+  /* ── WORKED EXAMPLE ── */
+  .tally{display:flex;flex-direction:column;gap:8px}
+  .trow{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:16px;
+    background:var(--ink-2);border:1px solid var(--line-soft);padding:12px 18px}
+  .trow.bonus{border-color:var(--gold);border-left:3px solid var(--gold);
+    background:linear-gradient(90deg,rgba(201,146,42,0.12),var(--ink-2) 65%)}
+  .trow .rd{font-family:var(--mono);font-size:0.66rem;letter-spacing:0.16em;text-transform:uppercase;
+    color:var(--parch-faint);font-weight:700;width:5.5em}
+  .trow .what{font-size:0.98rem;line-height:1.35}
+  .trow .got{font-family:var(--engrave);font-weight:700;font-size:1.25rem;color:var(--gold-lt);
+    font-variant-numeric:tabular-nums;text-align:right;min-width:2.4em}
+  .trow .got.none{color:var(--parch-faint)}
+  .total{display:grid;grid-template-columns:1fr auto;align-items:center;gap:16px;margin-top:12px;
+    padding:16px 18px;border:1px solid var(--gold);border-top-width:3px;background:var(--ink-2)}
+  .total .tl{font-family:var(--mono);font-size:0.7rem;letter-spacing:0.2em;text-transform:uppercase;
+    color:var(--gold);font-weight:700}
+  .total .tv{font-family:var(--engrave);font-weight:700;font-size:2rem;color:var(--gold-lt);
+    font-variant-numeric:tabular-nums}
+  .total .tv small{font-family:var(--mono);font-size:0.72rem;letter-spacing:0.14em;margin-left:8px}
 
   /* ── EDGE CASES ── */
   .edges{display:grid;grid-template-columns:1fr;gap:12px}
@@ -113,18 +104,21 @@
     color:var(--gold-lt);margin-bottom:8px;font-weight:700}
   .edge p{font-size:0.94rem;color:var(--parch-dim);line-height:1.55}
   .edge.dim h3{color:var(--parch-dim)}
+  .edge.wide{grid-column:1/-1}
 
-  /* ── LADDERS ── */
-  .ladders{display:grid;grid-template-columns:1fr;gap:14px}
-  @media(min-width:560px){.ladders{grid-template-columns:1fr 1fr}}
-  .ladder{border:1px solid var(--lc,var(--gold));border-top-width:2px;background:var(--ink-2);padding:22px 20px 24px}
-  .ladder .lg{font-size:1.5rem;line-height:1}
-  .ladder h3{font-family:var(--engrave);font-size:1.12rem;color:var(--lc,var(--gold-lt));margin:10px 0 8px;
+  /* ── THE BOARD ── */
+  .board{border:1px solid var(--gold-lt);border-top-width:3px;background:var(--ink-2);
+    padding:28px 24px 30px;text-align:center}
+  .board .lg{font-size:1.8rem;line-height:1}
+  .board h3{font-family:var(--engrave);font-size:1.5rem;color:var(--gold-lt);margin:12px 0 10px;
     text-transform:uppercase;letter-spacing:0.08em}
-  .ladder p{font-size:0.95rem;color:var(--parch-dim);line-height:1.55}
-  .ladder.sh{--lc:var(--shadow)}
-  .ladders-note{grid-column:1/-1;text-align:center;font-style:italic;color:var(--parch-faint);
-    font-size:0.95rem;margin-top:4px}
+  .board p{font-size:0.98rem;color:var(--parch-dim);line-height:1.6;max-width:46ch;margin:0 auto}
+  .board .cols{display:grid;grid-template-columns:1fr;gap:10px;margin-top:22px;text-align:left}
+  @media(min-width:560px){.board .cols{grid-template-columns:repeat(3,1fr)}}
+  .board .col{border:1px solid var(--line-soft);background:var(--ink-3);padding:12px 14px}
+  .board .col .ch{font-family:var(--mono);font-size:0.62rem;letter-spacing:0.14em;text-transform:uppercase;
+    color:var(--gold);font-weight:700;margin-bottom:4px}
+  .board .col .cd{font-size:0.9rem;color:var(--parch-dim);line-height:1.45}
 
   /* ── OUTRO ── */
   .outro{text-align:center;margin-top:clamp(44px,8vw,68px);padding-top:28px;border-top:1px solid var(--line-soft)}
@@ -146,7 +140,7 @@
     <div class="kicker">Gulf Nexus League · Riftbound</div>
     <h1>The Vendetta</h1>
     <span class="swords">&#9876;</span>
-    <p class="deck">Every match you've ever played is on the record. Each event it names your enemy — and hands you two ways to make them pay.</p>
+    <p class="deck">Every match you've ever played is on the record. Each event it names your enemy — and pays you extra for taking them down.</p>
   </header>
 
   <div class="rule"><span>&#9876;</span></div>
@@ -167,7 +161,7 @@
         <h3>Bad Blood</h3>
         <p>Some history between you — the best grudge available among today's field.</p>
       </div>
-      <div class="grade" style="--gd:var(--shadow-deep)">
+      <div class="grade" style="--gd:var(--gold-deep)">
         <div class="glyph">&#127922;</div>
         <h3>New Blood</h3>
         <p>No history yet. A fresh rivalry, drawn at random, waiting to be written.</p>
@@ -177,96 +171,89 @@
 
   <div class="rule"><span>&#9876;</span></div>
 
-  <!-- THE FORK -->
+  <!-- HOW YOU SCORE -->
   <section class="reveal">
     <span class="eyebrow sec-eye">How you score</span>
-    <h2 class="sec">One question decides everything.</h2>
-    <p class="lead">Come event day, whether you earn <strong class="g">Reckoning Points (RP)</strong> or <strong class="v">Shadow Points (SP)</strong> turns on a single fact:</p>
+    <h2 class="sec">Every match you play is worth points.</h2>
+    <p class="lead">One currency — <strong class="g">Reckoning Points (RP)</strong> — and four lines of rules. No proxies, no waiting on anyone else's result.</p>
 
-    <div class="qbanner">
-      <div class="qk">The Fork</div>
-      <div class="q">Did you face your Vendetta at the table?</div>
-    </div>
-    <div class="stem"></div>
-
-    <div class="paths">
-      <div class="path" style="--pc:var(--gold)">
-        <div class="answer">Yes &middot; you met</div>
-        <div class="pts">+2</div>
-        <div class="plabel">Reckoning &middot; RP</div>
-        <p class="sub">Beat them and settle the grudge. Swiss round or Top Cut — every meeting between rivals counts, every time.</p>
+    <div class="scoring">
+      <div class="srow">
+        <div class="case"><span class="w">Win a match</span></div>
+        <div class="badge">3<span class="u">RP</span></div>
       </div>
-      <div class="path shadow">
-        <div class="answer">No &middot; you didn't</div>
-        <div class="toshadow">&#127769;</div>
-        <div class="plabel">Into the Shadow</div>
-        <p class="sub">Pairings sent you elsewhere, or your rival dropped or never came. You're still scored — by proxy.</p>
+      <div class="srow">
+        <div class="case">Draw a match</div>
+        <div class="badge">1<span class="u">RP</span></div>
+      </div>
+      <div class="srow">
+        <div class="case"><span class="l">Lose a match</span></div>
+        <div class="badge zero">0<span class="u">None</span></div>
+      </div>
+      <div class="srow hero">
+        <div class="case"><strong class="g">Beat your Vendetta</strong> <span class="note">— on top of the win, so 5 in total</span></div>
+        <div class="badge">+2<span class="u">Bonus</span></div>
       </div>
     </div>
-    <p class="fork-note">Pairings rarely sit you straight across from your rival — so the Shadow does most of the work all season.</p>
+    <p class="scoring-note">Your score depends only on your own results. Nobody else's night can move it.</p>
   </section>
 
   <div class="rule"><span>&#9876;</span></div>
 
-  <!-- THE SHADOW -->
+  <!-- WORKED EXAMPLE -->
   <section class="reveal">
-    <span class="eyebrow sec-eye" style="color:var(--shadow)">The Shadow</span>
-    <h2 class="sec">When you can't meet, the Shadow still watches.</h2>
-    <p class="lead">You didn't play your rival this round — but you both played <em>someone</em>. The Shadow scores you against how your rival did in the same round.</p>
-    <div class="shadowwrap">
-      <div class="matrix">
-        <div class="mrow">
-          <div class="case"><span class="you-w">You win</span> your round <span class="rival">&mdash; and your rival loses, draws, or isn't there</span></div>
-          <div class="badge">+2<span class="u">SP</span></div>
-        </div>
-        <div class="mrow">
-          <div class="case"><span class="you-w">You both win</span> <span class="rival">&mdash; matched strength, honours even</span></div>
-          <div class="badge">+1<span class="u">each</span></div>
-        </div>
-        <div class="mrow">
-          <div class="case"><span class="you-l">You lose or draw</span> <span class="rival">&mdash; the Shadow rewards nothing</span></div>
-          <div class="badge zero">0<span class="u">nothing</span></div>
-        </div>
-      </div>
+    <span class="eyebrow sec-eye">Count it yourself</span>
+    <h2 class="sec">One night, scored at your own table.</h2>
+    <p class="lead">Five Swiss rounds, one of them against the rival you were handed:</p>
+    <div class="tally">
+      <div class="trow"><div class="rd">Round 1</div><div class="what">You win</div><div class="got">+3</div></div>
+      <div class="trow bonus"><div class="rd">Round 2</div><div class="what">You beat <strong class="g">your Vendetta</strong> — 3 + 2</div><div class="got">+5</div></div>
+      <div class="trow"><div class="rd">Round 3</div><div class="what">You lose</div><div class="got none">0</div></div>
+      <div class="trow"><div class="rd">Round 4</div><div class="what">You draw</div><div class="got">+1</div></div>
+      <div class="trow"><div class="rd">Round 5</div><div class="what">You win</div><div class="got">+3</div></div>
     </div>
+    <div class="total"><div class="tl">Your night</div><div class="tv">12<small>RP</small></div></div>
+    <p class="scoring-note">Same maths at every event, and it all stacks up across the season.</p>
   </section>
 
   <div class="rule"><span>&#9876;</span></div>
 
   <!-- EDGE CASES -->
   <section class="reveal">
-    <span class="eyebrow sec-eye">Two things worth knowing</span>
+    <span class="eyebrow sec-eye">The fine print</span>
+    <h2 class="sec">Three things worth knowing.</h2>
     <div class="edges">
       <div class="edge">
-        <h3>&#127967; No rival in the room? Duel the field.</h3>
-        <p>If the field is odd and you're left without a Vendetta — or you rolled in late — a clean round win still earns you <strong class="v">+2 Shadow</strong>. Show up early and prepared and you're given a real rival; latecomers fight the field.</p>
+        <h3>&#10227; Meet again, score again.</h3>
+        <p>Swiss round or Top Cut — every time you and your Vendetta land at the same table, the <strong class="g">+2</strong> is live again. Nothing is capped.</p>
       </div>
-      <div class="edge dim">
-        <h3>&#9995; Byes never score.</h3>
-        <p>A bye isn't a fight. It earns no Reckoning Points (RP) and no Shadow Points (SP) — for you or your rival. Only battles at the table move the boards.</p>
+      <div class="edge">
+        <h3>&#9671; No rival today? You still score.</h3>
+        <p>Odd field, rival dropped, or you rolled in late — your wins are worth the same <strong class="g">3 RP</strong>. Only the bonus needs a declared Vendetta, so show up early and prepared to get one.</p>
+      </div>
+      <div class="edge dim wide">
+        <h3>&#10005; Byes never score.</h3>
+        <p>A bye isn't a fight. It earns no points and doesn't touch your record — for you or your rival. Only battles at the table move the board.</p>
       </div>
     </div>
   </section>
 
   <div class="rule"><span>&#9876;</span></div>
 
-  <!-- LADDERS -->
+  <!-- THE BOARD -->
   <section class="reveal">
     <span class="eyebrow sec-eye">Where it all lands</span>
-    <h2 class="sec">Two boards. Two crowns.</h2>
-    <p class="lead">Your two kinds of points are ranked entirely separately — a rival who never meets you at the table can still be hunting you in the Shadow.</p>
-    <div class="ladders">
-      <div class="ladder">
-        <div class="lg">&#9876;</div>
-        <h3>The Reckoning</h3>
-        <p>Points won face to face, against the Vendetta you were handed. The record of grudges settled in the open.</p>
+    <h2 class="sec">One board. One crown.</h2>
+    <p class="lead">Every event adds to your season total — nothing resets, nothing decays.</p>
+    <div class="board">
+      <div class="lg">&#9876;</div>
+      <h3>The Reckoning</h3>
+      <p>Ranked on Reckoning Points, with your match record and Vendetta wins shown alongside so you can see how a total was built.</p>
+      <div class="cols">
+        <div class="col"><div class="ch">Reckoning Pts</div><div class="cd">Your season total, in RP.</div></div>
+        <div class="col"><div class="ch">Record</div><div class="cd">Wins, draws and losses at the table.</div></div>
+        <div class="col"><div class="ch">Vendetta Wins</div><div class="cd">Grudges settled face to face.</div></div>
       </div>
-      <div class="ladder sh">
-        <div class="lg">&#127769;</div>
-        <h3>The Shadows</h3>
-        <p>The proxy war — every round you outlasted a rival you never got to face. Tracked and crowned on its own.</p>
-      </div>
-      <p class="ladders-note">Chase both. The best rivals top them together.</p>
     </div>
   </section>
 
