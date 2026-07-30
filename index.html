@@ -1092,8 +1092,9 @@
       <div class="card">
         <div class="card-label">☁ Gist Info</div>
         <div style="font-size:0.8rem;color:rgba(245,237,214,0.35);line-height:2">
-          Gist ID: <strong style="color:var(--gold-light);font-family:monospace;font-size:0.75rem">9963bf3fce242d108eab3f0b5a6a416e</strong><br>
-          File: <strong style="color:var(--gold-light)">riftbound.json</strong><br>
+          City: <strong style="color:var(--gold-light)" class="city-label"></strong><br>
+          Gist ID: <strong style="color:var(--gold-light);font-family:monospace;font-size:0.75rem" id="gistInfoId">—</strong><br>
+          File: <strong style="color:var(--gold-light)" id="gistInfoFile">—</strong><br>
           Data syncs automatically on every change.
         </div>
       </div>
@@ -2427,6 +2428,12 @@ function initSettingsPanel() {
   setTokenStatus(t ? '✓ Token is set' : '⚠ No token saved — sync disabled', t ? '#4caf50' : '#c0392b');
   const cityEl = document.getElementById('activeCityDisplay');
   if (cityEl) cityEl.textContent = getCityConfig()?.label || '—';
+  // Gist Info must reflect the city you're actually signed into, not a fixed one
+  const cfg = getCityConfig();
+  const idEl = document.getElementById('gistInfoId');
+  const fileEl = document.getElementById('gistInfoFile');
+  if (idEl) idEl.textContent = cfg ? cfg.gistId : '—';
+  if (fileEl) fileEl.textContent = cfg ? cfg.gistFile : '—';
 }
 function setTokenStatus(msg, color) {
   const el = document.getElementById('tokenStatus');
