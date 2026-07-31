@@ -1402,7 +1402,7 @@
             <div class="rv-tab" data-rvtab="h2h">Head-to-Head</div>
             <div class="rv-tab" data-rvtab="pairings">Suggested Pairings</div>
             <div class="rv-tab" data-rvtab="eventday">⚔ Event Day</div>
-            <div class="rv-tab" data-rvtab="leaderboard">⚔ The Reckoning</div>
+            <div class="rv-tab" data-rvtab="leaderboard">⚔ GNL: Vendetta</div>
             <!-- Board/point display names are also published to the gist (rivalry.display) so a public site can read them -->
 
           </div>
@@ -1479,7 +1479,7 @@
 
             <div id="rvRecordResultsWrap" style="display:none;margin-top:22px">
               <div class="card">
-                <div class="card-label">🏆 Record Results &amp; Award Reckoning Points</div>
+                <div class="card-label">🏆 Record Results &amp; Award League Points</div>
                 <p style="font-size:0.74rem;color:rgba(245,237,214,0.4);margin-bottom:10px;line-height:1.5">
                   Upload a round's results CSV. Every match scores on its own — <strong style="color:rgba(245,237,214,0.6)">win 3, draw 1, loss 0</strong> — and beating your declared Vendetta adds a <strong style="color:rgba(245,237,214,0.6)">+2 bonus</strong> (5 total). Upload multiple rounds from the same event one at a time (e.g. Swiss round 3, then the Top 8 bracket); points stack each time.
                   <br/>Your score depends only on your own results. <strong style="color:rgba(245,237,214,0.6)">Byes never earn points</strong>, and a rival who drops simply means the bonus doesn't fire.</p>
@@ -1535,10 +1535,10 @@
           <!-- LEADERBOARD -->
           <div class="rv-tab-panel" id="rvtab-leaderboard">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-              <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic"><strong style="color:var(--gold-light);font-style:normal">⚔ The Reckoning</strong> — cumulative Reckoning Points (RP) — 3 per win, 1 per draw, +2 for beating your Vendetta.</p>
+              <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic"><strong style="color:var(--gold-light);font-style:normal">⚔ GNL: Vendetta</strong> — cumulative League Points (LP) — 3 per win, 1 per draw, +2 for beating your Vendetta.</p>
               <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                 <span id="rvLbStatus" style="font-size:0.72rem;color:rgba(245,237,214,0.3)"></span>
-                <button class="btn ghost" id="rvClearLeaderboard" style="width:auto;padding:7px 14px;font-size:0.7rem;border-color:rgba(192,57,43,0.3);color:#c0392b">🗑 Clear The Reckoning</button>
+                <button class="btn ghost" id="rvClearLeaderboard" style="width:auto;padding:7px 14px;font-size:0.7rem;border-color:rgba(192,57,43,0.3);color:#c0392b">🗑 Clear GNL: Vendetta</button>
                 <button class="btn ghost" id="rvLbExportCSV" style="width:auto;padding:7px 14px;font-size:0.7rem">⬇ Export CSV</button>
                 <button class="btn ghost" id="rvLbExportImg" style="width:auto;padding:7px 14px;font-size:0.7rem">📸 Export Image</button>
                 <button class="btn ghost" id="rvRefreshLeaderboard" style="width:auto;padding:7px 14px;font-size:0.7rem">↻ Load from Gist</button>
@@ -1549,7 +1549,7 @@
                 <tr>
                   <th class="c">Rank</th>
                   <th>Player</th>
-                  <th class="c">Reckoning Pts (RP)</th>
+                  <th class="c">League Pts (LP)</th>
                   <th class="c">Record (W-D-L)</th>
                   <th class="c">Vendetta Wins</th>
                   <th>Current Rival</th>
@@ -1560,7 +1560,7 @@
             </table>
             <div id="rvLeaderboardEmpty" class="rv-empty" style="display:none">
               <div class="rv-empty-icon">🏆</div>
-              No Reckoning Points recorded yet — process event results to populate The Reckoning
+              No League Points recorded yet — process event results to populate GNL: Vendetta
             </div>
 
           </div>
@@ -1761,7 +1761,7 @@ function save(d) {
 // board and which rivalryPoints field backs the currency. Display only — the
 // stored data keys (rivalryPoints, points) are unchanged.
 var RV_DISPLAY = {
-  reckoning: { board: 'The Reckoning', points: 'Reckoning Points', abbr: 'RP', field: 'points',
+  vendetta: { board: 'GNL: Vendetta', points: 'League Points', abbr: 'LP', field: 'points',
                desc: '3 per match win, 1 per draw, +2 bonus for beating your declared Vendetta.' }
 };
 function rvStampDisplay(rivalry) { if (rivalry) rivalry.display = RV_DISPLAY; return rivalry; }
@@ -4206,7 +4206,7 @@ function swInitTab(){ swRenderSetup(); }
           '<div class="rv-pair-num">–</div>'+
           '<div class="rv-pair-player">'+p+'</div>'+
           '<div class="rv-pair-vs">—</div>'+
-          '<div class="rv-pair-player" style="opacity:0.4">the field — wins still score 3 RP</div>'+
+          '<div class="rv-pair-player" style="opacity:0.4">the field — wins still score 3 LP</div>'+
           '<div></div>'+
         '</div>';
       }).join('');
@@ -4327,11 +4327,11 @@ function swInitTab(){ swRenderSetup(); }
     block('🎲 *New Blood*', g.fresh, false);
     if(unmatched.length){
       lines.push('');
-      lines.push('🕳️ _No vendetta today: '+unmatched.join(', ')+' — they duel the field. Every win is still 3 RP._');
+      lines.push('🕳️ _No vendetta today: '+unmatched.join(', ')+' — they duel the field. Every win is still 3 LP._');
     }
     lines.push('');
-    lines.push('*Scoring* — win 3 RP · draw 1 RP · loss 0.');
-    lines.push('Beat your Vendetta and take *+2 RP* on top. 🔥');
+    lines.push('*Scoring* — win 3 LP · draw 1 LP · loss 0.');
+    lines.push('Beat your Vendetta and take *+2 LP* on top. 🔥');
     lines.push('');
     lines.push('_May the best rival win._ 🏆');
     return lines.join('\n');
@@ -4448,7 +4448,7 @@ function swInitTab(){ swRenderSetup(); }
     x.textAlign = 'center';
     x.fillStyle = parch+'0.42)';
     x.font = '22px "Crimson Pro", Georgia, serif';
-    x.fillText('Win 3 RP · Draw 1 · Beat your Vendetta for +2 more', W/2, H-96);
+    x.fillText('Win 3 LP · Draw 1 · Beat your Vendetta for +2 more', W/2, H-96);
     x.fillStyle = parch+'0.3)';
     x.font = 'italic 24px "Crimson Pro", Georgia, serif';
     x.fillText('— May the best rival win —', W/2, H-60);
@@ -4461,7 +4461,7 @@ function swInitTab(){ swRenderSetup(); }
     });
   }
 
-  // ── RECORD RESULTS: upload final results, score Reckoning Points, merge + save ──
+  // ── RECORD RESULTS: upload final results, score League Points, merge + save ──
   var rvResultsFiles = [];
   var rvResultsMatches = [];
 
@@ -4704,7 +4704,7 @@ function swInitTab(){ swRenderSetup(); }
     }
 
     var totalPts = scorers.reduce(function(s,p){ return s + pointsAwarded[p]; }, 0);
-    var desc = totalPts+' Reckoning Points across '+scorers.length+' player'+(scorers.length===1?'':'s')+
+    var desc = totalPts+' League Points across '+scorers.length+' player'+(scorers.length===1?'':'s')+
                (rivalMatchesFound.length ? ', including '+rivalMatchesFound.length+' vendetta win'+(rivalMatchesFound.length===1?'':'s') : '');
     html += saved
       ? '<p style="font-size:0.74rem;color:#4caf50;margin-bottom:8px">✓ Saved — '+desc+'</p>'
@@ -4738,7 +4738,7 @@ function swInitTab(){ swRenderSetup(); }
     if(el){ el.textContent = msg; el.style.color = color || 'rgba(245,237,214,0.3)'; }
   }
 
-  // Clear the ladder from the Gist: resets Reckoning Points and the event log.
+  // Clear the ladder from the Gist: resets League Points and the event log.
   // Season h2h history, saved pairings and attendance are never touched.
   function rvClearLadder(){
     var data = load();
@@ -4761,10 +4761,10 @@ function swInitTab(){ swRenderSetup(); }
     if(!rvLbClearArmed){
       rvLbClearArmed = true;
       clearLbBtn.textContent = '⚠ Click again to confirm';
-      rvSetLbStatus('Resets all Reckoning Points and the event log — h2h match history is kept', '#c0392b');
+      rvSetLbStatus('Resets all League Points and the event log — h2h match history is kept', '#c0392b');
       setTimeout(function(){
         rvLbClearArmed = false;
-        clearLbBtn.textContent = '🗑 Clear The Reckoning';
+        clearLbBtn.textContent = '🗑 Clear GNL: Vendetta';
         rvSetLbStatus('','');
       }, 5000);
       return;
@@ -4773,12 +4773,12 @@ function swInitTab(){ swRenderSetup(); }
     clearLbBtn.textContent = '⟳ Clearing…';
     try {
       rvClearLadder();
-      clearLbBtn.textContent = '🗑 Clear The Reckoning';
-      rvSetLbStatus('✓ The Reckoning cleared — h2h history kept', '#4caf50');
+      clearLbBtn.textContent = '🗑 Clear GNL: Vendetta';
+      rvSetLbStatus('✓ GNL: Vendetta cleared — h2h history kept', '#4caf50');
       setTimeout(function(){ rvSetLbStatus('',''); }, 3000);
       rvLoadLeaderboard(); // re-render the ladder from the cleared state
     } catch(e){
-      clearLbBtn.textContent = '🗑 Clear The Reckoning';
+      clearLbBtn.textContent = '🗑 Clear GNL: Vendetta';
       rvSetLbStatus('✗ Clear failed', '#c0392b');
     }
   });
@@ -4799,11 +4799,11 @@ function swInitTab(){ swRenderSetup(); }
     await rvLoadLeaderboard(); // refresh so the export reflects latest saved data
     var rows = rvLbCache.main;
     if(!rows.length) return false;
-    var out = ['Rank,Player,Reckoning Pts (RP),Match Wins,Draws,Losses,Vendetta Wins,Current Rival,Events'].concat(
+    var out = ['Rank,Player,League Pts (LP),Match Wins,Draws,Losses,Vendetta Wins,Current Rival,Events'].concat(
       rows.map(function(r,i){
         return [i+1, rvCsvCell(r.player), r.points, r.w, r.d, r.l, r.vw, rvCsvCell(r.rival), r.ev].join(',');
       }));
-    rvDownloadFile(URL.createObjectURL(new Blob([out.join('\n')],{type:'text/csv'})), 'gnl-the-reckoning.csv');
+    rvDownloadFile(URL.createObjectURL(new Blob([out.join('\n')],{type:'text/csv'})), 'gnl-vendetta.csv');
     return true;
   }
 
@@ -4840,7 +4840,7 @@ function swInitTab(){ swRenderSetup(); }
     x.fillText('R I F T B O U N D   L E A G U E', S/2, 118);
     x.fillStyle = accent;
     x.font = '700 58px Cinzel, Georgia, serif';
-    x.fillText('⚔ THE RECKONING', S/2, 196);
+    x.fillText('⚔ GNL: VENDETTA', S/2, 196);
     var dg = x.createLinearGradient(S/2-220,0,S/2+220,0);
     dg.addColorStop(0, accentRGBA+'0)'); dg.addColorStop(0.5, accentRGBA+'0.9)'); dg.addColorStop(1, accentRGBA+'0)');
     x.fillStyle = dg; x.fillRect(S/2-220,222,440,2);
@@ -4890,7 +4890,7 @@ function swInitTab(){ swRenderSetup(); }
       // points
       x.fillStyle = accent;
       x.font = '700 34px Cinzel, Georgia, serif';
-      x.fillText(r.points+' RP', right-22, y+40);
+      x.fillText(r.points+' LP', right-22, y+40);
     });
 
     // Footer
@@ -4901,7 +4901,7 @@ function swInitTab(){ swRenderSetup(); }
 
     return new Promise(function(resolve){
       c.toBlob(function(blob){
-        rvDownloadFile(URL.createObjectURL(blob), 'gnl-the-reckoning.png');
+        rvDownloadFile(URL.createObjectURL(blob), 'gnl-vendetta.png');
         resolve(true);
       }, 'image/png');
     });
@@ -5238,7 +5238,7 @@ function swInitTab(){ swRenderSetup(); }
             '<span>'+k+'</span><span style="color:'+color+';font-family:Cinzel,serif">+'+obj[k]+'</span></div>';
         }).join('')+'</div>';
     }
-    html += ptsTable('⚔ Reckoning Points (RP)', totalPts, 'var(--gold-light)');
+    html += ptsTable('⚔ League Points (LP)', totalPts, 'var(--gold-light)');
     if(!Object.keys(totalPts).length){
       html += '<p style="font-size:0.74rem;color:rgba(245,237,214,0.35)">No points earned this event — every match was a bye or unscored.</p>';
     }
@@ -5263,7 +5263,7 @@ function swInitTab(){ swRenderSetup(); }
   }
 
   // ── FINAL STANDINGS REPORT ──────────────────────────────────────────────
-  // Built once at save time: event summary, The Reckoning with this event's
+  // Built once at save time: event summary, GNL: Vendetta with this event's
   // deltas, and the key vendetta highlights.
   function rvPeBuildReport(rivalry, prevPoints, pending){
     var cityLbl = '';
@@ -5318,10 +5318,10 @@ function swInitTab(){ swRenderSetup(); }
 
     if(rep.ladder.length){
       lines.push('');
-      lines.push('⚔ *The Reckoning*');
+      lines.push('⚔ *GNL: Vendetta*');
       rep.ladder.slice(0, 10).forEach(function(r, i){
         var e = r.entry;
-        lines.push((i+1)+'. *'+r.player+'* — '+r.pts+' RP'+
+        lines.push((i+1)+'. *'+r.player+'* — '+r.pts+' LP'+
           (r.delta > 0 ? ' _(+'+r.delta+' this event)_' : '')+
           '  ·  '+(e.matchWins||0)+'W–'+(e.draws||0)+'D–'+(e.losses||0)+'L');
       });
@@ -5332,7 +5332,7 @@ function swInitTab(){ swRenderSetup(); }
     rep.settled.slice(0, 10).forEach(function(s){
       lines.push('• *'+s.winner+'* def. '+s.loser+' '+s.score+' ('+(s.roundType==='playoff'?'Top Cut':'Swiss')+') _+2 Vendetta bonus_');
     });
-    if(rep.topClimber) lines.push('• Biggest haul: *'+rep.topClimber.player+'* +'+rep.topClimber.delta+' RP');
+    if(rep.topClimber) lines.push('• Biggest haul: *'+rep.topClimber.player+'* +'+rep.topClimber.delta+' LP');
     if(rep.lateEntrants.length) lines.push('• Late entrants (no Vendetta bonus — show up early!): '+rep.lateEntrants.join(', '));
     if(!rep.settled.length && !rep.topClimber) lines.push('• A quiet night — no points changed hands.');
 
@@ -5353,8 +5353,8 @@ function swInitTab(){ swRenderSetup(); }
     out.push('Vendettas Settled,'+rep.settled.length);
     if(rep.lateEntrants.length) out.push('Late Entrants (no Vendetta bonus),'+rvCsvCell(rep.lateEntrants.join(', ')));
     out.push('');
-    out.push('THE RECKONING');
-    out.push('Rank,Player,Reckoning Points (RP),Event Delta,Match Wins,Draws,Losses,Vendetta Wins');
+    out.push('GNL: VENDETTA');
+    out.push('Rank,Player,League Points (LP),Event Delta,Match Wins,Draws,Losses,Vendetta Wins');
     rep.ladder.forEach(function(r, i){
       var e = r.entry;
       out.push([i+1, rvCsvCell(r.player), r.pts, r.delta, e.matchWins||0, e.draws||0, e.losses||0, e.vendettaWins||0].join(','));
@@ -5365,7 +5365,7 @@ function swInitTab(){ swRenderSetup(); }
     rep.settled.forEach(function(s){
       out.push('Vendetta Settled,'+rvCsvCell(s.winner+' def. '+s.loser+' '+s.score+' ('+(s.roundType==='playoff'?'Top Cut':'Swiss')+') +2 bonus'));
     });
-    if(rep.topClimber) out.push('Biggest Haul,'+rvCsvCell(rep.topClimber.player+' +'+rep.topClimber.delta+' RP'));
+    if(rep.topClimber) out.push('Biggest Haul,'+rvCsvCell(rep.topClimber.player+' +'+rep.topClimber.delta+' LP'));
     return out.join('\n');
   }
 
@@ -5640,8 +5640,8 @@ function swInitTab(){ swRenderSetup(); }
         tile('Game Record', tot.gw+'–'+tot.gl, gamePct!=null ? gamePct+'% of games' : '')+
         tile('Close Matches', tot.close, 'went the distance')+
         tile('Opponents', opps.length, 'faced this season')+
-        (pts ? tile('Reckoning Pts', '<span class="rv-score-gold" style="font-size:1.05rem">'+(pts.points||0)+'</span>', (pts.matchWins||0)+'W–'+(pts.draws||0)+'D–'+(pts.losses||0)+'L') : '')+
-        (pts && (pts.vendettaWins||0) ? tile('Vendetta Wins', '<span class="rv-score-gold" style="font-size:1.05rem">'+pts.vendettaWins+'</span>', '+'+(pts.vendettaWins*2)+' RP in bonuses') : '')+
+        (pts ? tile('League Pts', '<span class="rv-score-gold" style="font-size:1.05rem">'+(pts.points||0)+'</span>', (pts.matchWins||0)+'W–'+(pts.draws||0)+'D–'+(pts.losses||0)+'L') : '')+
+        (pts && (pts.vendettaWins||0) ? tile('Vendetta Wins', '<span class="rv-score-gold" style="font-size:1.05rem">'+pts.vendettaWins+'</span>', '+'+(pts.vendettaWins*2)+' LP in bonuses') : '')+
       '</div>'+
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-bottom:18px">'+
         hlCard('🔥','Hottest Rivalry', topRival)+
