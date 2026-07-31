@@ -12,12 +12,14 @@ Download and share these however you like — WhatsApp, print, or a web page.
 | Win a match | **3 LP** |
 | Draw a match | **1 LP** |
 | Lose a match | 0 |
-| Beat your declared Vendetta | **+2 LP** on top of the win (5 total) |
 
-Every match scores on its own, so your total depends only on your own results.
-Byes never score. A rival who drops just means the bonus never fires, and players
-who arrive without a declared Vendetta still earn full match points — they simply
-have no bonus to claim.
+That's everything. Your total depends only on your own results — not on who you
+were paired against, and not on whether you met the rival you were handed. Byes
+never score.
+
+**Rivalries are worth no points.** The Vendetta, the head-to-head record and every
+grudge settled exist for the statistics and the story: they're tracked on player
+pages and in the event reports, and they appear nowhere on the standings.
 
 ## What's here
 
@@ -31,9 +33,9 @@ have no bonus to claim.
 
 1. **Cover** — The Vendetta
 2. **Your rival** — Sworn Rivals / Bad Blood / New Blood
-3. **How you score** — 3 / 1 / 0, and the +2 Vendetta bonus
-4. **Count it yourself** — a five-round night worked through to 12 LP
-5. **The fine print** — meet again score again · no rival still scores · byes never score
+3. **How you score** — 3 / 1 / 0, and nothing else
+4. **Count it yourself** — a five-round night worked through to 10 LP
+5. **The fine print** — the grudge is worth nothing · no rival changes nothing · byes never score
 6. **GNL: Vendetta** — the single cumulative season board
 
 ## Point names

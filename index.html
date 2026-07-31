@@ -1481,8 +1481,8 @@
               <div class="card">
                 <div class="card-label">🏆 Record Results &amp; Award League Points</div>
                 <p style="font-size:0.74rem;color:rgba(245,237,214,0.4);margin-bottom:10px;line-height:1.5">
-                  Upload a round's results CSV. Every match scores on its own — <strong style="color:rgba(245,237,214,0.6)">win 3, draw 1, loss 0</strong> — and beating your declared Vendetta adds a <strong style="color:rgba(245,237,214,0.6)">+2 bonus</strong> (5 total). Upload multiple rounds from the same event one at a time (e.g. Swiss round 3, then the Top 8 bracket); points stack each time.
-                  <br/>Your score depends only on your own results. <strong style="color:rgba(245,237,214,0.6)">Byes never earn points</strong>, and a rival who drops simply means the bonus doesn't fire.</p>
+                  Upload a round's results CSV. Every match scores on its own — <strong style="color:rgba(245,237,214,0.6)">win 3, draw 1, loss 0</strong>. Upload multiple rounds from the same event one at a time (e.g. Swiss round 3, then the Top 8 bracket); points stack each time.
+                  <br/>Your score depends only on your own results, never on who you were paired against. <strong style="color:rgba(245,237,214,0.6)">Vendettas are worth no points</strong> — grudge matches are still recorded for the stats and the story. <strong style="color:rgba(245,237,214,0.6)">Byes never earn points.</strong></p>
                 <div style="display:flex;gap:14px;margin-bottom:12px">
                   <label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:rgba(245,237,214,0.6);cursor:pointer">
                     <input type="radio" name="rvRoundType" id="rvRoundSwiss" value="swiss" checked style="accent-color:var(--gold)"/> Swiss Round
@@ -1535,7 +1535,7 @@
           <!-- LEADERBOARD -->
           <div class="rv-tab-panel" id="rvtab-leaderboard">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-              <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic"><strong style="color:var(--gold-light);font-style:normal">⚔ GNL: Vendetta</strong> — cumulative League Points (LP) — 3 per win, 1 per draw, +2 for beating your Vendetta.</p>
+              <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic"><strong style="color:var(--gold-light);font-style:normal">⚔ GNL: Vendetta</strong> — cumulative League Points (LP) — 3 per win, 1 per draw, 0 per loss. Rivalries don't score.</p>
               <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                 <span id="rvLbStatus" style="font-size:0.72rem;color:rgba(245,237,214,0.3)"></span>
                 <button class="btn ghost" id="rvClearLeaderboard" style="width:auto;padding:7px 14px;font-size:0.7rem;border-color:rgba(192,57,43,0.3);color:#c0392b">🗑 Clear GNL: Vendetta</button>
@@ -1551,8 +1551,6 @@
                   <th>Player</th>
                   <th class="c">League Pts (LP)</th>
                   <th class="c">Record (W-D-L)</th>
-                  <th class="c">Vendetta Wins</th>
-                  <th>Current Rival</th>
                   <th class="c">Events</th>
                 </tr>
               </thead>
@@ -1762,7 +1760,7 @@ function save(d) {
 // stored data keys (rivalryPoints, points) are unchanged.
 var RV_DISPLAY = {
   vendetta: { board: 'GNL: Vendetta', points: 'League Points', abbr: 'LP', field: 'points',
-               desc: '3 per match win, 1 per draw, +2 bonus for beating your declared Vendetta.' }
+               desc: '3 per match win, 1 per draw, 0 per loss. Rivalries are narrative only and score nothing.' }
 };
 function rvStampDisplay(rivalry) { if (rivalry) rivalry.display = RV_DISPLAY; return rivalry; }
 
@@ -4206,7 +4204,7 @@ function swInitTab(){ swRenderSetup(); }
           '<div class="rv-pair-num">–</div>'+
           '<div class="rv-pair-player">'+p+'</div>'+
           '<div class="rv-pair-vs">—</div>'+
-          '<div class="rv-pair-player" style="opacity:0.4">the field — wins still score 3 LP</div>'+
+          '<div class="rv-pair-player" style="opacity:0.4">the field — scores the same either way</div>'+
           '<div></div>'+
         '</div>';
       }).join('');
@@ -4327,11 +4325,11 @@ function swInitTab(){ swRenderSetup(); }
     block('🎲 *New Blood*', g.fresh, false);
     if(unmatched.length){
       lines.push('');
-      lines.push('🕳️ _No vendetta today: '+unmatched.join(', ')+' — they duel the field. Every win is still 3 LP._');
+      lines.push('🕳️ _No vendetta today: '+unmatched.join(', ')+' — they duel the field. Scores the same either way._');
     }
     lines.push('');
     lines.push('*Scoring* — win 3 LP · draw 1 LP · loss 0.');
-    lines.push('Beat your Vendetta and take *+2 LP* on top. 🔥');
+    lines.push('_Your Vendetta is worth no points — just pride, and the record. 🔥_');
     lines.push('');
     lines.push('_May the best rival win._ 🏆');
     return lines.join('\n');
@@ -4448,7 +4446,7 @@ function swInitTab(){ swRenderSetup(); }
     x.textAlign = 'center';
     x.fillStyle = parch+'0.42)';
     x.font = '22px "Crimson Pro", Georgia, serif';
-    x.fillText('Win 3 LP · Draw 1 · Beat your Vendetta for +2 more', W/2, H-96);
+    x.fillText('Win 3 LP · Draw 1 · No points for the grudge — only pride', W/2, H-96);
     x.fillStyle = parch+'0.3)';
     x.font = 'italic 24px "Crimson Pro", Georgia, serif';
     x.fillText('— May the best rival win —', W/2, H-60);
@@ -4523,18 +4521,20 @@ function swInitTab(){ swRenderSetup(); }
   // Score one round's matches against a vendetta list. Pure — shared by the
   // live "Process Results" flow and post-event processing.
   //
-  // Every match scores on its own: win 3, draw 1, loss 0. Beating your declared
-  // Vendetta adds a +2 bonus on top (so a vendetta win is worth 5). A player's
-  // score therefore depends only on their own results — nothing is derived from
-  // how anyone else's round went.
+  // Every match scores on its own: win 3, draw 1, loss 0. That is the whole
+  // system — a player's score depends only on their own results, and never on
+  // who they were paired against.
+  //
+  // Vendettas are deliberately worth nothing. Rivalries and head-to-head history
+  // exist for statistics and narrative — the story of the night — not for the
+  // standings. Grudge matches are still detected and recorded (rivalMatchesFound
+  // drives the highlights and the vendettaWins stat); they just don't pay.
   //
   // The edge cases need no special handling: a bye is dropped at CSV parse time
-  // so it simply isn't a match; a dropped or absent rival just means the bonus
-  // never fires; the odd player out scores from their own matches; and late
-  // entrants have no declared Vendetta, so they earn match points but never the
-  // bonus — showing up early is what earns the grudge.
+  // so it simply isn't a match, and a rival who drops or never shows changes
+  // nobody's score.
   function rvScoreRound(matches, vendettaResults, roundType){
-    var WIN_POINTS = 3, DRAW_POINTS = 1, VENDETTA_BONUS = 2;
+    var WIN_POINTS = 3, DRAW_POINTS = 1;
 
     // Build a quick lookup of the declared vendettas
     var rivalSet = {}; // key -> {a,b}
@@ -4542,11 +4542,8 @@ function swInitTab(){ swRenderSetup(); }
       rivalSet[rvKeyLower(r.a, r.b)] = { a: r.a, b: r.b };
     });
 
-    // Walk today's actual results and find matches that were between declared rivals.
-    // No dedup against prior uploads — if the same rivals meet again (e.g. Swiss then
-    // Top Cut), it scores again. Each results upload is processed independently.
     var pointsAwarded = {}; // playerName -> points gained from THIS upload
-    var rivalMatchesFound = [];
+    var rivalMatchesFound = []; // narrative only — no points attached
     var outcome = {}; // lowercased name -> { name, wins, losses, draws } across THIS upload
 
     matches.forEach(function(m){
@@ -4558,13 +4555,12 @@ function swInitTab(){ swRenderSetup(); }
         else outcome[k].draws++;
       });
 
-      // A win over your declared Vendetta earns the bonus on top of the 3
+      // Record grudge matches for the story — they score exactly like any other match
       var key = rvKeyLower(m.playerA, m.playerB);
       if(!rivalSet[key]) return; // not a vendetta pairing
       var winner = m.winsA > m.winsB ? m.playerA : (m.winsB > m.winsA ? m.playerB : null);
-      if(!winner) return; // drawn vendetta — both already got their 1, no bonus
-      pointsAwarded[winner] = (pointsAwarded[winner]||0) + VENDETTA_BONUS;
-      rivalMatchesFound.push({ a: m.playerA, b: m.playerB, winner: winner, score: m.winsA+'-'+m.winsB, roundType: roundType, points: WIN_POINTS + VENDETTA_BONUS });
+      if(!winner) return; // drawn grudge — nothing settled
+      rivalMatchesFound.push({ a: m.playerA, b: m.playerB, winner: winner, score: m.winsA+'-'+m.winsB, roundType: roundType });
     });
 
     // Base match points for everyone who played, from their own results only
@@ -4705,16 +4701,16 @@ function swInitTab(){ swRenderSetup(); }
 
     var totalPts = scorers.reduce(function(s,p){ return s + pointsAwarded[p]; }, 0);
     var desc = totalPts+' League Points across '+scorers.length+' player'+(scorers.length===1?'':'s')+
-               (rivalMatchesFound.length ? ', including '+rivalMatchesFound.length+' vendetta win'+(rivalMatchesFound.length===1?'':'s') : '');
+               (rivalMatchesFound.length ? ' · '+rivalMatchesFound.length+' grudge'+(rivalMatchesFound.length===1?'':'s')+' settled' : '');
     html += saved
       ? '<p style="font-size:0.74rem;color:#4caf50;margin-bottom:8px">✓ Saved — '+desc+'</p>'
       : '<p style="font-size:0.74rem;color:#c9922a;margin-bottom:8px">⏳ '+desc+' — not saved yet. Review, then click ☁ Save to Gist.</p>';
 
     if(rivalMatchesFound.length){
-      html += '<p style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;color:rgba(245,237,214,0.35);margin:8px 0 4px">⚔ Vendettas settled (+2 bonus)</p>'+
+      html += '<p style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;color:rgba(245,237,214,0.35);margin:8px 0 4px">⚔ Grudges settled <span style="opacity:0.6;text-transform:none;letter-spacing:0">— for the record, not for points</span></p>'+
         rivalMatchesFound.map(function(rm){
           var tag = rm.roundType === 'playoff' ? ' <span style="color:#c98c39">[Top Cut]</span>' : '';
-          return '<div style="font-size:0.78rem;color:rgba(245,237,214,0.6);padding:4px 0">⚔ '+rm.a+' vs '+rm.b+' — <span style="color:var(--gold-light)">'+rm.winner+'</span> won '+rm.score+' ('+rm.points+' pts)'+tag+'</div>';
+          return '<div style="font-size:0.78rem;color:rgba(245,237,214,0.6);padding:4px 0">⚔ '+rm.a+' vs '+rm.b+' — <span style="color:var(--gold-light)">'+rm.winner+'</span> won '+rm.score+tag+'</div>';
         }).join('');
     }
 
@@ -4799,9 +4795,9 @@ function swInitTab(){ swRenderSetup(); }
     await rvLoadLeaderboard(); // refresh so the export reflects latest saved data
     var rows = rvLbCache.main;
     if(!rows.length) return false;
-    var out = ['Rank,Player,League Pts (LP),Match Wins,Draws,Losses,Vendetta Wins,Current Rival,Events'].concat(
+    var out = ['Rank,Player,League Pts (LP),Match Wins,Draws,Losses,Events'].concat(
       rows.map(function(r,i){
-        return [i+1, rvCsvCell(r.player), r.points, r.w, r.d, r.l, r.vw, rvCsvCell(r.rival), r.ev].join(',');
+        return [i+1, rvCsvCell(r.player), r.points, r.w, r.d, r.l, r.ev].join(',');
       }));
     rvDownloadFile(URL.createObjectURL(new Blob([out.join('\n')],{type:'text/csv'})), 'gnl-vendetta.csv');
     return true;
@@ -4873,15 +4869,7 @@ function swInitTab(){ swRenderSetup(); }
       // name
       x.fillStyle = parch+'0.92)';
       x.font = '600 32px "Crimson Pro", Georgia, serif';
-      var nm = fit(r.player, 420);
-      x.fillText(nm, left+108, y+39);
-      var nameW = x.measureText(nm).width;
-      // Vendetta wins — the marquee stat, marked right after the name
-      if(r.vw){
-        x.fillStyle = accentRGBA+'0.75)';
-        x.font = '600 23px Cinzel, Georgia, serif';
-        x.fillText('⚔'+r.vw, left+124+nameW, y+38);
-      }
+      x.fillText(fit(r.player, 460), left+108, y+39);
       // record
       x.textAlign = 'right';
       x.fillStyle = parch+'0.4)';
@@ -4939,26 +4927,20 @@ function swInitTab(){ swRenderSetup(); }
       rvSavedSeasonData = data;
       empty.style.display = 'none';
 
-      // Find each player's current best rival from saved pairs, for display
-      var currentRival = {};
-      (data.savedPairs||[]).forEach(function(p){
-        currentRival[p.players[0]] = p.players[1];
-        currentRival[p.players[1]] = p.players[0];
-      });
       // Events come from attendance, which counts distinct events correctly
       var att = data.attendance || {};
 
+      // Rivalry is not a competitive input, so it appears nowhere on this board —
+      // not as a column, and not as a tiebreak. Ties break on match results alone.
       var rows = Object.entries(data.rivalryPoints).map(function(kv){
         var e = kv[1];
         return {
           player: kv[0], points: e.points||0,
           w: e.matchWins||0, d: e.draws||0, l: e.losses||0,
-          vw: e.vendettaWins||0,
-          ev: (att[kv[0]] || []).length,
-          rival: currentRival[kv[0]] || ''
+          ev: (att[kv[0]] || []).length
         };
       }).filter(function(r){ return r.points > 0 || r.w > 0 || r.d > 0 || r.l > 0; })
-        .sort(function(a,b){ return b.points - a.points || b.vw - a.vw || b.w - a.w; });
+        .sort(function(a,b){ return b.points - a.points || b.w - a.w || a.l - b.l; });
 
       empty.style.display = rows.length ? 'none' : 'block';
       body.innerHTML = rows.map(function(r, i){
@@ -4967,8 +4949,6 @@ function swInitTab(){ swRenderSetup(); }
           '<td>'+r.player+'</td>'+
           '<td class="c"><span class="rv-score-gold">'+r.points+'</span></td>'+
           '<td class="c"><span class="rv-rec-w">'+r.w+'W</span> – '+r.d+'D – <span class="rv-rec-l">'+r.l+'L</span></td>'+
-          '<td class="c td-mono">'+(r.vw || '<span style="opacity:0.3">—</span>')+'</td>'+
-          '<td>'+(r.rival || '<span style="opacity:0.3">—</span>')+'</td>'+
           '<td class="c td-mono">'+r.ev+'</td>'+
         '</tr>';
       }).join('');
@@ -5166,9 +5146,9 @@ function swInitTab(){ swRenderSetup(); }
         vendetta = { date: new Date().toISOString(), results: gen.results, unmatched: gen.unmatched, retro: true };
         retro = true;
       } else {
-        // League ruling: late entrants (played rounds but weren't in the declared
-        // roster) score match points only — with no declared Vendetta there is no
-        // +2 bonus to earn. Showing up early and prepared is what earns the grudge.
+        // Identify late entrants: played rounds but weren't in the declared roster,
+        // so they were never assigned a Vendetta. Informational only — scoring is
+        // purely match-based, so arriving late costs nothing.
         var declaredNames = new Set();
         vendetta.results.forEach(function(r){ declaredNames.add(r.a.toLowerCase()); declaredNames.add(r.b.toLowerCase()); });
         (vendetta.unmatched || []).forEach(function(p){ declaredNames.add(p.toLowerCase()); });
@@ -5219,14 +5199,14 @@ function swInitTab(){ swRenderSetup(); }
         : '⚔ Using Vendetta declared '+new Date(p.vendetta.date).toLocaleDateString()+' ('+p.vendetta.results.length+' pairs).')+
       '<br>'+p.rounds.length+' round'+(p.rounds.length===1?'':'s')+' · '+totalMatches+' matches · '+totalRivalMatches+' vendetta match'+(totalRivalMatches===1?'':'es')+' settled.'+
       ((p.lateEntrants && p.lateEntrants.length)
-        ? '<br>🚪 Late entrants — not on the declared roster, so match points only (no Vendetta bonus): '+p.lateEntrants.join(', ')
+        ? '<br>🚪 Late entrants — not on the declared roster, so no Vendetta was drawn for them (scoring is unaffected): '+p.lateEntrants.join(', ')
         : '')+
       '</p>';
 
     p.rounds.forEach(function(r){
       html += '<div style="font-size:0.72rem;color:rgba(245,237,214,0.35);margin-bottom:4px">'+
         '📄 '+r.name+' — '+(r.roundType==='playoff'?'Top Cut':'Swiss')+' · '+r.matches.length+' matches · '+
-        r.scored.rivalMatchesFound.length+' vendetta bonus'+(r.scored.rivalMatchesFound.length===1?'':'es')+'</div>';
+        r.scored.rivalMatchesFound.length+' grudge'+(r.scored.rivalMatchesFound.length===1?'':'s')+' settled</div>';
     });
 
     function ptsTable(title, obj, color){
@@ -5330,10 +5310,10 @@ function swInitTab(){ swRenderSetup(); }
     lines.push('');
     lines.push('🔥 *Highlights*');
     rep.settled.slice(0, 10).forEach(function(s){
-      lines.push('• *'+s.winner+'* def. '+s.loser+' '+s.score+' ('+(s.roundType==='playoff'?'Top Cut':'Swiss')+') _+2 Vendetta bonus_');
+      lines.push('• *'+s.winner+'* def. '+s.loser+' '+s.score+' ('+(s.roundType==='playoff'?'Top Cut':'Swiss')+')');
     });
     if(rep.topClimber) lines.push('• Biggest haul: *'+rep.topClimber.player+'* +'+rep.topClimber.delta+' LP');
-    if(rep.lateEntrants.length) lines.push('• Late entrants (no Vendetta bonus — show up early!): '+rep.lateEntrants.join(', '));
+    if(rep.lateEntrants.length) lines.push('• Late entrants, no Vendetta drawn: '+rep.lateEntrants.join(', '));
     if(!rep.settled.length && !rep.topClimber) lines.push('• A quiet night — no points changed hands.');
 
     lines.push('');
@@ -5351,7 +5331,7 @@ function swInitTab(){ swRenderSetup(); }
     out.push('Matches,'+rep.totalMatches);
     out.push('Vendetta Pairs,'+rep.pairs);
     out.push('Vendettas Settled,'+rep.settled.length);
-    if(rep.lateEntrants.length) out.push('Late Entrants (no Vendetta bonus),'+rvCsvCell(rep.lateEntrants.join(', ')));
+    if(rep.lateEntrants.length) out.push('Late Entrants (no Vendetta drawn),'+rvCsvCell(rep.lateEntrants.join(', ')));
     out.push('');
     out.push('GNL: VENDETTA');
     out.push('Rank,Player,League Points (LP),Event Delta,Match Wins,Draws,Losses,Vendetta Wins');
@@ -5363,7 +5343,7 @@ function swInitTab(){ swRenderSetup(); }
     out.push('HIGHLIGHTS');
     out.push('Type,Detail');
     rep.settled.forEach(function(s){
-      out.push('Vendetta Settled,'+rvCsvCell(s.winner+' def. '+s.loser+' '+s.score+' ('+(s.roundType==='playoff'?'Top Cut':'Swiss')+') +2 bonus'));
+      out.push('Vendetta Settled,'+rvCsvCell(s.winner+' def. '+s.loser+' '+s.score+' ('+(s.roundType==='playoff'?'Top Cut':'Swiss')+')'));
     });
     if(rep.topClimber) out.push('Biggest Haul,'+rvCsvCell(rep.topClimber.player+' +'+rep.topClimber.delta+' LP'));
     return out.join('\n');
@@ -5641,7 +5621,7 @@ function swInitTab(){ swRenderSetup(); }
         tile('Close Matches', tot.close, 'went the distance')+
         tile('Opponents', opps.length, 'faced this season')+
         (pts ? tile('League Pts', '<span class="rv-score-gold" style="font-size:1.05rem">'+(pts.points||0)+'</span>', (pts.matchWins||0)+'W–'+(pts.draws||0)+'D–'+(pts.losses||0)+'L') : '')+
-        (pts && (pts.vendettaWins||0) ? tile('Vendetta Wins', '<span class="rv-score-gold" style="font-size:1.05rem">'+pts.vendettaWins+'</span>', '+'+(pts.vendettaWins*2)+' LP in bonuses') : '')+
+        (pts && (pts.vendettaWins||0) ? tile('Vendetta Wins', '<span class="rv-score-gold" style="font-size:1.05rem">'+pts.vendettaWins+'</span>', 'grudges settled — no points attached') : '')+
       '</div>'+
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-bottom:18px">'+
         hlCard('🔥','Hottest Rivalry', topRival)+

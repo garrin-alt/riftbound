@@ -61,8 +61,6 @@
   .scoring{display:flex;flex-direction:column;gap:10px}
   .srow{display:grid;grid-template-columns:1fr auto;align-items:center;gap:14px;
     background:var(--ink-2);border:1px solid var(--line-soft);padding:15px 18px}
-  .srow.hero{border:1px solid var(--gold);border-left-width:3px;
-    background:linear-gradient(90deg,rgba(201,146,42,0.10),var(--ink-2) 62%)}
   .srow .case{font-size:1rem;line-height:1.4}
   .srow .w{color:var(--win);font-weight:700}
   .srow .l{color:var(--blood);font-weight:700}
@@ -80,7 +78,7 @@
   .tally{display:flex;flex-direction:column;gap:8px}
   .trow{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:16px;
     background:var(--ink-2);border:1px solid var(--line-soft);padding:12px 18px}
-  .trow.bonus{border-color:var(--gold);border-left:3px solid var(--gold);
+  .trow.grudge{border-color:var(--gold);border-left:3px solid var(--gold);
     background:linear-gradient(90deg,rgba(201,146,42,0.12),var(--ink-2) 65%)}
   .trow .rd{font-family:var(--mono);font-size:0.66rem;letter-spacing:0.16em;text-transform:uppercase;
     color:var(--parch-faint);font-weight:700;width:5.5em}
@@ -140,7 +138,7 @@
     <div class="kicker">Gulf Nexus League · Riftbound</div>
     <h1>The Vendetta</h1>
     <span class="swords">&#9876;</span>
-    <p class="deck">Every match you've ever played is on the record. Each event it names your enemy — and pays you extra for taking them down.</p>
+    <p class="deck">Every match you've ever played is on the record. Each event it names your enemy — and then keeps score of the grudge, win or lose.</p>
   </header>
 
   <div class="rule"><span>&#9876;</span></div>
@@ -175,7 +173,7 @@
   <section class="reveal">
     <span class="eyebrow sec-eye">How you score</span>
     <h2 class="sec">Every match you play is worth points.</h2>
-    <p class="lead">One currency — <strong class="g">League Points (LP)</strong> — and four lines of rules. No proxies, no waiting on anyone else's result.</p>
+    <p class="lead">One currency — <strong class="g">League Points (LP)</strong> — and three lines of rules. That really is all of it.</p>
 
     <div class="scoring">
       <div class="srow">
@@ -190,12 +188,8 @@
         <div class="case"><span class="l">Lose a match</span></div>
         <div class="badge zero">0<span class="u">None</span></div>
       </div>
-      <div class="srow hero">
-        <div class="case"><strong class="g">Beat your Vendetta</strong> <span class="note">— on top of the win, so 5 in total</span></div>
-        <div class="badge">+2<span class="u">Bonus</span></div>
-      </div>
     </div>
-    <p class="scoring-note">Your score depends only on your own results. Nobody else's night can move it.</p>
+    <p class="scoring-note">Nothing else adds to your total — not the draw you were given, not who you were paired against, and not beating your Vendetta. Your score is yours alone.</p>
   </section>
 
   <div class="rule"><span>&#9876;</span></div>
@@ -207,13 +201,13 @@
     <p class="lead">Five Swiss rounds, one of them against the rival you were handed:</p>
     <div class="tally">
       <div class="trow"><div class="rd">Round 1</div><div class="what">You win</div><div class="got">+3</div></div>
-      <div class="trow bonus"><div class="rd">Round 2</div><div class="what">You beat <strong class="g">your Vendetta</strong> — 3 + 2</div><div class="got">+5</div></div>
+      <div class="trow grudge"><div class="rd">Round 2</div><div class="what">You beat <strong class="g">your Vendetta</strong> — the same 3 as any win</div><div class="got">+3</div></div>
       <div class="trow"><div class="rd">Round 3</div><div class="what">You lose</div><div class="got none">0</div></div>
       <div class="trow"><div class="rd">Round 4</div><div class="what">You draw</div><div class="got">+1</div></div>
       <div class="trow"><div class="rd">Round 5</div><div class="what">You win</div><div class="got">+3</div></div>
     </div>
-    <div class="total"><div class="tl">Your night</div><div class="tv">12<small>LP</small></div></div>
-    <p class="scoring-note">Same maths at every event, and it all stacks up across the season.</p>
+    <div class="total"><div class="tl">Your night</div><div class="tv">10<small>LP</small></div></div>
+    <p class="scoring-note">Round 2 is the one everyone will talk about. It's also worth exactly what round 1 was.</p>
   </section>
 
   <div class="rule"><span>&#9876;</span></div>
@@ -224,12 +218,12 @@
     <h2 class="sec">Three things worth knowing.</h2>
     <div class="edges">
       <div class="edge">
-        <h3>&#10227; Meet again, score again.</h3>
-        <p>Swiss round or Top Cut — every time you and your Vendetta land at the same table, the <strong class="g">+2</strong> is live again. Nothing is capped.</p>
+        <h3>&#9876; The grudge is worth nothing.</h3>
+        <p>Beating your Vendetta pays exactly what any other win pays — <strong class="g">3 LP</strong>. What it earns you is the record: the head-to-head, the highlight, and the bragging rights until you meet again.</p>
       </div>
       <div class="edge">
-        <h3>&#9671; No rival today? You still score.</h3>
-        <p>Odd field, rival dropped, or you rolled in late — your wins are worth the same <strong class="g">3 LP</strong>. Only the bonus needs a declared Vendetta, so show up early and prepared to get one.</p>
+        <h3>&#9671; No rival today? Nothing changes.</h3>
+        <p>Odd field, rival dropped, or you rolled in late — your score is untouched either way. The Vendetta decides the story, never the standings.</p>
       </div>
       <div class="edge dim wide">
         <h3>&#10005; Byes never score.</h3>
@@ -248,12 +242,13 @@
     <div class="board">
       <div class="lg">&#9876;</div>
       <h3>GNL: Vendetta</h3>
-      <p>Ranked on League Points, with your match record and Vendetta wins shown alongside so you can see how a total was built.</p>
+      <p>Ranked on League Points, with your match record beside it so you can see how a total was built. Nothing about your rivalries appears here — that's the point.</p>
       <div class="cols">
         <div class="col"><div class="ch">League Pts</div><div class="cd">Your season total, in LP.</div></div>
         <div class="col"><div class="ch">Record</div><div class="cd">Wins, draws and losses at the table.</div></div>
-        <div class="col"><div class="ch">Vendetta Wins</div><div class="cd">Grudges settled face to face.</div></div>
+        <div class="col"><div class="ch">Events</div><div class="cd">Nights you turned up and played.</div></div>
       </div>
+      <p style="margin-top:18px">Your Vendettas, your head-to-heads and every grudge you've settled live in your player page and the event reports — the league's memory, kept separate from its standings.</p>
     </div>
   </section>
 
