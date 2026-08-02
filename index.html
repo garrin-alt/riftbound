@@ -1633,7 +1633,9 @@ const CITIES = {
     label:       'Abu Dhabi',
     gistId:      '9963bf3fce242d108eab3f0b5a6a416e',
     gistFile:    'riftbound.json',
+    histFile:    'riftbound_history.json',
     localKey:    'rb_league_abudhabi',
+    histKey:     'rb_hist_abudhabi',
     pwDefault:   'riftbound2026',
     adminDefault:'ZenithBlade',
   },
@@ -1641,7 +1643,11 @@ const CITIES = {
     label:       'Dubai',
     gistId:      '60edd70404e9200848085d8fd3f8d157',
     gistFile:    'riftbound_dubai.json',
+    // Named explicitly rather than derived from gistFile — a string-munged filename is
+    // exactly how one city ends up writing into the other's history.
+    histFile:    'riftbound_dubai_history.json',
     localKey:    'rb_league_dubai',
+    histKey:     'rb_hist_dubai',
     pwDefault:   'riftbounddubai2026',
     adminDefault:'IcathianRain',
   },
@@ -1744,14 +1750,26 @@ function load() {
   try { return JSON.parse(localStorage.getItem(key) || '{"events":[]}'); }
   catch { return { events: [] }; }
 }
-function save(d) {
+function save(d, hist) {
   const cfg = getCityConfig();
   // Stamp which city this data belongs to, so a backup restored into the wrong
   // city can be detected instead of silently overwriting it.
   if (cfg) d.city = cfg.label;
   const key = cfg?.localKey || 'rb_league_abudhabi';
   localStorage.setItem(key, JSON.stringify(d));
-  syncToGist(d);
+  if (hist) {
+    if (cfg) hist.city = cfg.label;
+    localStorage.setItem(cfg?.histKey || 'rb_hist_abudhabi', JSON.stringify(hist));
+  }
+  syncToGist(d, hist);
+}
+
+function loadHist() {
+  const cfg = getCityConfig();
+  try {
+    const raw = localStorage.getItem(cfg?.histKey || 'rb_hist_abudhabi');
+    return raw ? JSON.parse(raw) : rvHistNew(cfg?.label);
+  } catch { return rvHistNew(cfg?.label); }
 }
 
 // Public-facing display names for the rivalry ladder, written into the gist as
@@ -1764,6 +1782,179 @@ var RV_DISPLAY = {
 };
 function rvStampDisplay(rivalry) { if (rivalry) rivalry.display = RV_DISPLAY; return rivalry; }
 
+// ── LEAGUE HISTORY LEDGER ─────────────────────────────
+// rivalry.h2h is a lifetime aggregate with no date, event id or set, so it can answer
+// "how do these two compare" but never "when did that change". The ledger is the
+// chronological record that fills that gap: every match, in order, tagged with the set
+// and event it belongs to.
+//
+// It lives in a SECOND FILE inside the same gist. loadFromGist reads exactly one filename
+// and syncToGist PATCHes exactly one, so a second file is invisible to older builds —
+// backward compatible in both directions, and each file gets its own 1 MB ceiling.
+//
+// Counter-intuitively this is CHEAPER than the aggregate it complements: the league's
+// entire 1,131-match history encodes to ~17 KB against 180 KB for the 760-pair summary,
+// because 5 dictionary-encoded ints per match beat 9 verbose keys per pair.
+
+// Seed list only — the live set list lives in hist.sets and is editable, because Riot
+// ships new sets on their own schedule and that must not require a redeploy.
+var RV_SETS_SEED = [
+  { id: 'origins',      name: 'Origins',      order: 1 },
+  { id: 'spiritforged', name: 'Spiritforged', order: 2 },
+  { id: 'unleashed',    name: 'Unleashed',    order: 3 },
+  { id: 'vendetta',     name: 'Vendetta',     order: 4, released: '2026-07-31', current: true }
+];
+
+function rvHistNew(cityLabel) {
+  return { v: 1, city: cityLabel || '', players: [], aliases: {},
+           sets: JSON.parse(JSON.stringify(RV_SETS_SEED)), events: [], archive: [] };
+}
+
+// Append-only dictionary. An index, once assigned, is a permanent id for that name —
+// never reorder `players`, or every stored match row silently repoints.
+function rvHistPlayerId(hist, name) {
+  var i = hist.players.indexOf(name);
+  if (i !== -1) return i;
+  hist.players.push(name);
+  return hist.players.length - 1;
+}
+
+function rvHistResolve(hist, name) {
+  return (hist.aliases && hist.aliases[name]) || name;
+}
+
+// Upsert an event and keep `events` sorted. Replacing wholesale rather than merging is
+// what makes a re-upload structurally incapable of double-counting.
+//   ev = { id, set, date, label, src, rounds: [ { n, type, matches:[{playerA,playerB,winsA,winsB}] } ] }
+function rvHistRecordEvent(hist, ev) {
+  var r = [], m = [];
+  (ev.rounds || []).forEach(function (round, slot) {
+    r.push([round.n || slot + 1, round.type === 'playoff' ? 'p' : 's']);
+    (round.matches || []).forEach(function (mt) {
+      var a = rvHistPlayerId(hist, rvHistResolve(hist, mt.playerA));
+      var b = rvHistPlayerId(hist, rvHistResolve(hist, mt.playerB));
+      m.push(slot + ',' + a + ',' + b + ',' + (+mt.winsA || 0) + ',' + (+mt.winsB || 0));
+    });
+  });
+  var row = { id: String(ev.id), set: ev.set, date: ev.date, src: ev.src || 'history', r: r, m: m };
+  if (ev.label) row.label = ev.label;
+
+  var at = hist.events.findIndex(function (e) { return e.id === row.id; });
+  if (at === -1) hist.events.push(row); else hist.events[at] = row;
+
+  // Sorted at write so every order-dependent derivation downstream is a single forward
+  // pass. This is why uploading events out of order self-heals instead of corrupting.
+  hist.events.sort(function (x, y) {
+    return String(x.date).localeCompare(String(y.date)) || String(x.id).localeCompare(String(y.id));
+  });
+  return hist;
+}
+
+function rvHistCurrentSet(hist) {
+  var cur = (hist.sets || []).find(function (s) { return s.current; });
+  return (cur || (hist.sets || [])[(hist.sets || []).length - 1] || {}).id || 'vendetta';
+}
+
+// Merge a SINGLE round into an event, creating the event if needed. This is the live
+// event-day path, where rounds arrive one at a time — unlike post-event, which replaces
+// the whole event so that re-uploading with a file removed actually removes it.
+// A round with a number already present is replaced, so re-saving a round is idempotent.
+function rvHistUpsertRound(hist, ev) {
+  var id = String(ev.id);
+  var at = hist.events.findIndex(function (e) { return e.id === id; });
+  if (at === -1) {
+    rvHistRecordEvent(hist, { id: id, set: ev.set, date: ev.date, label: ev.label, src: ev.src, rounds: [] });
+    at = hist.events.findIndex(function (e) { return e.id === id; });
+  }
+  var row = hist.events[at];
+  var n = ev.roundNo || (row.r.length + 1);
+  var type = ev.roundType === 'playoff' ? 'p' : 's';
+
+  var slot = row.r.findIndex(function (x) { return x[0] === n; });
+  if (slot === -1) { row.r.push([n, type]); slot = row.r.length - 1; }
+  else { row.r[slot] = [n, type]; row.m = row.m.filter(function (s) { return +s.split(',')[0] !== slot; }); }
+
+  (ev.matches || []).forEach(function (mt) {
+    var a = rvHistPlayerId(hist, rvHistResolve(hist, mt.playerA));
+    var b = rvHistPlayerId(hist, rvHistResolve(hist, mt.playerB));
+    row.m.push(slot + ',' + a + ',' + b + ',' + (+mt.winsA || 0) + ',' + (+mt.winsB || 0));
+  });
+  return hist;
+}
+
+// Rebuild an h2h array from the ledger, in the SAME row shape as rivalry.h2h so every
+// existing consumer (rvRenderH2H, rvRenderCards, pdTotals, rvComputeVendettas) accepts a
+// per-set slice with no changes — you just hand them a different array.
+//
+// The arithmetic deliberately mirrors rvAnalyze() exactly, including its quirks, so a
+// rebuild is a true drop-in replacement and any difference is a real bug rather than a
+// definition change. (Noted: rvAnalyze's `swings` treats a drawn match as won by
+// players[1]. Replicated here on purpose; worth fixing later, in its own change.)
+//   opts: { set, from, to }  — omit for lifetime
+function rvDeriveFromLedger(hist, opts) {
+  opts = opts || {};
+  var h2h = {}, totals = {}, evs = [];
+  if (!hist || !hist.events) return { h2h: [], totals: {}, events: [] };
+
+  hist.events.forEach(function (ev) {
+    if (opts.set && ev.set !== opts.set) return;
+    if (opts.from && String(ev.date) < opts.from) return;
+    if (opts.to   && String(ev.date) > opts.to) return;
+    evs.push(ev);
+
+    // Group rows by round slot so within-event order follows the round order, not file order
+    var bySlot = [];
+    (ev.m || []).forEach(function (row) {
+      var f = row.split(',');
+      (bySlot[+f[0]] = bySlot[+f[0]] || []).push({
+        a: hist.players[+f[1]], b: hist.players[+f[2]], wa: +f[3], wb: +f[4],
+        playoff: ((ev.r || [])[+f[0]] || [])[1] === 'p'
+      });
+    });
+
+    bySlot.forEach(function (rows) {
+      (rows || []).forEach(function (mt) {
+        var pa = mt.a, pb = mt.b;
+        if (!pa || !pb) return;
+        var key = [pa, pb].sort().join('|');
+        if (!h2h[key]) h2h[key] = { players: [pa, pb].sort(), meetings: 0, winsA: 0, winsB: 0,
+                                    matchWinsA: 0, matchWinsB: 0, close: 0, swings: 0, score: 0 };
+        var e = h2h[key], sorted = e.players[0];
+        if (pa === sorted) { e.winsA += mt.wa; e.winsB += mt.wb; }
+        else               { e.winsA += mt.wb; e.winsB += mt.wa; }
+        var winner = mt.wa > mt.wb ? pa : (mt.wb > mt.wa ? pb : null);
+        if (winner === sorted) e.matchWinsA++;
+        else if (winner) e.matchWinsB++;
+        e.meetings++;
+        if (Math.abs(mt.wa - mt.wb) === 1) e.close++;
+        if (e.winsA !== e.winsB) {
+          var leader = e.winsA > e.winsB ? sorted : e.players[1];
+          var thisWinner = (pa === sorted ? (mt.wa > mt.wb) : (mt.wb > mt.wa)) ? sorted : e.players[1];
+          if (leader !== thisWinner) e.swings++;
+        }
+
+        [[pa, mt.wa, mt.wb], [pb, mt.wb, mt.wa]].forEach(function (side) {
+          var t = totals[side[0]] = totals[side[0]] ||
+            { matches: 0, mw: 0, ml: 0, draws: 0, gw: 0, gl: 0, close: 0, playoffW: 0, playoffL: 0, events: {} };
+          t.matches++; t.gw += side[1]; t.gl += side[2];
+          if (side[1] > side[2]) { t.mw++; if (mt.playoff) t.playoffW++; }
+          else if (side[1] < side[2]) { t.ml++; if (mt.playoff) t.playoffL++; }
+          else t.draws++;
+          if (Math.abs(side[1] - side[2]) === 1) t.close++;
+          t.events[ev.id] = true;
+        });
+      });
+    });
+  });
+
+  Object.keys(totals).forEach(function (p) {
+    totals[p].eventIds = Object.keys(totals[p].events);
+    totals[p].eventCount = totals[p].eventIds.length;
+    delete totals[p].events;
+  });
+  return { h2h: Object.values(h2h), totals: totals, events: evs };
+}
+
 function setSyncStatus(msg, color) {
   const el = document.getElementById('syncStatus');
   if (el) { el.textContent = msg; el.style.color = color || 'rgba(245,237,214,0.3)'; }
@@ -1775,19 +1966,24 @@ function setSyncStatus(msg, color) {
 // nothing (the file is machine data, and the gist web UI pretty-prints JSON anyway) and
 // recovers roughly 46% of the payload. The human-readable copy is the Settings backup
 // export, which stays indented.
-async function syncToGist(data) {
+// The history file is NEVER PATCHed on its own — when present it goes in the same request
+// body as the primary file. Two reasons: the pair stays atomic, and every consumer that
+// inspects a write (including the test suite) reads files[gistFile] unconditionally.
+async function syncToGist(data, hist) {
   const cfg = getCityConfig();
   if (!cfg) return;
   if (!getToken()) { setSyncStatus('⚠ No token set', '#c0392b'); return; }
   setSyncStatus('⟳ Saving…', 'rgba(201,146,42,0.7)');
   try {
+    const files = { [cfg.gistFile]: { content: JSON.stringify(data) } };
+    if (hist && cfg.histFile) files[cfg.histFile] = { content: JSON.stringify(hist) };
     const res = await fetch(`https://api.github.com/gists/${cfg.gistId}`, {
       method: 'PATCH',
       headers: {
         'Authorization': `token ${getToken()}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ files: { [cfg.gistFile]: { content: JSON.stringify(data) } } })
+      body: JSON.stringify({ files })
     });
     if (!res.ok) throw new Error(res.status);
     setSyncStatus('✓ Saved to Gist', '#4caf50');
@@ -1804,6 +2000,16 @@ async function loadFromGist() {
     const res = await fetch(`https://api.github.com/gists/${cfg2.gistId}?_=${Date.now()}`);
     if (!res.ok) throw new Error(res.status);
     const gist = await res.json();
+
+    // Cache the history file if this gist has one. Kept separate from the return value so
+    // every existing caller of loadFromGist() sees exactly what it saw before.
+    try {
+      const hraw = cfg2.histFile && gist.files[cfg2.histFile]?.content;
+      if (hraw && hraw.trim() !== '{}' && hraw.trim() !== '') {
+        localStorage.setItem(cfg2.histKey, JSON.stringify(JSON.parse(hraw)));
+      }
+    } catch(e) { /* a malformed ledger must never block the primary load */ }
+
     const raw = gist.files[cfg2.gistFile]?.content;
     if (raw && raw.trim() !== '{}' && raw.trim() !== '') {
       const data = JSON.parse(raw);
@@ -4681,11 +4887,23 @@ function swInitTab(){ swRenderSetup(); }
     rvApplyRoundToRivalry(rivalry, rvPendingResults, rvResultsMatches, rvLastEventAssignments);
     rivalry.updatedAt = new Date().toISOString();
 
+    // Mirror this round into the chronological ledger. Kept outside
+    // rvApplyRoundToRivalry so scoring and rivalryPoints stay provably untouched.
+    var hist = loadHist();
+    var evId = (rvResultsMatches.find(function(m){ return m.eventId; }) || {}).eventId;
+    if(evId){
+      rvHistUpsertRound(hist, {
+        id: evId, set: rvHistCurrentSet(hist), date: new Date().toISOString().slice(0,10),
+        src: 'live', roundNo: rvRoundNumFromName((rvResultsFiles[0] || {}).name || '') || undefined,
+        roundType: rvPendingResults.roundType, matches: rvResultsMatches
+      });
+    }
+
     data.rivalry = rivalry;
     rvSavedSeasonData = rivalry;
 
     try {
-      save(data);
+      save(data, evId ? hist : undefined);
       saveResultsBtn.textContent = '☁ Save to Gist';
       rvPendingResults = null; // consumed — a re-save would double-count
       rvRenderResultsSummary(rivalMatchesFound, pointsAwarded, true);
@@ -5383,9 +5601,32 @@ function swInitTab(){ swRenderSetup(); }
       rivalry.activeVendetta = null; // consumed — next event starts clean
       rivalry.updatedAt = new Date().toISOString();
 
+      // Mirror the whole event into the ledger. Grouped by event id and recorded as one
+      // unit, so re-uploading the same event REPLACES it — including dropping a round
+      // whose file was left out the second time.
+      var hist = loadHist();
+      var byEvent = {};
+      rvPePending.rounds.forEach(function(r){
+        var id = (r.matches.find(function(m){ return m.eventId; }) || {}).eventId;
+        if(!id) return;
+        (byEvent[id] = byEvent[id] || []).push({
+          n: rvRoundNumFromName(r.name) || undefined,
+          type: r.roundType, matches: r.matches
+        });
+      });
+      var wroteHist = false;
+      Object.keys(byEvent).forEach(function(id){
+        rvHistRecordEvent(hist, {
+          id: id, set: rvHistCurrentSet(hist),
+          date: new Date().toISOString().slice(0,10),
+          src: 'postevent', rounds: byEvent[id]
+        });
+        wroteHist = true;
+      });
+
       data.rivalry = rivalry;
       rvSavedSeasonData = rivalry;
-      save(data); // persists locally AND syncs to the Gist
+      save(data, wroteHist ? hist : undefined); // persists locally AND syncs to the Gist
 
       rvPeReport = rvPeBuildReport(rivalry, prevPoints, rvPePending);
       rvPeRenderSummary(true);
