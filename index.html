@@ -1402,8 +1402,7 @@
             <div class="rv-tab" data-rvtab="h2h">Head-to-Head</div>
             <div class="rv-tab" data-rvtab="pairings">Suggested Pairings</div>
             <div class="rv-tab" data-rvtab="eventday">⚔ Event Day</div>
-            <div class="rv-tab" data-rvtab="leaderboard">⚔ The Reckoning</div>
-            <div class="rv-tab" data-rvtab="shadowlb">🌑 The Shadows</div>
+            <div class="rv-tab" data-rvtab="leaderboard">⚔ GNL: Vendetta</div>
             <!-- Board/point display names are also published to the gist (rivalry.display) so a public site can read them -->
 
           </div>
@@ -1480,17 +1479,16 @@
 
             <div id="rvRecordResultsWrap" style="display:none;margin-top:22px">
               <div class="card">
-                <div class="card-label">🏆 Record Results &amp; Award Reckoning Points</div>
+                <div class="card-label">🏆 Record Results &amp; Award League Points</div>
                 <p style="font-size:0.74rem;color:rgba(245,237,214,0.4);margin-bottom:10px;line-height:1.5">
-                  Upload a round's results CSV. Any match between declared Vendettas (above) earns the winner Reckoning Points (RP) — <strong style="color:rgba(245,237,214,0.6)">+2 per Reckoning win (Swiss and Top Cut/Knockouts alike)</strong>. You can upload multiple rounds from the same event one at a time (e.g. Swiss round 3, then later the Top 8 bracket) — points stack each time the rivalry meets again.
-                  <br/><span style="color:#9b8cc4">🌑 Shadow Points (SP):</span> rivals who <em>don't</em> meet are scored by proxy from their own matches — win while your rival doesn't = <strong style="color:rgba(245,237,214,0.6)">+2 shadow</strong>, both win = <strong style="color:rgba(245,237,214,0.6)">+1 each</strong>, lose or draw = 0. A dropped or absent rival counts as "didn't win", and the odd player out with no vendetta duels <em>the field</em> — their wins earn +2 shadow too. <strong style="color:rgba(245,237,214,0.6)">Byes never earn points.</strong>
-                </p>
+                  Upload a round's results CSV. Every match scores on its own — <strong style="color:rgba(245,237,214,0.6)">win 3, draw 1, loss 0</strong>. Upload multiple rounds from the same event one at a time (e.g. Swiss round 3, then the Top 8 bracket); points stack each time.
+                  <br/>Your score depends only on your own results, never on who you were paired against. <strong style="color:rgba(245,237,214,0.6)">Vendettas are worth no points</strong> — grudge matches are still recorded for the stats and the story. <strong style="color:rgba(245,237,214,0.6)">Byes never earn points.</strong></p>
                 <div style="display:flex;gap:14px;margin-bottom:12px">
                   <label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:rgba(245,237,214,0.6);cursor:pointer">
-                    <input type="radio" name="rvRoundType" id="rvRoundSwiss" value="swiss" checked style="accent-color:var(--gold)"/> Swiss Round (+2)
+                    <input type="radio" name="rvRoundType" id="rvRoundSwiss" value="swiss" checked style="accent-color:var(--gold)"/> Swiss Round
                   </label>
                   <label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:rgba(245,237,214,0.6);cursor:pointer">
-                    <input type="radio" name="rvRoundType" id="rvRoundPlayoff" value="playoff" style="accent-color:var(--gold)"/> Top Cut / Knockout (+2)
+                    <input type="radio" name="rvRoundType" id="rvRoundPlayoff" value="playoff" style="accent-color:var(--gold)"/> Top Cut / Knockout
                   </label>
                 </div>
                 <div class="rv-drop-zone" id="rvResultsDropZone">
@@ -1537,10 +1535,10 @@
           <!-- LEADERBOARD -->
           <div class="rv-tab-panel" id="rvtab-leaderboard">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-              <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic"><strong style="color:var(--gold-light);font-style:normal">⚔ The Reckoning</strong> — cumulative Reckoning Points (RP) across the whole season.</p>
+              <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic"><strong style="color:var(--gold-light);font-style:normal">⚔ GNL: Vendetta</strong> — cumulative League Points (LP) — 3 per win, 1 per draw, 0 per loss. Rivalries don't score.</p>
               <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                 <span id="rvLbStatus" style="font-size:0.72rem;color:rgba(245,237,214,0.3)"></span>
-                <button class="btn ghost" id="rvClearLeaderboard" style="width:auto;padding:7px 14px;font-size:0.7rem;border-color:rgba(192,57,43,0.3);color:#c0392b">🗑 Clear The Reckoning</button>
+                <button class="btn ghost" id="rvClearLeaderboard" style="width:auto;padding:7px 14px;font-size:0.7rem;border-color:rgba(192,57,43,0.3);color:#c0392b">🗑 Clear GNL: Vendetta</button>
                 <button class="btn ghost" id="rvLbExportCSV" style="width:auto;padding:7px 14px;font-size:0.7rem">⬇ Export CSV</button>
                 <button class="btn ghost" id="rvLbExportImg" style="width:auto;padding:7px 14px;font-size:0.7rem">📸 Export Image</button>
                 <button class="btn ghost" id="rvRefreshLeaderboard" style="width:auto;padding:7px 14px;font-size:0.7rem">↻ Load from Gist</button>
@@ -1551,51 +1549,20 @@
                 <tr>
                   <th class="c">Rank</th>
                   <th>Player</th>
-                  <th class="c">Reckoning Pts (RP)</th>
-                  <th class="c">Rival Record (W-L)</th>
-                  <th>Current Rival</th>
-                  <th class="c">Events Logged</th>
+                  <th class="c">League Pts (LP)</th>
+                  <th class="c">Record (W-D-L)</th>
+                  <th class="c">Events</th>
                 </tr>
               </thead>
               <tbody id="rvLeaderboardBody"></tbody>
             </table>
             <div id="rvLeaderboardEmpty" class="rv-empty" style="display:none">
               <div class="rv-empty-icon">🏆</div>
-              No Reckoning Points recorded yet — process event results to populate The Reckoning
+              No League Points recorded yet — process event results to populate GNL: Vendetta
             </div>
 
           </div>
 
-          <!-- SHADOW LEADERBOARD (separate tab) -->
-          <div class="rv-tab-panel" id="rvtab-shadowlb">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-              <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic"><strong style="color:#b3a3e0;font-style:normal">🌑 The Shadows</strong> — proxy scoring for rivals who didn't meet, tracked entirely separately from The Reckoning.</p>
-              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-                <button class="btn ghost" id="rvClearShadowLb" style="width:auto;padding:7px 14px;font-size:0.7rem;border-color:rgba(192,57,43,0.3);color:#c0392b">🗑 Clear The Shadows</button>
-                <button class="btn ghost" id="rvShadowExportCSV" style="width:auto;padding:7px 14px;font-size:0.7rem">⬇ Export CSV</button>
-                <button class="btn ghost" id="rvShadowExportImg" style="width:auto;padding:7px 14px;font-size:0.7rem">📸 Export Image</button>
-                <button class="btn ghost" id="rvRefreshShadowLb" style="width:auto;padding:7px 14px;font-size:0.7rem">↻ Load from Gist</button>
-              </div>
-            </div>
-            <div id="rvShadowLbWrap" style="display:none">
-              <table>
-                <thead>
-                  <tr>
-                    <th class="c">Rank</th>
-                    <th>Player</th>
-                    <th class="c">Shadow Pts (SP)</th>
-                    <th class="c">Shadow Record (W-D)</th>
-                    <th>Current Rival</th>
-                  </tr>
-                </thead>
-                <tbody id="rvShadowLbBody"></tbody>
-              </table>
-            </div>
-            <div id="rvShadowLbEmpty" class="rv-empty" style="display:none">
-              <div class="rv-empty-icon">🌑</div>
-              No Shadow Points recorded yet — process event results to populate The Shadows
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -1787,13 +1754,13 @@ function save(d) {
   syncToGist(d);
 }
 
-// Public-facing display names for the two rivalry ladders, written into the
-// gist as data.rivalry.display so a public site pulling the gist knows what to
-// call each board and which rivalryPoints field backs each currency. Display
-// only — the stored data keys (rivalryPoints, points, shadowPoints) are unchanged.
+// Public-facing display names for the rivalry ladder, written into the gist as
+// data.rivalry.display so a public site pulling the gist knows what to call the
+// board and which rivalryPoints field backs the currency. Display only — the
+// stored data keys (rivalryPoints, points) are unchanged.
 var RV_DISPLAY = {
-  reckoning: { board: 'The Reckoning', points: 'Reckoning Points', abbr: 'RP', field: 'points',       desc: 'Points won facing your declared Vendetta at the table.' },
-  shadow:    { board: 'The Shadows',   points: 'Shadow Points',    abbr: 'SP', field: 'shadowPoints', desc: 'Proxy points for rounds a rival did not meet you at the table.' }
+  vendetta: { board: 'GNL: Vendetta', points: 'League Points', abbr: 'LP', field: 'points',
+               desc: '3 per match win, 1 per draw, 0 per loss. Rivalries are narrative only and score nothing.' }
 };
 function rvStampDisplay(rivalry) { if (rivalry) rivalry.display = RV_DISPLAY; return rivalry; }
 
@@ -3624,8 +3591,8 @@ function swInitTab(){ swRenderSetup(); }
   }
 
   // "BYE" in any dressing ("BYE", "*** Bye ***", "- bye -") is a placeholder, not a player.
-  // Bye rows are dropped at parse time so they can't earn points, feed shadow scoring,
-  // count as attendance, or pollute season h2h.
+  // Bye rows are dropped at parse time so they can't earn points, count as
+  // attendance, or pollute season h2h.
   function rvIsByeName(name){
     return String(name||'').replace(/[^a-z]/gi,'').toLowerCase() === 'bye';
   }
@@ -3988,12 +3955,6 @@ function swInitTab(){ swRenderSetup(); }
       if(lbBody) lbBody.innerHTML = '';
       var lbEmpty = document.getElementById('rvLeaderboardEmpty');
       if(lbEmpty) lbEmpty.style.display = 'block';
-      var shWrap = document.getElementById('rvShadowLbWrap');
-      if(shWrap) shWrap.style.display = 'none';
-      var shBody = document.getElementById('rvShadowLbBody');
-      if(shBody) shBody.innerHTML = '';
-      var shEmpty = document.getElementById('rvShadowLbEmpty');
-      if(shEmpty) shEmpty.style.display = 'block';
       clearGistBtn.textContent = '🗑 Clear Rivalry Data';
       rvSetGistStatus('✓ Rivalry data cleared', '#4caf50');
       setTimeout(function(){ rvSetGistStatus('',''); }, 3000);
@@ -4243,7 +4204,7 @@ function swInitTab(){ swRenderSetup(); }
           '<div class="rv-pair-num">–</div>'+
           '<div class="rv-pair-player">'+p+'</div>'+
           '<div class="rv-pair-vs">—</div>'+
-          '<div class="rv-pair-player" style="opacity:0.4">the field — wins earn shadow points</div>'+
+          '<div class="rv-pair-player" style="opacity:0.4">the field — scores the same either way</div>'+
           '<div></div>'+
         '</div>';
       }).join('');
@@ -4364,11 +4325,11 @@ function swInitTab(){ swRenderSetup(); }
     block('🎲 *New Blood*', g.fresh, false);
     if(unmatched.length){
       lines.push('');
-      lines.push('🕳️ _No vendetta today: '+unmatched.join(', ')+' — they duel the field. Wins still score Shadow._');
+      lines.push('🕳️ _No vendetta today: '+unmatched.join(', ')+' — they duel the field. Scores the same either way._');
     }
     lines.push('');
-    lines.push('Win your vendetta match for *+2 Reckoning Points (RP)*.');
-    lines.push("Can't meet your rival? The 🌑 *Shadow* is watching.");
+    lines.push('*Scoring* — win 3 LP · draw 1 LP · loss 0.');
+    lines.push('_Your Vendetta is worth no points — just pride, and the record. 🔥_');
     lines.push('');
     lines.push('_May the best rival win._ 🏆');
     return lines.join('\n');
@@ -4485,7 +4446,7 @@ function swInitTab(){ swRenderSetup(); }
     x.textAlign = 'center';
     x.fillStyle = parch+'0.42)';
     x.font = '22px "Crimson Pro", Georgia, serif';
-    x.fillText('Settle the score — +2 Reckoning Points (RP) to the victor', W/2, H-96);
+    x.fillText('Win 3 LP · Draw 1 · No points for the grudge — only pride', W/2, H-96);
     x.fillStyle = parch+'0.3)';
     x.font = 'italic 24px "Crimson Pro", Georgia, serif';
     x.fillText('— May the best rival win —', W/2, H-60);
@@ -4498,7 +4459,7 @@ function swInitTab(){ swRenderSetup(); }
     });
   }
 
-  // ── RECORD RESULTS: upload final results, score Reckoning Points, merge + save ──
+  // ── RECORD RESULTS: upload final results, score League Points, merge + save ──
   var rvResultsFiles = [];
   var rvResultsMatches = [];
 
@@ -4559,12 +4520,21 @@ function swInitTab(){ swRenderSetup(); }
 
   // Score one round's matches against a vendetta list. Pure — shared by the
   // live "Process Results" flow and post-event processing.
-  // unmatchedPlayers (odd player out, no declared rival) get phantom shadow
-  // scoring: a clean round win earns +2 shadow "vs the field", so having no
-  // rival never locks anyone out of points. Byes are dropped at CSV parse
-  // time, so a bye round can never register as a win here.
-  function rvScoreRound(matches, vendettaResults, roundType, unmatchedPlayers){
-    var pointValue = 2;
+  //
+  // Every match scores on its own: win 3, draw 1, loss 0. That is the whole
+  // system — a player's score depends only on their own results, and never on
+  // who they were paired against.
+  //
+  // Vendettas are deliberately worth nothing. Rivalries and head-to-head history
+  // exist for statistics and narrative — the story of the night — not for the
+  // standings. Grudge matches are still detected and recorded (rivalMatchesFound
+  // drives the highlights and the vendettaWins stat); they just don't pay.
+  //
+  // The edge cases need no special handling: a bye is dropped at CSV parse time
+  // so it simply isn't a match, and a rival who drops or never shows changes
+  // nobody's score.
+  function rvScoreRound(matches, vendettaResults, roundType){
+    var WIN_POINTS = 3, DRAW_POINTS = 1;
 
     // Build a quick lookup of the declared vendettas
     var rivalSet = {}; // key -> {a,b}
@@ -4572,12 +4542,8 @@ function swInitTab(){ swRenderSetup(); }
       rivalSet[rvKeyLower(r.a, r.b)] = { a: r.a, b: r.b };
     });
 
-    // Walk today's actual results and find matches that were between declared rivals.
-    // No dedup against prior uploads — if the same rivals meet again (e.g. Swiss then
-    // Top Cut), it scores again. Each results upload is processed independently.
     var pointsAwarded = {}; // playerName -> points gained from THIS upload
-    var rivalMatchesFound = [];
-    var rivalMeetKeys = {}; // pairs that actually met at the table (even if drawn) — excluded from shadow scoring
+    var rivalMatchesFound = []; // narrative only — no points attached
     var outcome = {}; // lowercased name -> { name, wins, losses, draws } across THIS upload
 
     matches.forEach(function(m){
@@ -4589,61 +4555,35 @@ function swInitTab(){ swRenderSetup(); }
         else outcome[k].draws++;
       });
 
+      // Record grudge matches for the story — they score exactly like any other match
       var key = rvKeyLower(m.playerA, m.playerB);
-      if(!rivalSet[key]) return; // not a rivalry pairing, skip
-      rivalMeetKeys[key] = true;
+      if(!rivalSet[key]) return; // not a vendetta pairing
       var winner = m.winsA > m.winsB ? m.playerA : (m.winsB > m.winsA ? m.playerB : null);
-      if(!winner) return; // draw, no points
-      pointsAwarded[winner] = (pointsAwarded[winner]||0) + pointValue;
-      rivalMatchesFound.push({ a: m.playerA, b: m.playerB, winner: winner, score: m.winsA+'-'+m.winsB, roundType: roundType, points: pointValue });
+      if(!winner) return; // drawn grudge — nothing settled
+      rivalMatchesFound.push({ a: m.playerA, b: m.playerB, winner: winner, score: m.winsA+'-'+m.winsB, roundType: roundType });
     });
 
-    // ── SHADOW SCORING: declared rival pairs that did NOT meet at the table ──
-    // Compare each player's own round result against their rival's:
-    //   you won + rival lost/drew/absent → +2 · you won + rival won → +1 each · you lost/drew → 0
-    // "Won" means at least one win and no losses/draws in this upload.
-    function rvRoundSuccess(name){
-      var o = outcome[name.toLowerCase()];
-      if(!o) return null; // no result in this upload (BYE / dropped / absent)
-      return o.wins > 0 && o.losses === 0 && o.draws === 0;
-    }
-    var shadowAwards = []; // { player, rival, points, note }
-    var shadowPointsAwarded = {}; // playerName -> shadow points from THIS upload
-    vendettaResults.forEach(function(r){
-      var key = rvKeyLower(r.a, r.b);
-      if(rivalMeetKeys[key]) return; // they actually played — regular Reckoning Points territory
-      [ [r.a, r.b], [r.b, r.a] ].forEach(function(pair){
-        var p = pair[0], rival = pair[1];
-        if(rvRoundSuccess(p) !== true) return; // lost, drew, or didn't play → 0
-        var rivalWon = rvRoundSuccess(rival);
-        var pts = rivalWon === true ? 1 : 2; // rival also won → shadow draw; rival lost/drew/absent → shadow win
-        var note = rivalWon === true ? 'both won — shadow draw' : (rivalWon === null ? 'rival had no result' : 'rival lost their match');
-        shadowPointsAwarded[p] = (shadowPointsAwarded[p]||0) + pts;
-        shadowAwards.push({ player: p, rival: rival, points: pts, note: note });
-      });
+    // Base match points for everyone who played, from their own results only
+    Object.keys(outcome).forEach(function(k){
+      var o = outcome[k];
+      var base = o.wins * WIN_POINTS + o.draws * DRAW_POINTS;
+      if(base) pointsAwarded[o.name] = (pointsAwarded[o.name]||0) + base;
     });
 
-    // Phantom vendetta for players declared without a rival: they duel the field
-    (unmatchedPlayers || []).forEach(function(p){
-      if(rvRoundSuccess(p) !== true) return; // lost, drew, or no result (incl. byes) → 0
-      shadowPointsAwarded[p] = (shadowPointsAwarded[p]||0) + 2;
-      shadowAwards.push({ player: p, rival: 'the field', points: 2, note: 'phantom vendetta — no rival declared, won anyway' });
-    });
-
-    return { roundType: roundType, pointsAwarded: pointsAwarded, rivalMatchesFound: rivalMatchesFound, shadowAwards: shadowAwards, shadowPointsAwarded: shadowPointsAwarded };
+    return { roundType: roundType, pointsAwarded: pointsAwarded, rivalMatchesFound: rivalMatchesFound, outcome: outcome };
   }
 
   // Step 1: compute the rivalry matches + points for this upload and show a
   // preview. Nothing is persisted until the user clicks "Save to Gist".
   function rvProcessResults(){
     var roundType = document.getElementById('rvRoundPlayoff').checked ? 'playoff' : 'swiss';
-    rvPendingResults = rvScoreRound(rvResultsMatches, rvLastEventAssignments.results, roundType, rvLastEventAssignments.unmatched);
-    rvRenderResultsSummary(rvPendingResults.rivalMatchesFound, rvPendingResults.pointsAwarded, false, rvPendingResults.shadowAwards);
+    rvPendingResults = rvScoreRound(rvResultsMatches, rvLastEventAssignments.results, roundType);
+    rvRenderResultsSummary(rvPendingResults.rivalMatchesFound, rvPendingResults.pointsAwarded, false);
     if(saveResultsBtn){ saveResultsBtn.disabled = false; saveResultsBtn.textContent = '☁ Save to Gist'; }
   }
 
-  // Apply one scored round to the season rivalry object: cumulative points,
-  // shadow points, h2h merge of every match, and an eventLog entry.
+  // Apply one scored round to the season rivalry object: cumulative points and
+  // match record, h2h merge of every match, and an eventLog entry.
   // Shared by the live "Save to Gist" flow and post-event processing.
   function rvApplyRoundToRivalry(rivalry, scored, matches, vendetta){
     rvStampDisplay(rivalry); // keep the public board/point labels current in the gist
@@ -4662,35 +4602,23 @@ function swInitTab(){ swRenderSetup(); }
     var roundType = scored.roundType;
     var pointsAwarded = scored.pointsAwarded;
     var rivalMatchesFound = scored.rivalMatchesFound;
-    var shadowAwards = scored.shadowAwards || [];
+    var outcome = scored.outcome || {};
 
-    // Update cumulative rivalry points + win/loss vs rival
-    Object.keys(pointsAwarded).forEach(function(player){
-      if(!rivalry.rivalryPoints[player]) rivalry.rivalryPoints[player] = { points: 0, rivalWins: 0, rivalLosses: 0, eventsLogged: 0 };
-      rivalry.rivalryPoints[player].points += pointsAwarded[player];
-      rivalry.rivalryPoints[player].rivalWins += 1;
-    });
-    rivalMatchesFound.forEach(function(rm){
-      var loser = rm.winner === rm.a ? rm.b : rm.a;
-      if(!rivalry.rivalryPoints[loser]) rivalry.rivalryPoints[loser] = { points: 0, rivalWins: 0, rivalLosses: 0, eventsLogged: 0 };
-      rivalry.rivalryPoints[loser].rivalLosses += 1;
-    });
-    // Track who had a rival match logged this upload (for "events logged" count), win or lose
-    var allInEvent = new Set();
-    rivalMatchesFound.forEach(function(rm){ allInEvent.add(rm.a); allInEvent.add(rm.b); });
-    allInEvent.forEach(function(p){
-      if(!rivalry.rivalryPoints[p]) rivalry.rivalryPoints[p] = { points: 0, rivalWins: 0, rivalLosses: 0, eventsLogged: 0 };
-      rivalry.rivalryPoints[p].eventsLogged += 1;
-    });
+    function rvEntry(player){
+      if(!rivalry.rivalryPoints[player]) rivalry.rivalryPoints[player] = { points: 0, matchWins: 0, draws: 0, losses: 0, vendettaWins: 0 };
+      return rivalry.rivalryPoints[player];
+    }
 
-    // Apply Shadow Points (declared rivals who didn't meet, scored by proxy)
-    shadowAwards.forEach(function(sa){
-      if(!rivalry.rivalryPoints[sa.player]) rivalry.rivalryPoints[sa.player] = { points: 0, rivalWins: 0, rivalLosses: 0, eventsLogged: 0 };
-      var rp = rivalry.rivalryPoints[sa.player];
-      rp.shadowPoints = (rp.shadowPoints||0) + sa.points;
-      if(sa.points === 2) rp.shadowWins = (rp.shadowWins||0) + 1;
-      else rp.shadowDraws = (rp.shadowDraws||0) + 1;
+    // Cumulative points, plus this round's W-D-L from each player's own results
+    Object.keys(outcome).forEach(function(k){
+      var o = outcome[k], e = rvEntry(o.name);
+      e.points += pointsAwarded[o.name] || 0;
+      e.matchWins += o.wins;
+      e.draws     += o.draws;
+      e.losses    += o.losses;
     });
+    // Vendetta wins are the headline stat — track them separately
+    rivalMatchesFound.forEach(function(rm){ rvEntry(rm.winner).vendettaWins += 1; });
 
     // Merge this event's full match results into season h2h (same logic as rvAnalyze, applied directly)
     var h2hMap = {};
@@ -4722,7 +4650,6 @@ function swInitTab(){ swRenderSetup(); }
       rivalryPairings: vendetta.results.length,
       rivalMatchesPlayed: rivalMatchesFound.length,
       results: rivalMatchesFound,
-      shadowAwards: shadowAwards,
       retro: !!vendetta.retro,
       postEvent: !!vendetta.postEvent
     });
@@ -4735,7 +4662,6 @@ function swInitTab(){ swRenderSetup(); }
     saveResultsBtn.textContent = '⟳ Saving…';
     var rivalMatchesFound = rvPendingResults.rivalMatchesFound;
     var pointsAwarded = rvPendingResults.pointsAwarded;
-    var shadowAwards = rvPendingResults.shadowAwards || [];
 
     // Load latest season data fresh (avoid clobbering anything saved since this session started)
     var data = load();
@@ -4753,83 +4679,68 @@ function swInitTab(){ swRenderSetup(); }
       save(data);
       saveResultsBtn.textContent = '☁ Save to Gist';
       rvPendingResults = null; // consumed — a re-save would double-count
-      rvRenderResultsSummary(rivalMatchesFound, pointsAwarded, true, shadowAwards);
+      rvRenderResultsSummary(rivalMatchesFound, pointsAwarded, true);
     } catch(e){
       saveResultsBtn.textContent = 'Save failed — retry';
       saveResultsBtn.disabled = false;
     }
   }
 
-  function rvRenderResultsSummary(rivalMatchesFound, pointsAwarded, saved, shadowAwards){
+  function rvRenderResultsSummary(rivalMatchesFound, pointsAwarded, saved){
     var el = document.getElementById('rvResultsSummary');
     if(!el) return;
-    shadowAwards = shadowAwards || [];
+    var scorers = Object.keys(pointsAwarded).sort(function(a,b){ return pointsAwarded[b]-pointsAwarded[a]; });
     var html = '';
 
-    if(!rivalMatchesFound.length && !shadowAwards.length){
-      html = saved
-        ? '<p style="font-size:0.78rem;color:#4caf50">✓ Saved — no rivalry matchups or shadow points to score, but this round was merged into season h2h.</p>'
-        : '<p style="font-size:0.78rem;color:rgba(245,237,214,0.4)">No rivalry matchups or shadow points found in this round\'s results — nothing to score. Saving will still merge the round into season h2h.</p>';
-      el.innerHTML = html;
+    if(!scorers.length){
+      el.innerHTML = saved
+        ? '<p style="font-size:0.78rem;color:#4caf50">✓ Saved — no points scored this round, but it was merged into season h2h.</p>'
+        : '<p style="font-size:0.78rem;color:rgba(245,237,214,0.4)">No points to score in this round. Saving will still merge it into season h2h.</p>';
       return;
     }
 
-    var totalDesc = rivalMatchesFound.length+' rivalry match(es), '+shadowAwards.length+' shadow award(s)';
+    var totalPts = scorers.reduce(function(s,p){ return s + pointsAwarded[p]; }, 0);
+    var desc = totalPts+' League Points across '+scorers.length+' player'+(scorers.length===1?'':'s')+
+               (rivalMatchesFound.length ? ' · '+rivalMatchesFound.length+' grudge'+(rivalMatchesFound.length===1?'':'s')+' settled' : '');
     html += saved
-      ? '<p style="font-size:0.74rem;color:#4caf50;margin-bottom:8px">✓ Saved — '+totalDesc+' scored</p>'
-      : '<p style="font-size:0.74rem;color:#c9922a;margin-bottom:8px">⏳ '+totalDesc+' found — not saved yet. Review, then click ☁ Save to Gist.</p>';
+      ? '<p style="font-size:0.74rem;color:#4caf50;margin-bottom:8px">✓ Saved — '+desc+'</p>'
+      : '<p style="font-size:0.74rem;color:#c9922a;margin-bottom:8px">⏳ '+desc+' — not saved yet. Review, then click ☁ Save to Gist.</p>';
 
-    html += rivalMatchesFound.map(function(rm){
-      var tag = rm.roundType === 'playoff' ? ' <span style="color:#c98c39">[Top Cut]</span>' : '';
-      return '<div style="font-size:0.78rem;color:rgba(245,237,214,0.6);padding:4px 0">⚔ '+rm.a+' vs '+rm.b+' — <span style="color:var(--gold-light)">'+rm.winner+'</span> won '+rm.score+' (+'+rm.points+' pts)'+tag+'</div>';
-    }).join('');
-
-    if(shadowAwards.length){
-      html += '<div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(245,237,214,0.08)">'+
-        '<p style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;color:rgba(245,237,214,0.35);margin-bottom:4px">🌑 Shadow Points — rivals who didn\'t meet</p>'+
-        shadowAwards.map(function(sa){
-          return '<div style="font-size:0.78rem;color:rgba(245,237,214,0.5);padding:3px 0">🌑 <span style="color:rgba(245,237,214,0.7)">'+sa.player+'</span> (rival: '+sa.rival+') — '+sa.note+' <span style="color:#9b8cc4">(+'+sa.points+' shadow)</span></div>';
-        }).join('')+
-      '</div>';
+    if(rivalMatchesFound.length){
+      html += '<p style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;color:rgba(245,237,214,0.35);margin:8px 0 4px">⚔ Grudges settled <span style="opacity:0.6;text-transform:none;letter-spacing:0">— for the record, not for points</span></p>'+
+        rivalMatchesFound.map(function(rm){
+          var tag = rm.roundType === 'playoff' ? ' <span style="color:#c98c39">[Top Cut]</span>' : '';
+          return '<div style="font-size:0.78rem;color:rgba(245,237,214,0.6);padding:4px 0">⚔ '+rm.a+' vs '+rm.b+' — <span style="color:var(--gold-light)">'+rm.winner+'</span> won '+rm.score+tag+'</div>';
+        }).join('');
     }
+
+    html += '<p style="font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;color:rgba(245,237,214,0.35);margin:10px 0 4px">Points this round</p>'+
+      scorers.map(function(p){
+        return '<div style="display:flex;justify-content:space-between;font-size:0.78rem;padding:3px 0;border-bottom:1px solid rgba(201,146,42,0.08)">'+
+          '<span style="color:rgba(245,237,214,0.6)">'+p+'</span><span class="rv-score-gold">+'+pointsAwarded[p]+'</span></div>';
+      }).join('');
 
     el.innerHTML = html;
   }
 
   // ── LEADERBOARD ──────────────────────────────────────────────────────────
-  var rvLbCache = { main: [], shadow: [] }; // last-rendered rows, reused by CSV/image exports
+  var rvLbCache = { main: [] }; // last-rendered rows, reused by CSV/image exports
 
   var refreshLbBtn = document.getElementById('rvRefreshLeaderboard');
   if(refreshLbBtn) refreshLbBtn.addEventListener('click', rvLoadLeaderboard);
-  var refreshShadowBtn = document.getElementById('rvRefreshShadowLb');
-  if(refreshShadowBtn) refreshShadowBtn.addEventListener('click', rvLoadLeaderboard);
 
   function rvSetLbStatus(msg, color){
     var el = document.getElementById('rvLbStatus');
     if(el){ el.textContent = msg; el.style.color = color || 'rgba(245,237,214,0.3)'; }
   }
 
-  // Clear ONE ladder from the Gist, leaving the other intact. 'main' resets
-  // Reckoning Points (points, rival W/L, events logged) plus the event log;
-  // 'shadow' resets only Shadow Points/Wins/Draws. Season h2h history, saved
-  // pairings and attendance are never touched. Entries with
-  // nothing left on either ladder are dropped entirely.
-  function rvClearLadder(kind){
+  // Clear the ladder from the Gist: resets League Points and the event log.
+  // Season h2h history, saved pairings and attendance are never touched.
+  function rvClearLadder(){
     var data = load();
     if(!data.rivalry) return;
-    var rp = data.rivalry.rivalryPoints || {};
-    Object.keys(rp).forEach(function(p){
-      var e = rp[p];
-      if(kind === 'main'){
-        delete e.points; delete e.rivalWins; delete e.rivalLosses; delete e.eventsLogged;
-      } else {
-        delete e.shadowPoints; delete e.shadowWins; delete e.shadowDraws;
-      }
-      if(!(e.points || e.rivalWins || e.rivalLosses || e.eventsLogged ||
-           e.shadowPoints || e.shadowWins || e.shadowDraws)) delete rp[p];
-    });
-    data.rivalry.rivalryPoints = rp;
-    if(kind === 'main') data.rivalry.eventLog = [];
+    data.rivalry.rivalryPoints = {};
+    data.rivalry.eventLog = [];
     rvStampDisplay(data.rivalry);
     data.rivalry.updatedAt = new Date().toISOString();
     save(data); // persists locally AND triggers syncToGist()
@@ -4846,10 +4757,10 @@ function swInitTab(){ swRenderSetup(); }
     if(!rvLbClearArmed){
       rvLbClearArmed = true;
       clearLbBtn.textContent = '⚠ Click again to confirm';
-      rvSetLbStatus('Resets The Reckoning (Reckoning Points + event log) — The Shadows and h2h history are kept', '#c0392b');
+      rvSetLbStatus('Resets all League Points and the event log — h2h match history is kept', '#c0392b');
       setTimeout(function(){
         rvLbClearArmed = false;
-        clearLbBtn.textContent = '🗑 Clear The Reckoning';
+        clearLbBtn.textContent = '🗑 Clear GNL: Vendetta';
         rvSetLbStatus('','');
       }, 5000);
       return;
@@ -4857,49 +4768,19 @@ function swInitTab(){ swRenderSetup(); }
     rvLbClearArmed = false;
     clearLbBtn.textContent = '⟳ Clearing…';
     try {
-      rvClearLadder('main');
-      clearLbBtn.textContent = '🗑 Clear The Reckoning';
-      rvSetLbStatus('✓ The Reckoning cleared — The Shadows kept', '#4caf50');
+      rvClearLadder();
+      clearLbBtn.textContent = '🗑 Clear GNL: Vendetta';
+      rvSetLbStatus('✓ GNL: Vendetta cleared — h2h history kept', '#4caf50');
       setTimeout(function(){ rvSetLbStatus('',''); }, 3000);
-      rvLoadLeaderboard(); // re-render both ladders from the cleared state
+      rvLoadLeaderboard(); // re-render the ladder from the cleared state
     } catch(e){
-      clearLbBtn.textContent = '🗑 Clear The Reckoning';
+      clearLbBtn.textContent = '🗑 Clear GNL: Vendetta';
       rvSetLbStatus('✗ Clear failed', '#c0392b');
     }
   });
 
-  var clearShadowBtn = document.getElementById('rvClearShadowLb');
-  var rvShClearArmed = false;
-  if(clearShadowBtn) clearShadowBtn.addEventListener('click', function(){
-    if(typeof getToken==='function' && !getToken()){
-      clearShadowBtn.textContent = '⚠ No Gist token (Settings)';
-      setTimeout(function(){ clearShadowBtn.textContent = '🗑 Clear The Shadows'; }, 2500);
-      return;
-    }
-    if(!rvShClearArmed){
-      rvShClearArmed = true;
-      clearShadowBtn.textContent = '⚠ Click again — resets The Shadows only';
-      setTimeout(function(){
-        rvShClearArmed = false;
-        clearShadowBtn.textContent = '🗑 Clear The Shadows';
-      }, 5000);
-      return;
-    }
-    rvShClearArmed = false;
-    clearShadowBtn.textContent = '⟳ Clearing…';
-    try {
-      rvClearLadder('shadow');
-      clearShadowBtn.textContent = '✓ Shadow cleared';
-      setTimeout(function(){ clearShadowBtn.textContent = '🗑 Clear The Shadows'; }, 2500);
-      rvLoadLeaderboard(); // re-render both ladders from the cleared state
-    } catch(e){
-      clearShadowBtn.textContent = '✗ Clear failed — retry';
-      setTimeout(function(){ clearShadowBtn.textContent = '🗑 Clear The Shadows'; }, 2500);
-    }
-  });
-
-  // Auto-load both ladders when either tab is opened
-  document.querySelectorAll('.rv-tab[data-rvtab="leaderboard"], .rv-tab[data-rvtab="shadowlb"]').forEach(function(tab){
+  // Auto-load the ladder when the tab is opened
+  document.querySelectorAll('.rv-tab[data-rvtab="leaderboard"]').forEach(function(tab){
     tab.addEventListener('click', rvLoadLeaderboard);
   });
 
@@ -4910,33 +4791,30 @@ function swInitTab(){ swRenderSetup(); }
     a.href = href; a.download = filename; a.click();
   }
 
-  async function rvExportLbCSV(kind){
+  async function rvExportLbCSV(){
     await rvLoadLeaderboard(); // refresh so the export reflects latest saved data
-    var rows = kind === 'shadow' ? rvLbCache.shadow : rvLbCache.main;
+    var rows = rvLbCache.main;
     if(!rows.length) return false;
-    var out = kind === 'shadow'
-      ? ['Rank,Player,Shadow Pts (SP),Shadow Wins (+2),Shadow Draws (+1),Current Rival'].concat(rows.map(function(r,i){
-          return [i+1, rvCsvCell(r.player), r.shadow, r.shadowW, r.shadowD, rvCsvCell(r.rival)].join(',');
-        }))
-      : ['Rank,Player,Reckoning Pts (RP),Rival Wins,Rival Losses,Current Rival,Events Logged'].concat(rows.map(function(r,i){
-          return [i+1, rvCsvCell(r.player), r.points, r.w, r.l, rvCsvCell(r.rival), r.ev].join(',');
-        }));
-    rvDownloadFile(URL.createObjectURL(new Blob([out.join('\n')],{type:'text/csv'})), 'gnl-'+(kind==='shadow'?'the-shadows':'the-reckoning')+'.csv');
+    var out = ['Rank,Player,League Pts (LP),Match Wins,Draws,Losses,Events'].concat(
+      rows.map(function(r,i){
+        return [i+1, rvCsvCell(r.player), r.points, r.w, r.d, r.l, r.ev].join(',');
+      }));
+    rvDownloadFile(URL.createObjectURL(new Blob([out.join('\n')],{type:'text/csv'})), 'gnl-vendetta.csv');
     return true;
   }
 
-  // Square 1080×1080 social-media card of a ladder's top 10
-  async function rvExportLbImage(kind){
+  // Square 1080×1080 social-media card of the ladder's top 10
+  async function rvExportLbImage(){
     await rvLoadLeaderboard();
-    var rows = kind === 'shadow' ? rvLbCache.shadow : rvLbCache.main;
+    var rows = rvLbCache.main;
     if(!rows.length) return false;
     if(document.fonts && document.fonts.ready){ try { await document.fonts.ready; } catch(e){} }
 
     var S = 1080;
     var c = document.createElement('canvas'); c.width = S; c.height = S;
     var x = c.getContext('2d');
-    var accent = kind === 'shadow' ? '#b3a3e0' : '#e8b84b';
-    var accentRGBA = kind === 'shadow' ? 'rgba(155,140,196,' : 'rgba(201,146,42,';
+    var accent = '#e8b84b';
+    var accentRGBA = 'rgba(201,146,42,';
     var parch = 'rgba(245,237,214,';
 
     // Background: deep ink gradient + top glow
@@ -4958,7 +4836,7 @@ function swInitTab(){ swRenderSetup(); }
     x.fillText('R I F T B O U N D   L E A G U E', S/2, 118);
     x.fillStyle = accent;
     x.font = '700 58px Cinzel, Georgia, serif';
-    x.fillText(kind === 'shadow' ? '🌑 THE SHADOWS' : '⚔ THE RECKONING', S/2, 196);
+    x.fillText('⚔ GNL: VENDETTA', S/2, 196);
     var dg = x.createLinearGradient(S/2-220,0,S/2+220,0);
     dg.addColorStop(0, accentRGBA+'0)'); dg.addColorStop(0.5, accentRGBA+'0.9)'); dg.addColorStop(1, accentRGBA+'0)');
     x.fillStyle = dg; x.fillRect(S/2-220,222,440,2);
@@ -4996,11 +4874,11 @@ function swInitTab(){ swRenderSetup(); }
       x.textAlign = 'right';
       x.fillStyle = parch+'0.4)';
       x.font = '25px "Crimson Pro", Georgia, serif';
-      x.fillText(kind === 'shadow' ? (r.shadowW+'W–'+r.shadowD+'D') : (r.w+'W–'+r.l+'L'), right-160, y+38);
+      x.fillText(r.w+'W–'+r.d+'D–'+r.l+'L', right-190, y+38);
       // points
       x.fillStyle = accent;
       x.font = '700 34px Cinzel, Georgia, serif';
-      x.fillText((kind === 'shadow' ? r.shadow : r.points)+' pts', right-22, y+40);
+      x.fillText(r.points+' LP', right-22, y+40);
     });
 
     // Footer
@@ -5011,7 +4889,7 @@ function swInitTab(){ swRenderSetup(); }
 
     return new Promise(function(resolve){
       c.toBlob(function(blob){
-        rvDownloadFile(URL.createObjectURL(blob), 'gnl-'+(kind==='shadow'?'the-shadows':'the-reckoning')+'.png');
+        rvDownloadFile(URL.createObjectURL(blob), 'gnl-vendetta.png');
         resolve(true);
       }, 'image/png');
     });
@@ -5030,10 +4908,8 @@ function swInitTab(){ swRenderSetup(); }
       setTimeout(function(){ btn.textContent = orig; }, 2200);
     });
   }
-  rvWireExport('rvLbExportCSV',     function(){ return rvExportLbCSV('main'); });
-  rvWireExport('rvShadowExportCSV', function(){ return rvExportLbCSV('shadow'); });
-  rvWireExport('rvLbExportImg',     function(){ return rvExportLbImage('main'); });
-  rvWireExport('rvShadowExportImg', function(){ return rvExportLbImage('shadow'); });
+  rvWireExport('rvLbExportCSV',     function(){ return rvExportLbCSV(); });
+  rvWireExport('rvLbExportImg',     function(){ return rvExportLbImage(); });
 
   async function rvLoadLeaderboard(){
     var body = document.getElementById('rvLeaderboardBody');
@@ -5045,32 +4921,26 @@ function swInitTab(){ swRenderSetup(); }
       var data = (fresh && fresh.rivalry) || null;
       if(!data || !data.rivalryPoints || !Object.keys(data.rivalryPoints).length){
         body.innerHTML = ''; empty.style.display = 'block';
-        rvLbCache.main = []; rvLbCache.shadow = [];
-        rvRenderShadowLb([]);
+        rvLbCache.main = [];
         return;
       }
       rvSavedSeasonData = data;
       empty.style.display = 'none';
 
-      // Find each player's current best rival from saved pairs, for display
-      var currentRival = {};
-      (data.savedPairs||[]).forEach(function(p){
-        currentRival[p.players[0]] = p.players[1];
-        currentRival[p.players[1]] = p.players[0];
-      });
+      // Events come from attendance, which counts distinct events correctly
+      var att = data.attendance || {};
 
-      var entries = Object.entries(data.rivalryPoints).map(function(kv){
+      // Rivalry is not a competitive input, so it appears nowhere on this board —
+      // not as a column, and not as a tiebreak. Ties break on match results alone.
+      var rows = Object.entries(data.rivalryPoints).map(function(kv){
+        var e = kv[1];
         return {
-          player: kv[0], points: kv[1].points||0,
-          w: kv[1].rivalWins||0, l: kv[1].rivalLosses||0, ev: kv[1].eventsLogged||0,
-          shadow: kv[1].shadowPoints||0, shadowW: kv[1].shadowWins||0, shadowD: kv[1].shadowDraws||0,
-          rival: currentRival[kv[0]] || ''
+          player: kv[0], points: e.points||0,
+          w: e.matchWins||0, d: e.draws||0, l: e.losses||0,
+          ev: (att[kv[0]] || []).length
         };
-      });
-
-      // Main ladder: only players with actual rivalry-match activity
-      var rows = entries.filter(function(r){ return r.points > 0 || r.w > 0 || r.l > 0 || r.ev > 0; })
-        .sort(function(a,b){ return b.points - a.points; });
+      }).filter(function(r){ return r.points > 0 || r.w > 0 || r.d > 0 || r.l > 0; })
+        .sort(function(a,b){ return b.points - a.points || b.w - a.w || a.l - b.l; });
 
       empty.style.display = rows.length ? 'none' : 'block';
       body.innerHTML = rows.map(function(r, i){
@@ -5078,49 +4948,18 @@ function swInitTab(){ swRenderSetup(); }
           '<td class="c td-mono">'+(i+1)+'</td>'+
           '<td>'+r.player+'</td>'+
           '<td class="c"><span class="rv-score-gold">'+r.points+'</span></td>'+
-          '<td class="c"><span class="rv-rec-w">'+r.w+'W</span> – <span class="rv-rec-l">'+r.l+'L</span></td>'+
-          '<td>'+(currentRival[r.player] || '<span style="opacity:0.3">—</span>')+'</td>'+
+          '<td class="c"><span class="rv-rec-w">'+r.w+'W</span> – '+r.d+'D – <span class="rv-rec-l">'+r.l+'L</span></td>'+
           '<td class="c td-mono">'+r.ev+'</td>'+
         '</tr>';
       }).join('');
-
-      // Shadow ladder: entirely separate ranking, in its own tab
-      var shadowRows = entries.filter(function(r){ return r.shadow > 0 || r.shadowW > 0 || r.shadowD > 0; })
-        .sort(function(a,b){ return b.shadow - a.shadow; });
       rvLbCache.main = rows;
-      rvLbCache.shadow = shadowRows;
-      rvRenderShadowLb(shadowRows);
     } catch(e){
       body.innerHTML = '';
       empty.style.display = 'block';
-      rvLbCache.main = []; rvLbCache.shadow = [];
-      rvRenderShadowLb([]);
+      rvLbCache.main = [];
     }
   }
 
-  function rvRenderShadowLb(shadowRows){
-    var shadowWrap = document.getElementById('rvShadowLbWrap');
-    var shadowBody = document.getElementById('rvShadowLbBody');
-    var shadowEmpty = document.getElementById('rvShadowLbEmpty');
-    if(!shadowWrap || !shadowBody) return;
-    if(shadowRows.length){
-      shadowWrap.style.display = 'block';
-      if(shadowEmpty) shadowEmpty.style.display = 'none';
-      shadowBody.innerHTML = shadowRows.map(function(r, i){
-        return '<tr>'+
-          '<td class="c td-mono">'+(i+1)+'</td>'+
-          '<td>'+r.player+'</td>'+
-          '<td class="c"><span style="color:#9b8cc4;font-weight:600">'+r.shadow+'</span></td>'+
-          '<td class="c"><span class="rv-rec-w">'+r.shadowW+'W</span> – <span style="color:rgba(245,237,214,0.5)">'+r.shadowD+'D</span></td>'+
-          '<td>'+(r.rival || '<span style="opacity:0.3">—</span>')+'</td>'+
-        '</tr>';
-      }).join('');
-    } else {
-      shadowWrap.style.display = 'none';
-      shadowBody.innerHTML = '';
-      if(shadowEmpty) shadowEmpty.style.display = 'block';
-    }
-  }
 
   // ── POST-EVENT PROCESSING ──────────────────────────────────────────────
   // Process an entire event after the fact: all round CSVs in one pass,
@@ -5307,9 +5146,9 @@ function swInitTab(){ swRenderSetup(); }
         vendetta = { date: new Date().toISOString(), results: gen.results, unmatched: gen.unmatched, retro: true };
         retro = true;
       } else {
-        // League ruling: late entrants (played rounds but weren't in the declared
-        // roster) score shadow-only vs the field — showing up early and prepared
-        // is what earns a real vendetta.
+        // Identify late entrants: played rounds but weren't in the declared roster,
+        // so they were never assigned a Vendetta. Informational only — scoring is
+        // purely match-based, so arriving late costs nothing.
         var declaredNames = new Set();
         vendetta.results.forEach(function(r){ declaredNames.add(r.a.toLowerCase()); declaredNames.add(r.b.toLowerCase()); });
         (vendetta.unmatched || []).forEach(function(p){ declaredNames.add(p.toLowerCase()); });
@@ -5317,7 +5156,6 @@ function swInitTab(){ swRenderSetup(); }
       }
       vendetta.postEvent = true;
 
-      var phantoms = (vendetta.unmatched || []).concat(lateEntrants);
       // Deterministic round order regardless of file-read completion order, so
       // the event log reads chronologically. Sort by event ID, then round number.
       var ordered = files.slice().sort(function(x, y){
@@ -5325,7 +5163,7 @@ function swInitTab(){ swRenderSetup(); }
                rvRoundNumFromName(x.name) - rvRoundNumFromName(y.name);
       });
       var rounds = ordered.map(function(f){
-        return { name: f.name, roundType: f.roundType, matches: f.rows, scored: rvScoreRound(f.rows, vendetta.results, f.roundType, phantoms) };
+        return { name: f.name, roundType: f.roundType, matches: f.rows, scored: rvScoreRound(f.rows, vendetta.results, f.roundType) };
       });
       rvPePending = { vendetta: vendetta, retro: retro, rounds: rounds, lateEntrants: lateEntrants };
       rvPeRenderSummary(false);
@@ -5343,12 +5181,11 @@ function swInitTab(){ swRenderSetup(); }
     var el = document.getElementById('rvPeSummary');
     if(!el || !rvPePending) return;
     var p = rvPePending;
-    var totalPts = {}, totalShadow = {}, totalRivalMatches = 0, totalMatches = 0;
+    var totalPts = {}, totalRivalMatches = 0, totalMatches = 0;
     p.rounds.forEach(function(r){
       totalMatches += r.matches.length;
       totalRivalMatches += r.scored.rivalMatchesFound.length;
       Object.keys(r.scored.pointsAwarded).forEach(function(pl){ totalPts[pl] = (totalPts[pl]||0) + r.scored.pointsAwarded[pl]; });
-      Object.keys(r.scored.shadowPointsAwarded).forEach(function(pl){ totalShadow[pl] = (totalShadow[pl]||0) + r.scored.shadowPointsAwarded[pl]; });
     });
 
     var html = '';
@@ -5362,14 +5199,14 @@ function swInitTab(){ swRenderSetup(); }
         : '⚔ Using Vendetta declared '+new Date(p.vendetta.date).toLocaleDateString()+' ('+p.vendetta.results.length+' pairs).')+
       '<br>'+p.rounds.length+' round'+(p.rounds.length===1?'':'s')+' · '+totalMatches+' matches · '+totalRivalMatches+' vendetta match'+(totalRivalMatches===1?'':'es')+' settled.'+
       ((p.lateEntrants && p.lateEntrants.length)
-        ? '<br>🚪 Late entrants — not on the declared roster, score shadow-only vs the field: '+p.lateEntrants.join(', ')
+        ? '<br>🚪 Late entrants — not on the declared roster, so no Vendetta was drawn for them (scoring is unaffected): '+p.lateEntrants.join(', ')
         : '')+
       '</p>';
 
     p.rounds.forEach(function(r){
       html += '<div style="font-size:0.72rem;color:rgba(245,237,214,0.35);margin-bottom:4px">'+
         '📄 '+r.name+' — '+(r.roundType==='playoff'?'Top Cut':'Swiss')+' · '+r.matches.length+' matches · '+
-        r.scored.rivalMatchesFound.length+' vendetta, '+r.scored.shadowAwards.length+' shadow</div>';
+        r.scored.rivalMatchesFound.length+' grudge'+(r.scored.rivalMatchesFound.length===1?'':'s')+' settled</div>';
     });
 
     function ptsTable(title, obj, color){
@@ -5381,10 +5218,9 @@ function swInitTab(){ swRenderSetup(); }
             '<span>'+k+'</span><span style="color:'+color+';font-family:Cinzel,serif">+'+obj[k]+'</span></div>';
         }).join('')+'</div>';
     }
-    html += ptsTable('⚔ Reckoning Points (RP)', totalPts, 'var(--gold-light)');
-    html += ptsTable('🌑 Shadow Points (SP)', totalShadow, '#9b8cc4');
-    if(!Object.keys(totalPts).length && !Object.keys(totalShadow).length){
-      html += '<p style="font-size:0.74rem;color:rgba(245,237,214,0.35)">No points earned this event — no vendetta pairs met and no shadow wins.</p>';
+    html += ptsTable('⚔ League Points (LP)', totalPts, 'var(--gold-light)');
+    if(!Object.keys(totalPts).length){
+      html += '<p style="font-size:0.74rem;color:rgba(245,237,214,0.35)">No points earned this event — every match was a bye or unscored.</p>';
     }
     if(saved && rvPeReport){
       html += '<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">'+
@@ -5407,13 +5243,13 @@ function swInitTab(){ swRenderSetup(); }
   }
 
   // ── FINAL STANDINGS REPORT ──────────────────────────────────────────────
-  // Built once at save time: event summary, both season ladders with this
-  // event's deltas, and the key vendetta highlights.
+  // Built once at save time: event summary, GNL: Vendetta with this event's
+  // deltas, and the key vendetta highlights.
   function rvPeBuildReport(rivalry, prevPoints, pending){
     var cityLbl = '';
     try { var cfg = getCityConfig(); cityLbl = cfg ? cfg.label : ''; } catch(e){}
 
-    var totalMatches = 0, settled = [], fieldWins = {};
+    var totalMatches = 0, settled = [];
     pending.rounds.forEach(function(r){
       totalMatches += r.matches.length;
       r.scored.rivalMatchesFound.forEach(function(rm){
@@ -5422,28 +5258,19 @@ function swInitTab(){ swRenderSetup(); }
         var score = (rm.winner === rm.a || parts.length !== 2) ? rm.score : parts[1]+'-'+parts[0];
         settled.push({ winner: rm.winner, loser: rm.winner === rm.a ? rm.b : rm.a, score: score, roundType: rm.roundType });
       });
-      r.scored.shadowAwards.forEach(function(sa){
-        if(sa.rival === 'the field') fieldWins[sa.player] = (fieldWins[sa.player]||0) + sa.points;
-      });
     });
 
-    function ladder(getPts, active){
-      return Object.keys(rivalry.rivalryPoints).map(function(p){
-        var now = rivalry.rivalryPoints[p], prev = prevPoints[p] || {};
-        return { player: p, entry: now, pts: getPts(now), delta: getPts(now) - getPts(prev) };
-      }).filter(active).sort(function(a,b){ return b.pts - a.pts || b.delta - a.delta; });
-    }
-    var vendettaLadder = ladder(
-      function(e){ return e.points||0; },
-      function(r){ var e=r.entry; return (e.points||0)>0 || (e.rivalWins||0)>0 || (e.rivalLosses||0)>0 || (e.eventsLogged||0)>0; });
-    var shadowLadder = ladder(
-      function(e){ return e.shadowPoints||0; },
-      function(r){ var e=r.entry; return (e.shadowPoints||0)>0 || (e.shadowWins||0)>0 || (e.shadowDraws||0)>0; });
+    var ladder = Object.keys(rivalry.rivalryPoints).map(function(p){
+      var now = rivalry.rivalryPoints[p], prev = prevPoints[p] || {};
+      return { player: p, entry: now, pts: now.points||0, delta: (now.points||0) - (prev.points||0) };
+    }).filter(function(r){
+      var e = r.entry;
+      return (e.points||0)>0 || (e.matchWins||0)>0 || (e.draws||0)>0 || (e.losses||0)>0;
+    }).sort(function(a,b){ return b.pts - a.pts || b.delta - a.delta; });
 
-    // Highlights: settled grudges, biggest climbers, field victories
-    var topClimber = null, topShadowClimber = null;
-    vendettaLadder.forEach(function(r){ if(r.delta > 0 && (!topClimber || r.delta > topClimber.delta)) topClimber = r; });
-    shadowLadder.forEach(function(r){ if(r.delta > 0 && (!topShadowClimber || r.delta > topShadowClimber.delta)) topShadowClimber = r; });
+    // Highlights: settled grudges and the biggest single-event haul
+    var topClimber = null;
+    ladder.forEach(function(r){ if(r.delta > 0 && (!topClimber || r.delta > topClimber.delta)) topClimber = r; });
 
     return {
       date: new Date(),
@@ -5455,11 +5282,8 @@ function swInitTab(){ swRenderSetup(); }
       unmatched: pending.vendetta.unmatched || [],
       lateEntrants: pending.lateEntrants || [],
       settled: settled,
-      fieldWins: fieldWins,
-      vendettaLadder: vendettaLadder,
-      shadowLadder: shadowLadder,
-      topClimber: topClimber,
-      topShadowClimber: topShadowClimber
+      ladder: ladder,
+      topClimber: topClimber
     };
   }
 
@@ -5472,28 +5296,25 @@ function swInitTab(){ swRenderSetup(); }
     lines.push(rep.rounds.length+' round'+(rep.rounds.length===1?'':'s')+' · '+rep.totalMatches+' matches · '+rep.pairs+' vendettas declared'+(rep.retro ? ' (retroactive)' : ''));
     lines.push(rep.settled.length+' vendetta'+(rep.settled.length===1?'':'s')+' settled at the table');
 
-    function ladderBlock(title, rows, deltaLabel){
-      if(!rows.length) return;
+    if(rep.ladder.length){
       lines.push('');
-      lines.push(title);
-      rows.slice(0, 10).forEach(function(r, i){
-        lines.push((i+1)+'. *'+r.player+'* — '+r.pts+' pts'+(r.delta > 0 ? ' _(+'+r.delta+deltaLabel+')_' : ''));
+      lines.push('⚔ *GNL: Vendetta*');
+      rep.ladder.slice(0, 10).forEach(function(r, i){
+        var e = r.entry;
+        lines.push((i+1)+'. *'+r.player+'* — '+r.pts+' LP'+
+          (r.delta > 0 ? ' _(+'+r.delta+' this event)_' : '')+
+          '  ·  '+(e.matchWins||0)+'W–'+(e.draws||0)+'D–'+(e.losses||0)+'L');
       });
     }
-    ladderBlock('⚔ *The Reckoning*', rep.vendettaLadder, ' this event');
-    ladderBlock('🌑 *The Shadows*', rep.shadowLadder, '');
 
     lines.push('');
     lines.push('🔥 *Highlights*');
     rep.settled.slice(0, 10).forEach(function(s){
       lines.push('• *'+s.winner+'* def. '+s.loser+' '+s.score+' ('+(s.roundType==='playoff'?'Top Cut':'Swiss')+')');
     });
-    if(rep.topClimber) lines.push('• Biggest climber: *'+rep.topClimber.player+'* +'+rep.topClimber.delta+' vendetta pts');
-    if(rep.topShadowClimber) lines.push('• Shadow standout: *'+rep.topShadowClimber.player+'* +'+rep.topShadowClimber.delta+' shadow pts');
-    var fieldNames = Object.keys(rep.fieldWins);
-    if(fieldNames.length) lines.push('• Duelled the field and won: '+fieldNames.map(function(n){ return n+' (+'+rep.fieldWins[n]+')'; }).join(', '));
-    if(rep.lateEntrants.length) lines.push('• Late entrants (shadow-only — show up early!): '+rep.lateEntrants.join(', '));
-    if(!rep.settled.length && !rep.topClimber && !rep.topShadowClimber && !fieldNames.length) lines.push('• A quiet night — no vendetta points changed hands.');
+    if(rep.topClimber) lines.push('• Biggest haul: *'+rep.topClimber.player+'* +'+rep.topClimber.delta+' LP');
+    if(rep.lateEntrants.length) lines.push('• Late entrants, no Vendetta drawn: '+rep.lateEntrants.join(', '));
+    if(!rep.settled.length && !rep.topClimber) lines.push('• A quiet night — no points changed hands.');
 
     lines.push('');
     lines.push('_May the best rival win._ 🏆');
@@ -5510,18 +5331,13 @@ function swInitTab(){ swRenderSetup(); }
     out.push('Matches,'+rep.totalMatches);
     out.push('Vendetta Pairs,'+rep.pairs);
     out.push('Vendettas Settled,'+rep.settled.length);
-    if(rep.lateEntrants.length) out.push('Late Entrants (shadow-only),'+rvCsvCell(rep.lateEntrants.join(', ')));
+    if(rep.lateEntrants.length) out.push('Late Entrants (no Vendetta drawn),'+rvCsvCell(rep.lateEntrants.join(', ')));
     out.push('');
-    out.push('THE RECKONING');
-    out.push('Rank,Player,Reckoning Points (RP),Event Delta,Rival Wins,Rival Losses,Events Logged');
-    rep.vendettaLadder.forEach(function(r, i){
-      out.push([i+1, rvCsvCell(r.player), r.pts, r.delta, r.entry.rivalWins||0, r.entry.rivalLosses||0, r.entry.eventsLogged||0].join(','));
-    });
-    out.push('');
-    out.push('THE SHADOWS');
-    out.push('Rank,Player,Shadow Points (SP),Event Delta,Shadow Wins,Shadow Draws');
-    rep.shadowLadder.forEach(function(r, i){
-      out.push([i+1, rvCsvCell(r.player), r.pts, r.delta, r.entry.shadowWins||0, r.entry.shadowDraws||0].join(','));
+    out.push('GNL: VENDETTA');
+    out.push('Rank,Player,League Points (LP),Event Delta,Match Wins,Draws,Losses,Vendetta Wins');
+    rep.ladder.forEach(function(r, i){
+      var e = r.entry;
+      out.push([i+1, rvCsvCell(r.player), r.pts, r.delta, e.matchWins||0, e.draws||0, e.losses||0, e.vendettaWins||0].join(','));
     });
     out.push('');
     out.push('HIGHLIGHTS');
@@ -5529,11 +5345,7 @@ function swInitTab(){ swRenderSetup(); }
     rep.settled.forEach(function(s){
       out.push('Vendetta Settled,'+rvCsvCell(s.winner+' def. '+s.loser+' '+s.score+' ('+(s.roundType==='playoff'?'Top Cut':'Swiss')+')'));
     });
-    if(rep.topClimber) out.push('Biggest Climber,'+rvCsvCell(rep.topClimber.player+' +'+rep.topClimber.delta+' vendetta pts'));
-    if(rep.topShadowClimber) out.push('Shadow Standout,'+rvCsvCell(rep.topShadowClimber.player+' +'+rep.topShadowClimber.delta+' shadow pts'));
-    Object.keys(rep.fieldWins).forEach(function(n){
-      out.push('Field Win,'+rvCsvCell(n+' +'+rep.fieldWins[n]+' shadow (no declared rival)'));
-    });
+    if(rep.topClimber) out.push('Biggest Haul,'+rvCsvCell(rep.topClimber.player+' +'+rep.topClimber.delta+' LP'));
     return out.join('\n');
   }
 
@@ -5808,8 +5620,8 @@ function swInitTab(){ swRenderSetup(); }
         tile('Game Record', tot.gw+'–'+tot.gl, gamePct!=null ? gamePct+'% of games' : '')+
         tile('Close Matches', tot.close, 'went the distance')+
         tile('Opponents', opps.length, 'faced this season')+
-        (pts ? tile('Reckoning Pts', '<span class="rv-score-gold" style="font-size:1.05rem">'+(pts.points||0)+'</span>', (pts.rivalWins||0)+'W–'+(pts.rivalLosses||0)+'L vs rival') : '')+
-        (pts && (pts.shadowPoints||pts.shadowWins||pts.shadowDraws) ? tile('Shadow Pts', '<span style="color:#9b8cc4">'+(pts.shadowPoints||0)+'</span>', (pts.shadowWins||0)+'W–'+(pts.shadowDraws||0)+'D shadow') : '')+
+        (pts ? tile('League Pts', '<span class="rv-score-gold" style="font-size:1.05rem">'+(pts.points||0)+'</span>', (pts.matchWins||0)+'W–'+(pts.draws||0)+'D–'+(pts.losses||0)+'L') : '')+
+        (pts && (pts.vendettaWins||0) ? tile('Vendetta Wins', '<span class="rv-score-gold" style="font-size:1.05rem">'+pts.vendettaWins+'</span>', 'grudges settled — no points attached') : '')+
       '</div>'+
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-bottom:18px">'+
         hlCard('🔥','Hottest Rivalry', topRival)+
