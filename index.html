@@ -1769,6 +1769,12 @@ function setSyncStatus(msg, color) {
   if (el) { el.textContent = msg; el.style.color = color || 'rgba(245,237,214,0.3)'; }
 }
 
+// Written compact, not pretty-printed. The gist has a hard 1 MB ceiling — past it the
+// GitHub API silently truncates the `content` field and loadFromGist() falls back to
+// localStorage, which this app has been bitten by before. Dropping the indent costs
+// nothing (the file is machine data, and the gist web UI pretty-prints JSON anyway) and
+// recovers roughly 46% of the payload. The human-readable copy is the Settings backup
+// export, which stays indented.
 async function syncToGist(data) {
   const cfg = getCityConfig();
   if (!cfg) return;
@@ -1781,7 +1787,7 @@ async function syncToGist(data) {
         'Authorization': `token ${getToken()}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ files: { [cfg.gistFile]: { content: JSON.stringify(data, null, 2) } } })
+      body: JSON.stringify({ files: { [cfg.gistFile]: { content: JSON.stringify(data) } } })
     });
     if (!res.ok) throw new Error(res.status);
     setSyncStatus('✓ Saved to Gist', '#4caf50');
@@ -3800,7 +3806,10 @@ function swInitTab(){ swRenderSetup(); }
     rvScores = Object.entries(rvH2H).map(function(kv){
       var e = kv[1];
       var score = wm*(e.meetings/maxM) + wc*(e.close/maxC) + ws*(e.swings/maxS);
-      return Object.assign({}, e, { score: score });
+      // Rounded to 4dp before it can be persisted: the raw float carries ~16 digits of
+      // noise (0.8999999999999999) that cost ~18 bytes per h2h row for precision nothing
+      // reads — every consumer renders Math.round(score*100).
+      return Object.assign({}, e, { score: Math.round(score*10000)/10000 });
     }).sort(function(a,b){ return b.score-a.score; });
 
     // Greedy one-to-one matching
