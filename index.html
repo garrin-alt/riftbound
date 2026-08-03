@@ -1402,6 +1402,7 @@
             <div class="rv-tab" data-rvtab="h2h">Head-to-Head</div>
             <div class="rv-tab" data-rvtab="pairings">Suggested Pairings</div>
             <div class="rv-tab" data-rvtab="eventday">⚔ Event Day</div>
+            <div class="rv-tab" data-rvtab="history">📜 League History</div>
             <div class="rv-tab" data-rvtab="leaderboard">⚔ GNL: Vendetta</div>
             <!-- Board/point display names are also published to the gist (rivalry.display) so a public site can read them -->
 
@@ -1446,6 +1447,42 @@
               <button class="btn ghost" id="rvExportCSV" style="width:auto;flex:1">⬇ Export CSV</button>
               <button class="btn ghost" id="rvCopyWhatsApp" style="width:auto;flex:1">📋 Copy for WhatsApp</button>
             </div>
+          </div>
+
+          <!-- LEAGUE HISTORY -->
+          <div class="rv-tab-panel" id="rvtab-history">
+            <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic;margin-bottom:14px;line-height:1.6">
+              Upload past events <strong style="color:var(--gold-light)">set by set</strong> to build the league's timeline. This is the record of <em>when</em> things happened — it powers per-set views, career timelines and rivalry arcs.
+              <br/>History uploads <strong style="color:rgba(245,237,214,0.6)">never award League Points</strong> and never touch the standings. Re-uploading an event replaces it, so it is always safe to run again.
+            </p>
+
+            <div class="card" style="margin-bottom:14px">
+              <div class="card-label">📚 Set</div>
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                <select id="rvHistSet" style="background:#1f170c;border:1px solid rgba(201,146,42,0.3);color:rgba(245,237,214,0.8);font-family:inherit;font-size:0.78rem;padding:6px 10px"></select>
+                <span style="font-size:0.72rem;color:rgba(245,237,214,0.3)">Every event in this upload is tagged with this set.</span>
+              </div>
+              <div id="rvHistCoverage" style="margin-top:12px"></div>
+            </div>
+
+            <div class="card" style="margin-bottom:14px">
+              <div class="card-label">⬆ Round Results CSVs</div>
+              <div class="rv-drop-zone" id="rvHistDropZone">
+                <input type="file" id="rvHistFileInput" accept=".csv" multiple/>
+                <div class="rv-drop-icon">📜</div>
+                <p>Drop round results CSVs here or <span>browse</span></p>
+                <p style="font-size:0.73rem;margin-top:3px;opacity:0.6">Any number of events at once — they're grouped by the event ID in the filename</p>
+              </div>
+              <div id="rvHistFileList"></div>
+            </div>
+
+            <div id="rvHistGroups"></div>
+
+            <div style="display:flex;gap:8px;margin-top:10px">
+              <button class="btn" id="rvHistProcessBtn" style="flex:1" disabled>Process</button>
+              <button class="btn" id="rvHistSaveBtn" style="flex:1" disabled>☁ Save to History</button>
+            </div>
+            <div id="rvHistSummary" style="margin-top:12px"></div>
           </div>
 
           <!-- EVENT DAY -->
@@ -5642,6 +5679,287 @@ function swInitTab(){ swRenderSetup(); }
       peSaveBtn.disabled = false;
       peSaveBtn.textContent = 'Save failed — retry';
     }
+  });
+
+  // ── LEAGUE HISTORY UPLOAD ───────────────────────────────────────────────
+  // Backfills the chronological ledger set by set. Deliberately separate from
+  // Event Day: this path writes the timeline and attendance only, never points.
+  var rvHistFiles = [];    // { name, rows, roundType }
+  var rvHistPending = null;
+
+  function rvHistGroups(){
+    // Group by the event id in the filename. Files without one fall back to a
+    // deterministic synthetic id so re-dropping the same batch still upserts
+    // rather than duplicating.
+    var groups = {};
+    rvHistFiles.forEach(function(f){
+      if(!f.rows.length) return;
+      var id = rvEventIdFromName(f.name);
+      if(!id){
+        var who = {};
+        f.rows.forEach(function(m){ who[m.playerA]=1; who[m.playerB]=1; });
+        var sig = Object.keys(who).sort().join('|');
+        var hash = 0;
+        for(var i=0;i<sig.length;i++){ hash = ((hash<<5)-hash+sig.charCodeAt(i))|0; }
+        id = 'gen' + Math.abs(hash).toString(36);
+      }
+      (groups[id] = groups[id] || { id: id, synthetic: !rvEventIdFromName(f.name), files: [] }).files.push(f);
+    });
+    Object.values(groups).forEach(function(g){
+      g.files.sort(function(a,b){ return (rvRoundNumFromName(a.name)||0) - (rvRoundNumFromName(b.name)||0); });
+      g.matches = g.files.reduce(function(s,f){ return s + f.rows.length; }, 0);
+      var who = {};
+      g.files.forEach(function(f){ f.rows.forEach(function(m){ who[m.playerA]=1; who[m.playerB]=1; }); });
+      g.players = Object.keys(who).length;
+    });
+    return Object.values(groups);
+  }
+
+  function rvHistInvalidate(){
+    rvHistPending = null;
+    var s = document.getElementById('rvHistSaveBtn');
+    if(s){ s.disabled = true; s.textContent = '☁ Save to History'; }
+    var sum = document.getElementById('rvHistSummary');
+    if(sum) sum.innerHTML = '';
+    rvHistRenderGroups();
+  }
+
+  var histDz = document.getElementById('rvHistDropZone');
+  var histFi = document.getElementById('rvHistFileInput');
+  if(histDz){
+    histDz.addEventListener('dragover', function(e){ e.preventDefault(); histDz.classList.add('drag-over'); });
+    histDz.addEventListener('dragleave', function(){ histDz.classList.remove('drag-over'); });
+    histDz.addEventListener('drop', function(e){ e.preventDefault(); histDz.classList.remove('drag-over'); rvHistHandleFiles([].slice.call(e.dataTransfer.files)); });
+  }
+  if(histFi) histFi.addEventListener('change', function(){ rvHistHandleFiles([].slice.call(histFi.files)); });
+
+  function rvHistHandleFiles(incoming){
+    incoming.forEach(function(f){
+      if(!f.name.endsWith('.csv')) return;
+      if(rvHistFiles.find(function(x){ return x.name===f.name; })) return;
+      var reader = new FileReader();
+      reader.onload = function(e){
+        var rows = rvParseCSV(e.target.result, f.name);
+        // Same guard as post-event: an all-0-0 file is a pairings export, not results,
+        // and including it would flood the ledger with fake draws.
+        var suspect = rows.length > 0 && rows.every(function(m){ return !m.winsA && !m.winsB; });
+        rvHistFiles.push({
+          name: f.name, rows: suspect ? [] : rows, suspect: suspect,
+          roundType: /top|cut|playoff|knockout|final|bracket/i.test(f.name) ? 'playoff' : 'swiss'
+        });
+        rvHistInvalidate();
+        rvHistRenderFileList();
+      };
+      reader.readAsText(f);
+    });
+  }
+
+  function rvHistRenderFileList(){
+    var el = document.getElementById('rvHistFileList');
+    if(!el) return;
+    el.innerHTML = rvHistFiles.map(function(f, i){
+      var ok = f.rows.length > 0;
+      return '<div class="rv-file-item"'+(ok?'':' style="opacity:0.55"')+'>'+
+        '<div class="rv-file-dot" style="background:'+(ok?'var(--gold)':'#c9922a')+'"></div>'+
+        '<div class="rv-file-name">'+f.name+'</div>'+
+        (ok ? '<select data-idx="'+i+'" class="rv-hist-type" style="background:#1f170c;border:1px solid rgba(201,146,42,0.3);color:rgba(245,237,214,0.7);font-family:inherit;font-size:0.72rem;padding:3px 6px">'+
+                '<option value="swiss"'+(f.roundType==='swiss'?' selected':'')+'>Swiss</option>'+
+                '<option value="playoff"'+(f.roundType==='playoff'?' selected':'')+'>Top Cut</option>'+
+              '</select>'
+            : '<div style="font-size:0.7rem;color:#c9922a">⚠ all 0–0 — pairings file, excluded</div>')+
+        '<div class="rv-file-rows" style="color:'+(ok?'rgba(245,237,214,0.4)':'#c0392b')+'">'+(ok ? f.rows.length+' rows' : 'skipped')+'</div>'+
+        '<button data-idx="'+i+'" class="rv-hist-rm" style="background:none;border:none;color:#c0392b;cursor:pointer;font-size:0.85rem;padding:0 4px">✕</button>'+
+      '</div>';
+    }).join('');
+    el.querySelectorAll('.rv-hist-type').forEach(function(sel){
+      sel.addEventListener('change', function(){ rvHistFiles[+sel.dataset.idx].roundType = sel.value; rvHistInvalidate(); });
+    });
+    el.querySelectorAll('.rv-hist-rm').forEach(function(btn){
+      btn.addEventListener('click', function(){ rvHistFiles.splice(+btn.dataset.idx,1); rvHistInvalidate(); rvHistRenderFileList(); });
+    });
+  }
+
+  // One row per event, each needing a date before anything can be processed. The date
+  // is the whole point of this screen: eventLog.date records the PROCESSING date, so
+  // without a real one, backfilling five sets in one sitting would stamp every event
+  // with today and produce no timeline at all.
+  function rvHistRenderGroups(){
+    var el = document.getElementById('rvHistGroups');
+    if(!el) return;
+    var groups = rvHistGroups();
+    var proc = document.getElementById('rvHistProcessBtn');
+    if(!groups.length){ el.innerHTML = ''; if(proc) proc.disabled = true; return; }
+
+    var hist = loadHist();
+    var known = {};
+    hist.events.forEach(function(e){ known[e.id] = e; });
+
+    el.innerHTML = '<div class="card" style="margin-bottom:14px"><div class="card-label">📅 Events in this upload</div>'+
+      '<table><thead><tr><th>Event</th><th class="c">Rounds</th><th class="c">Matches</th><th class="c">Players</th><th>Date</th><th>Label</th><th>Status</th></tr></thead><tbody>'+
+      groups.map(function(g){
+        var prev = known[g.id];
+        var status = prev
+          ? '<span style="color:#c9922a">🟡 replaces existing ('+prev.date+', '+prev.m.length+' matches)</span>'
+          : '<span style="color:#4caf50">🟢 new</span>';
+        return '<tr>'+
+          '<td class="td-mono">'+g.id+(g.synthetic?' <span style="opacity:0.4;font-size:0.7rem">(generated)</span>':'')+'</td>'+
+          '<td class="c td-mono">'+g.files.length+'</td>'+
+          '<td class="c td-mono">'+g.matches+'</td>'+
+          '<td class="c td-mono">'+g.players+'</td>'+
+          '<td><input type="date" class="rv-hist-date" data-id="'+g.id+'" value="'+(prev?prev.date:'')+'" style="background:#1f170c;border:1px solid rgba(201,146,42,0.3);color:rgba(245,237,214,0.8);font-family:inherit;font-size:0.74rem;padding:4px 6px"/></td>'+
+          '<td><input type="text" class="rv-hist-label" data-id="'+g.id+'" value="'+((prev&&prev.label)||'')+'" placeholder="optional" style="background:#1f170c;border:1px solid rgba(201,146,42,0.3);color:rgba(245,237,214,0.8);font-family:inherit;font-size:0.74rem;padding:4px 6px;width:11em"/></td>'+
+          '<td style="font-size:0.72rem">'+status+'</td>'+
+        '</tr>';
+      }).join('')+'</tbody></table>'+
+      '<p id="rvHistDateWarn" style="font-size:0.72rem;color:#c9922a;margin-top:8px"></p></div>';
+
+    function refresh(){
+      var missing = [].slice.call(el.querySelectorAll('.rv-hist-date')).filter(function(i){ return !i.value; });
+      var warn = document.getElementById('rvHistDateWarn');
+      if(warn) warn.textContent = missing.length
+        ? '⚠ '+missing.length+' event'+(missing.length===1?'':'s')+' still need'+(missing.length===1?'s':'')+' a date — the date is what builds the timeline.'
+        : '';
+      if(proc) proc.disabled = missing.length > 0;
+    }
+    el.querySelectorAll('.rv-hist-date').forEach(function(i){ i.addEventListener('change', function(){ rvHistPending=null; refresh(); }); });
+    refresh();
+  }
+
+  function rvHistSetOptions(){
+    var sel = document.getElementById('rvHistSet');
+    if(!sel) return;
+    var hist = loadHist();
+    var cur = rvHistCurrentSet(hist);
+    sel.innerHTML = (hist.sets||[]).slice().sort(function(a,b){ return a.order-b.order; })
+      .map(function(s){ return '<option value="'+s.id+'"'+(s.id===cur?' selected':'')+'>'+s.name+'</option>'; }).join('');
+  }
+
+  // Coverage: what the ledger knows versus what the lifetime aggregate knows. This is
+  // the checklist of which CSVs are still missing.
+  function rvHistRenderCoverage(){
+    var el = document.getElementById('rvHistCoverage');
+    if(!el) return;
+    var hist = loadHist();
+    var season = rvSavedSeasonData || (load().rivalry || {});
+    var agg = season.h2h || [];
+    var derived = rvDeriveFromLedger(hist).h2h;
+    var aggMeet = agg.reduce(function(s,e){ return s + (e.meetings||0); }, 0);
+    var ledMeet = derived.reduce(function(s,e){ return s + (e.meetings||0); }, 0);
+    var pct = aggMeet ? Math.round(ledMeet/aggMeet*100) : (ledMeet ? 100 : 0);
+
+    var bySet = {};
+    hist.events.forEach(function(e){ bySet[e.set] = (bySet[e.set]||0) + 1; });
+    var strip = (hist.sets||[]).slice().sort(function(a,b){ return a.order-b.order; }).map(function(s){
+      var n = bySet[s.id]||0;
+      return '<span style="margin-right:14px;color:'+(n?'var(--gold-light)':'rgba(245,237,214,0.3)')+'">'+
+             s.name+' <span class="td-mono">'+(n?n+' ev':'—')+'</span></span>';
+    }).join('');
+
+    el.innerHTML =
+      '<div style="font-size:0.72rem;color:rgba(245,237,214,0.45);margin-bottom:6px">'+strip+'</div>'+
+      '<div style="font-size:0.74rem;color:rgba(245,237,214,0.5)">'+
+        'Ledger: <span class="rv-score-gold">'+ledMeet.toLocaleString()+'</span> of '+aggMeet.toLocaleString()+
+        ' lifetime meetings ('+pct+'%) · '+hist.events.length+' event'+(hist.events.length===1?'':'s')+
+        ' · '+derived.length+' of '+agg.length+' pairs'+
+      '</div>';
+  }
+
+  var histProcBtn = document.getElementById('rvHistProcessBtn');
+  if(histProcBtn) histProcBtn.addEventListener('click', function(){
+    var groups = rvHistGroups();
+    if(!groups.length) return;
+    var setId = (document.getElementById('rvHistSet')||{}).value || 'vendetta';
+    var dates = {}, labels = {};
+    document.querySelectorAll('.rv-hist-date').forEach(function(i){ dates[i.dataset.id] = i.value; });
+    document.querySelectorAll('.rv-hist-label').forEach(function(i){ labels[i.dataset.id] = i.value.trim(); });
+    if(groups.some(function(g){ return !dates[g.id]; })) return;
+
+    rvHistPending = groups.map(function(g){
+      return { id: g.id, set: setId, date: dates[g.id], label: labels[g.id] || '',
+               matches: g.matches, players: g.players,
+               rounds: g.files.map(function(f){
+                 return { n: rvRoundNumFromName(f.name) || undefined, type: f.roundType, matches: f.rows };
+               }) };
+    });
+
+    // Preview against a COPY so nothing is written until Save.
+    var hist = JSON.parse(JSON.stringify(loadHist()));
+    var before = new Set(hist.players);
+    rvHistPending.forEach(function(ev){ rvHistRecordEvent(hist, Object.assign({ src:'history' }, ev)); });
+    var newPlayers = hist.players.filter(function(p){ return !before.has(p); });
+    var derived = rvDeriveFromLedger(hist, { set: setId });
+
+    document.getElementById('rvHistSummary').innerHTML =
+      '<p style="font-size:0.76rem;color:#c9922a;margin-bottom:8px">⏳ Preview — nothing saved yet.</p>'+
+      '<p style="font-size:0.74rem;color:rgba(245,237,214,0.5);line-height:1.6">'+
+        rvHistPending.length+' event'+(rvHistPending.length===1?'':'s')+' · '+
+        rvHistPending.reduce(function(s,e){ return s+e.matches; },0)+' matches into <strong style="color:var(--gold-light)">'+setId+'</strong>'+
+        '<br>Set totals after this upload: '+derived.length+' pairs across '+
+        rvDeriveFromLedger(hist,{set:setId}).events.length+' events.'+
+        (newPlayers.length ? '<br>🌱 '+newPlayers.length+' player'+(newPlayers.length===1?'':'s')+' never seen before: '+newPlayers.slice(0,12).join(', ')+(newPlayers.length>12?' …':'') : '')+
+        '<br><span style="opacity:0.6">No League Points will be awarded — the ladder is untouched.</span>'+
+      '</p>';
+    var s = document.getElementById('rvHistSaveBtn');
+    if(s){ s.disabled = false; s.textContent = '☁ Save to History'; }
+  });
+
+  var histSaveBtn = document.getElementById('rvHistSaveBtn');
+  if(histSaveBtn) histSaveBtn.addEventListener('click', function(){
+    if(!rvHistPending) return;
+    if(!getToken()){
+      histSaveBtn.textContent = '⚠ No Gist token (Settings)';
+      setTimeout(function(){ histSaveBtn.textContent = '☁ Save to History'; }, 2500);
+      return;
+    }
+    histSaveBtn.disabled = true;
+    histSaveBtn.textContent = '⟳ Saving…';
+    try {
+      var hist = loadHist();
+      rvHistPending.forEach(function(ev){ rvHistRecordEvent(hist, Object.assign({ src:'history' }, ev)); });
+
+      // Attendance is not scoring — it is the input to the events gate and to the
+      // attendance-based awards, so history backfill does write it.
+      var data = load();
+      var rivalry = data.rivalry || { h2h: [], savedPairs: [], eventLog: [], rivalryPoints: {} };
+      rivalry.attendance = rivalry.attendance || {};
+      rvHistPending.forEach(function(ev){
+        ev.rounds.forEach(function(r){
+          r.matches.forEach(function(m){
+            [m.playerA, m.playerB].forEach(function(p){
+              var list = rivalry.attendance[p] = rivalry.attendance[p] || [];
+              if(list.indexOf(ev.id) === -1) list.push(ev.id);
+            });
+          });
+        });
+      });
+      rivalry.sets = (hist.sets||[]).map(function(s){
+        var n = hist.events.filter(function(e){ return e.set===s.id; });
+        return { id:s.id, name:s.name, order:s.order, current:!!s.current,
+                 events:n.length, matches:n.reduce(function(t,e){ return t+e.m.length; },0) };
+      });
+      rivalry.history = { file: (getCityConfig()||{}).histFile, v: 1,
+                          events: hist.events.length,
+                          matches: hist.events.reduce(function(s,e){ return s+e.m.length; },0),
+                          lifetimeSource: 'aggregate', updatedAt: new Date().toISOString() };
+      data.rivalry = rivalry;
+      rvSavedSeasonData = rivalry;
+      save(data, hist);
+
+      var n = rvHistPending.length, mt = rvHistPending.reduce(function(s,e){ return s+e.matches; },0);
+      rvHistPending = null; rvHistFiles = [];
+      rvHistRenderFileList(); rvHistRenderGroups(); rvHistSetOptions(); rvHistRenderCoverage();
+      document.getElementById('rvHistSummary').innerHTML =
+        '<p style="font-size:0.76rem;color:#4caf50">✓ Saved — '+n+' event'+(n===1?'':'s')+', '+mt+' matches added to the ledger. Standings unchanged.</p>';
+      histSaveBtn.textContent = '✓ Saved';
+      setTimeout(function(){ histSaveBtn.textContent = '☁ Save to History'; }, 2500);
+    } catch(e){
+      histSaveBtn.disabled = false;
+      histSaveBtn.textContent = 'Save failed — retry';
+    }
+  });
+
+  document.querySelectorAll('.rv-tab[data-rvtab="history"]').forEach(function(tab){
+    tab.addEventListener('click', function(){ rvHistSetOptions(); rvHistRenderCoverage(); rvHistRenderGroups(); });
   });
 
 })();
