@@ -7913,8 +7913,17 @@ function swInitTab(){ swRenderSetup(); }
   var jdData = null;          // the judges file, as loaded
   // Staged but not yet written. Persisted, because it is the ONLY record of that work —
   // a refresh or a stray tab switch must not silently discard a night's logging.
+  var jdStranded = 0;
   var jdQueue = (function(){
-    try { return JSON.parse(localStorage.getItem(JD_QUEUE_KEY) || '[]'); } catch(e){ return []; }
+    try {
+      var q = JSON.parse(localStorage.getItem(JD_QUEUE_KEY) || '[]');
+      // Rows saved before the queue carried Riot Names hold only an id. If that judge is
+      // gone there is nothing left to identify them by, so they are dropped rather than
+      // left on screen as "(unknown)" with no way forward.
+      var keep = q.filter(function(s){ return s && s.date && s.type && (s.riotName || s.judge); });
+      jdStranded = q.length - keep.length;
+      return keep;
+    } catch(e){ return []; }
   })();
   function jdSaveQueue(){ localStorage.setItem(JD_QUEUE_KEY, JSON.stringify(jdQueue)); }
   var jdView = new Date();    // calendar month on screen
@@ -8195,7 +8204,7 @@ function swInitTab(){ swRenderSetup(); }
     if(jdSel && existing.length){
       wrap.style.display = 'block';
       document.getElementById('jdLoggedList').innerHTML = existing.map(function(s){
-        var j = jdById(d, s.judge) || { riotName: '(removed)' };
+        var j = { riotName: (jdById(d, s.judge)||{}).riotName || s.riotName || '(removed)' };
         var qi = jdQueue.indexOf(s);
         // Queue entries are objects copied into `d`, so match on value not identity
         var pending = jdQueue.some(function(q){
@@ -8269,12 +8278,18 @@ function swInitTab(){ swRenderSetup(); }
     var el = document.getElementById('jdQueue');
     if(!el) return;
     document.getElementById('jdQCount').textContent = jdQueue.length;
+    var stranded = jdStranded
+      ? '<p style="font-size:0.75rem;color:#c9922a;margin-bottom:8px">⚠ '+jdStranded+' pending entr'+
+        (jdStranded===1?'y was':'ies were')+' discarded — they were logged before shifts recorded a Riot Name, '+
+        'and the judge they pointed at is no longer on the roster. Re-enter '+
+        (jdStranded===1?'it':'them')+' and it will save normally.</p>'
+      : '';
     if(!jdQueue.length){
-      el.innerHTML = '<p style="font-size:0.76rem;color:rgba(245,237,214,0.26);font-style:italic">Nothing queued yet.</p>';
+      el.innerHTML = stranded + '<p style="font-size:0.76rem;color:rgba(245,237,214,0.26);font-style:italic">Nothing queued yet.</p>';
     } else {
       var d = withQueue();
-      el.innerHTML = jdQueue.map(function(s, i){
-        var j = jdById(d, s.judge) || { riotName:'(unknown)' };
+      el.innerHTML = stranded + jdQueue.map(function(s, i){
+        var j = { riotName: s.riotName || (jdById(d, s.judge)||{}).riotName || '(unknown)' };
         return '<div class="jd-qrow">'+
           '<time>'+ddmmyy(s.date)+'</time>'+
           '<span class="jd-chip" style="color:'+JD_TYPE_COL[s.type]+';border-color:'+JD_TYPE_COL[s.type]+'55">'+s.type+'</span>'+
@@ -8309,7 +8324,12 @@ function swInitTab(){ swRenderSetup(); }
     var note = (document.getElementById('jdNote')||{}).value || '';
     note = note.trim();
     jdChecked().forEach(function(id){
-      var row = { date: jdSel, type: jdType, judge: id, city: jdCity };
+      var j = jdById(jdData, id) || {};
+      // The Riot Name and level are copied in, not looked up later. A queue row that only
+      // holds an id is a pointer into state that can vanish — which is exactly how a
+      // pending shift ended up rendering as "(unknown)" with no way back.
+      var row = { date: jdSel, type: jdType, judge: id, riotName: j.riotName || '',
+                  level: j.level || 1, city: jdCity };
       if(note) row.note = note;
       jdQueue.push(row);
     });
@@ -8341,7 +8361,24 @@ function swInitTab(){ swRenderSetup(); }
     var n = jdQueue.length;
     // Write against a copy, so a rejection leaves both the queue and the roster untouched
     var next = JSON.parse(JSON.stringify(jdData));
-    next.shifts = (next.shifts||[]).concat(jdQueue);
+
+    // Re-create any judge the queue names but the roster no longer holds. The queue row
+    // carries everything needed, so a lost roster entry is recoverable rather than fatal.
+    var have = {};
+    (next.judges||[]).forEach(function(j){ have[j.id] = true; });
+    jdQueue.forEach(function(s){
+      if(have[s.judge] || !s.riotName) return;
+      var byName = jdFindByName(next, s.riotName);
+      if(byName){ s.judge = byName.id; have[byName.id] = true; return; }
+      next.judges.push({ id:s.judge, riotName:s.riotName, level:s.level || 1, active:true });
+      have[s.judge] = true;
+    });
+
+    next.shifts = (next.shifts||[]).concat(jdQueue.map(function(s){
+      var row = { date:s.date, type:s.type, judge:s.judge, city:s.city };
+      if(s.note) row.note = s.note;
+      return row;   // riotName/level are queue-only scaffolding, not part of the record
+    }));
     next.shifts.sort(function(a,b){ return String(a.date).localeCompare(String(b.date)); });
 
     // Refuse to write a QUEUED shift whose judge is not in the roster — that row would be
@@ -8455,6 +8492,14 @@ function swInitTab(){ swRenderSetup(); }
       }
       localStorage.setItem(JUDGES_KEY, JSON.stringify(jdData));
     } catch(e){ /* keep the local copy */ }
+
+    // A queue row with no Riot Name and no matching judge cannot be identified by anything.
+    // Drop it here rather than leaving it on screen as "(unknown)" blocking every save.
+    var before = jdQueue.length;
+    jdQueue = jdQueue.filter(function(s){ return s.riotName || jdById(jdData, s.judge); });
+    jdStranded += before - jdQueue.length;
+    if(before !== jdQueue.length) jdSaveQueue();
+
     jdLoading = false;
     if(!jdSel) jdSel = isoOf(new Date());
     jdRefresh();
