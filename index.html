@@ -5053,11 +5053,15 @@ function swInitTab(){ swRenderSetup(); }
     }).join('');
   }
 
-  // Sub-tabs inside rivalry panel
-  document.querySelectorAll('.rv-tab').forEach(function(tab){
+  // Sub-tabs inside rivalry panel. Scoped to #tab-rivalry — the Judges tab reuses the same
+  // .rv-tab/.rv-tab-panel classes for its own sub-tabs, and an unscoped selector here used to
+  // attach this listener to Judges' tabs too: clicking "Log a Shift" cleared every
+  // .rv-tab-panel's active class (including rvtab-cards) via tab.dataset.rvtab, which is
+  // undefined on a Judges tab, so nothing was restored — Rivalry Analyzer came back blank.
+  document.querySelectorAll('#tab-rivalry .rv-tab').forEach(function(tab){
     tab.addEventListener('click', function(){
-      document.querySelectorAll('.rv-tab').forEach(function(t){ t.classList.remove('active'); });
-      document.querySelectorAll('.rv-tab-panel').forEach(function(p){ p.classList.remove('active'); });
+      document.querySelectorAll('#tab-rivalry .rv-tab').forEach(function(t){ t.classList.remove('active'); });
+      document.querySelectorAll('#tab-rivalry .rv-tab-panel').forEach(function(p){ p.classList.remove('active'); });
       tab.classList.add('active');
       var panel = document.getElementById('rvtab-'+tab.dataset.rvtab);
       if(panel) panel.classList.add('active');
