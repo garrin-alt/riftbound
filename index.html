@@ -815,6 +815,55 @@
     .rv-rec-w { color: #5ec88a; font-family: 'Cinzel', serif; font-size: 0.8rem; }
     .rv-rec-l { color: #e08080; font-family: 'Cinzel', serif; font-size: 0.8rem; }
     .rv-score-gold { font-family: 'Cinzel', serif; font-size: 0.82rem; color: var(--gold-light); font-weight: 700; }
+    /* ── Judges ── */
+    .rv-two-col { display: grid; grid-template-columns: minmax(260px, 360px) 1fr; gap: 14px; align-items: start; }
+    @media (max-width: 820px) { .rv-two-col { grid-template-columns: 1fr; } }
+    .jd-dow { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; margin-bottom: 5px; }
+    .jd-dow span { font-family: 'Cinzel', serif; font-size: 0.56rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(245,237,214,0.26); text-align: center; }
+    .jd-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+    .jd-day { aspect-ratio: 1; border: 1px solid transparent; background: rgba(245,237,214,0.03); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; cursor: pointer; font-family: 'Crimson Pro', serif; font-size: 0.8rem; color: rgba(245,237,214,0.6); padding: 0; }
+    .jd-day:hover { background: rgba(201,146,42,0.1); }
+    .jd-day.pad { background: none; cursor: default; visibility: hidden; }
+    .jd-day.today { border-color: rgba(201,146,42,0.5); }
+    .jd-day.sel { background: var(--gold); color: #120c06; font-weight: 700; border-color: var(--gold-light); }
+    .jd-dots { display: flex; gap: 2px; height: 4px; }
+    .jd-dots i { width: 4px; height: 4px; border-radius: 50%; display: block; }
+    .jd-key { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(201,146,42,0.1); }
+    .jd-key span { font-size: 0.66rem; display: flex; align-items: center; gap: 5px; color: rgba(245,237,214,0.26); }
+    .jd-key i { width: 5px; height: 5px; border-radius: 50%; display: block; }
+    .jd-seg { display: flex; gap: 6px; flex-wrap: wrap; }
+    .jd-seg button { background: none; border: 1px solid rgba(201,146,42,0.2); color: rgba(245,237,214,0.55); font-family: inherit; font-size: 0.78rem; padding: 7px 12px; cursor: pointer; display: flex; align-items: center; gap: 7px; }
+    .jd-seg button:hover:not(:disabled) { border-color: rgba(201,146,42,0.45); }
+    .jd-seg button[aria-pressed="true"] { border-color: var(--sel); color: var(--parchment); background: rgba(245,237,214,0.05); }
+    .jd-seg button[aria-pressed="true"] code { color: var(--sel); }
+    .jd-seg button:disabled { opacity: 0.3; cursor: not-allowed; }
+    .jd-seg code { font-family: ui-monospace, Menlo, monospace; font-size: 0.72rem; }
+    .jd-pick { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid rgba(201,146,42,0.1); cursor: pointer; }
+    .jd-pick:hover { border-color: rgba(201,146,42,0.35); background: rgba(201,146,42,0.04); }
+    .jd-pick input { accent-color: var(--gold); width: 15px; height: 15px; cursor: pointer; }
+    .jd-pick .jn { font-family: 'Cinzel', serif; font-size: 0.88rem; font-weight: 700; flex: 1; }
+    .jd-pick .jl { font-family: ui-monospace, Menlo, monospace; font-size: 0.66rem; color: rgba(245,237,214,0.42); border: 1px solid rgba(201,146,42,0.18); padding: 1px 6px; }
+    .jd-pick .js { font-family: ui-monospace, Menlo, monospace; font-size: 0.7rem; color: rgba(245,237,214,0.26); }
+    .jd-pick.on { border-color: rgba(201,146,42,0.5); background: rgba(201,146,42,0.07); }
+    .jd-pick.dup { opacity: 0.45; cursor: default; }
+    .jd-pick.dup .js { color: #8b3a1a; font-family: 'Crimson Pro', serif; font-style: italic; }
+    .jd-addrow { display: flex; align-items: center; gap: 8px; padding: 9px 10px; border: 1px dashed rgba(201,146,42,0.35); cursor: pointer; color: var(--gold-light); font-family: inherit; font-size: 0.8rem; background: none; width: 100%; text-align: left; }
+    .jd-addrow:hover { background: rgba(201,146,42,0.06); }
+    .jd-addform { border: 1px solid rgba(201,146,42,0.4); background: rgba(201,146,42,0.05); padding: 12px 13px; display: grid; gap: 9px; }
+    .jd-addform .r { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
+    .jd-addform input { flex: 1; min-width: 140px; background: #1f170c; border: 1px solid rgba(201,146,42,0.3); color: rgba(245,237,214,0.85); font-family: inherit; font-size: 0.8rem; padding: 7px 9px; }
+    .jd-lvlseg { display: flex; gap: 4px; }
+    .jd-lvlseg button { background: none; border: 1px solid rgba(201,146,42,0.2); color: rgba(245,237,214,0.42); font-family: ui-monospace, Menlo, monospace; font-size: 0.74rem; padding: 6px 11px; cursor: pointer; }
+    .jd-lvlseg button[aria-pressed="true"] { border-color: var(--gold); color: var(--gold-light); background: rgba(201,146,42,0.1); }
+    .jd-tag { color: rgba(245,237,214,0.28); font-weight: 400; }
+    .jd-tier { font-family: 'Cinzel', serif; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--tier); }
+    .jd-track { display: block; height: 3px; background: rgba(245,237,214,0.09); position: relative; margin-top: 5px; }
+    .jd-track > i { position: absolute; inset: 0 auto 0 0; background: var(--tier); opacity: 0.85; }
+    .jd-chip { font-family: ui-monospace, Menlo, monospace; font-size: 0.66rem; padding: 2px 6px; border: 1px solid; white-space: nowrap; }
+    .jd-qrow { display: flex; align-items: center; gap: 10px; padding: 7px 10px; background: rgba(201,146,42,0.06); border-left: 2px solid var(--gold); margin-bottom: 4px; }
+    .jd-qrow time { font-family: ui-monospace, Menlo, monospace; font-size: 0.74rem; color: rgba(245,237,214,0.7); }
+    .jd-step { border: 1px solid rgba(201,146,42,0.1); padding: 12px 13px; border-top: 2px solid var(--tier); }
+
     .rv-aw-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 10px; }
     .rv-aw { border: 1px solid rgba(201,146,42,0.18); background: rgba(245,237,214,0.02); padding: 14px 15px; position: relative; }
     .rv-aw.pending { opacity: 0.55; }
@@ -902,6 +951,9 @@
       </div>
       <div class="sidebar-nav-item" id="snav-pstats" onclick="showTab('pstats'); closeSidebar()">
         <span class="sidebar-nav-icon">📊</span> Player Stats
+      </div>
+      <div class="sidebar-nav-item" id="snav-judges" onclick="showTab('judges'); closeSidebar()">
+        <span class="sidebar-nav-icon">⚖️</span> Judges
       </div>
       <div class="sidebar-nav-item" id="snav-more" onclick="showTab('more'); closeSidebar()">
         <span class="sidebar-nav-icon">🔮</span> More Tools
@@ -1115,6 +1167,20 @@
           File: <strong style="color:var(--gold-light)" id="gistInfoFile">—</strong><br>
           Data syncs automatically on every change.
         </div>
+      </div>
+      <div class="card">
+        <div class="card-label">⚖️ Judges Gist</div>
+        <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);line-height:1.6;margin-bottom:10px">
+          The judge roster and service record live in their own Gist, shared across both cities — judges work
+          Abu Dhabi and Dubai, so they carry one rank. Leave this blank to use the built-in default.
+        </p>
+        <input type="text" id="judgesGistInput" class="lock-input" placeholder="Gist ID"
+               autocomplete="off" style="text-align:left;letter-spacing:0.04em;margin-bottom:10px;font-size:0.85rem;font-family:monospace"/>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" onclick="saveJudgesGist()" style="flex:1;min-width:120px">Save Gist ID</button>
+          <button class="btn ghost" onclick="resetJudgesGist()" style="flex:1;min-width:120px">Use default</button>
+        </div>
+        <p id="judgesGistStatus" style="margin-top:9px;font-size:0.78rem;min-height:1.2em;font-style:italic;color:rgba(245,237,214,0.4)"></p>
       </div>
       <div class="card">
         <div class="card-label">💾 Backup & Restore</div>
@@ -1685,6 +1751,98 @@
     </div>
   </div>
 
+  <!-- ==================== JUDGES ==================== -->
+  <div class="panel" id="tab-judges">
+    <div class="panel-title">Judges</div>
+    <p class="panel-desc">Certification level and service rank for the judge team</p>
+    <div class="divider"></div>
+
+    <div class="rv-tabs">
+      <div class="rv-tab active" data-jdtab="board">🏅 Scorecard</div>
+      <div class="rv-tab" data-jdtab="log">📋 Log a Shift</div>
+    </div>
+
+    <!-- SCORECARD -->
+    <div class="rv-tab-panel active" id="jdtab-board">
+      <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic;margin-bottom:14px;line-height:1.6">
+        Two independent measures. <strong style="color:var(--gold-light)">Level</strong> is certification — what a judge is qualified to run.
+        <strong style="color:var(--gold-light)">Rank</strong> is service — how often they have actually turned up.
+        A Level 1 who works every week outranks a Level 3 who rarely does.
+        <br/>Rank follows one number, total shifts served, and only ever rises.
+      </p>
+      <div id="jdTotals" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:16px"></div>
+      <div id="jdBoard"></div>
+      <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+        <button class="btn ghost" id="jdExportCSV" style="width:auto;flex:1;min-width:140px">⬇ Export CSV</button>
+        <button class="btn ghost" id="jdCopyWhatsApp" style="width:auto;flex:1;min-width:140px">📋 Copy for WhatsApp</button>
+      </div>
+      <div style="margin-top:20px">
+        <div class="card-label" style="margin-bottom:8px">📈 The ladder</div>
+        <div id="jdLadder" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px"></div>
+      </div>
+    </div>
+
+    <!-- LOG A SHIFT -->
+    <div class="rv-tab-panel" id="jdtab-log">
+      <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic;margin-bottom:14px;line-height:1.6">
+        Pick a night, say what it was, tick everyone who worked it. <strong style="color:rgba(245,237,214,0.6)">New judges are created here and nowhere else</strong> — the only way onto the roster is to work an event.
+        <br/>Entries queue locally and write to the judges Gist in one go; nothing reaches GitHub until you press Save.
+      </p>
+      <div class="rv-two-col" id="jdConsole">
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <span class="card-label" id="jdCalMonth" style="margin:0"></span>
+            <span style="display:flex;gap:6px">
+              <button class="btn ghost" id="jdPrevM" style="width:auto;padding:4px 11px;font-size:0.75rem" aria-label="Previous month">‹</button>
+              <button class="btn ghost" id="jdNextM" style="width:auto;padding:4px 11px;font-size:0.75rem" aria-label="Next month">›</button>
+            </span>
+          </div>
+          <div class="jd-dow"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div>
+          <div class="jd-grid" id="jdCalGrid"></div>
+          <div class="jd-key" id="jdCalKey"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Date</div>
+          <div id="jdPickedDate" style="font-family:Cinzel,serif;font-size:1.05rem;font-weight:700;color:var(--gold-light);margin-bottom:14px">—</div>
+
+          <div class="card-label">Event type</div>
+          <div class="jd-seg" id="jdTypeSeg" style="margin-bottom:14px"></div>
+
+          <div class="card-label">City</div>
+          <div class="jd-seg" id="jdCitySeg" style="margin-bottom:14px"></div>
+
+          <div class="card-label">Judges who served</div>
+          <div id="jdRoster" style="display:grid;gap:5px;margin-bottom:14px"></div>
+
+          <div class="card-label">Note <span style="text-transform:none;letter-spacing:0;font-style:italic;opacity:0.7">— optional</span></div>
+          <input type="text" id="jdNote" placeholder="e.g. head judge cover, 42 players" style="width:100%;background:#1f170c;border:1px solid rgba(201,146,42,0.3);color:rgba(245,237,214,0.8);font-family:inherit;font-size:0.8rem;padding:8px 10px;margin-bottom:14px"/>
+
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <button class="btn" id="jdAddBtn" style="width:auto;padding:9px 18px" disabled>Add to queue</button>
+            <span id="jdFormHint" style="font-size:0.74rem;color:rgba(245,237,214,0.3);font-style:italic"></span>
+          </div>
+
+          <div id="jdLoggedWrap" style="display:none;margin-top:16px;padding-top:14px;border-top:1px solid rgba(201,146,42,0.12)">
+            <div class="card-label">Already logged on this night</div>
+            <div id="jdLoggedList"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="card-label">⏳ Pending — <span id="jdQCount">0</span> to write</div>
+        <p style="font-size:0.72rem;color:rgba(245,237,214,0.3);font-style:italic;margin-bottom:10px">Review the batch, then one write. A rejected write leaves the queue intact so you can retry.</p>
+        <div id="jdQueue"></div>
+        <div style="display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap">
+          <button class="btn" id="jdSaveBtn" style="width:auto;padding:9px 18px" disabled>☁ Save to Judges Gist</button>
+          <button class="btn ghost" id="jdDiscardBtn" style="width:auto;padding:8px 14px;font-size:0.7rem" disabled>Discard queue</button>
+          <span id="jdSaveHint" style="font-size:0.74rem;color:rgba(245,237,214,0.3)"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <!-- RESET MODAL -->
@@ -1828,6 +1986,7 @@ function showTab(id) {
   if (id === 'raffle') renderRaffleEventToggles();
   if (id === 'top16' && typeof t16Init === 'function') t16Init();
   if (id === 'pstats' && typeof pdInit === 'function') pdInit();
+  if (id === 'judges' && typeof jdInit === 'function') jdInit();
 }
 
 // ── GIST CONFIG ───────────────────────────────────────
@@ -2127,6 +2286,158 @@ function rvDerivePlayer(hist, name) {
     if (s.pct != null) prev = s;
   });
   return out;
+}
+
+// ── JUDGES ────────────────────────────────────────────
+// The judge roster and their service record live in their OWN gist, separate from either
+// city. Judges cross cities — the same person works Abu Dhabi and Dubai — so a shared file
+// keeps one roster and one rank per judge, with each shift stamped with the city it was
+// worked in. It also lets a public scorecard read judges without pulling the whole match
+// archive, and a bad write to one file can never damage the other.
+//
+// Shape: { v:1,
+//          judges: [ { id, riotName, level, active } ],
+//          shifts: [ { date:'YYYY-MM-DD', type:'NN'|'PR'|'C'|'S', judge:id, city, note } ],
+//          updatedAt }
+//
+// Dates are stored ISO so they sort as strings, and rendered DD/MM/YY.
+var JUDGES_GIST_DEFAULT = '725744926cb75755f73c9bf2ad88a99f';
+var JUDGES_FILE = 'gnl_judges.json';
+var JUDGES_KEY  = 'rb_judges';
+
+// Overridable from Settings so the gist can be repointed without a redeploy.
+function jdGistId() { return localStorage.getItem('rb_judges_gist') || JUDGES_GIST_DEFAULT; }
+
+var JD_TYPES = [
+  { code: 'NN', name: 'Nexus Night' },
+  { code: 'PR', name: 'Pre-Rift' },
+  { code: 'C',  name: 'Casuals' },
+  { code: 'S',  name: 'Skirmish' }
+];
+
+// Season 2 tiers, no divisions. Breakpoints are total shifts served.
+var JD_TIERS = [
+  { id: 'unranked',   name: 'Unranked',   min: 0,  note: 'On the roster, not yet served' },
+  { id: 'bronze',     name: 'Bronze',     min: 1,  note: 'First shift on the floor' },
+  { id: 'silver',     name: 'Silver',     min: 5,  note: 'A regular presence' },
+  { id: 'gold',       name: 'Gold',       min: 10, note: 'A season of service' },
+  { id: 'platinum',   name: 'Platinum',   min: 20, note: 'The backbone of the rota' },
+  { id: 'diamond',    name: 'Diamond',    min: 40, note: 'Years, not months' },
+  { id: 'challenger', name: 'Challenger', min: 80, note: 'Apex — no cap above' }
+];
+
+function jdNew() { return { v: 1, judges: [], shifts: [], updatedAt: null }; }
+
+function loadJudges() {
+  try {
+    var raw = localStorage.getItem(JUDGES_KEY);
+    var d = raw ? JSON.parse(raw) : jdNew();
+    d.judges = d.judges || []; d.shifts = d.shifts || [];
+    return d;
+  } catch (e) { return jdNew(); }
+}
+
+async function loadJudgesFromGist() {
+  try {
+    var res = await fetch('https://api.github.com/gists/' + jdGistId() + '?_=' + Date.now());
+    if (!res.ok) throw new Error(res.status);
+    var gist = await res.json();
+    var raw = gist.files && gist.files[JUDGES_FILE] && gist.files[JUDGES_FILE].content;
+    if (raw && raw.trim() !== '' && raw.trim() !== '{}') {
+      var d = JSON.parse(raw);
+      d.judges = d.judges || []; d.shifts = d.shifts || [];
+      localStorage.setItem(JUDGES_KEY, JSON.stringify(d));
+      return d;
+    }
+  } catch (e) { /* fall through to the local copy */ }
+  return loadJudges();
+}
+
+// Its own gist, so its own write. Returns true only if the write landed — same contract as
+// syncToGist, for the same reason: a caller that says "saved" must have been told so.
+async function saveJudges(d) {
+  d.updatedAt = new Date().toISOString();
+  localStorage.setItem(JUDGES_KEY, JSON.stringify(d));
+  if (!getToken()) { setSyncStatus('⚠ No token set', '#c0392b'); return false; }
+  setSyncStatus('⟳ Saving judges…', 'rgba(201,146,42,0.7)');
+  try {
+    var files = {}; files[JUDGES_FILE] = { content: JSON.stringify(d) };
+    var res = await fetch('https://api.github.com/gists/' + jdGistId(), {
+      method: 'PATCH',
+      headers: { 'Authorization': 'token ' + getToken(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ files: files })
+    });
+    if (!res.ok) throw new Error(res.status);
+    setSyncStatus('✓ Judges saved', '#4caf50');
+    setTimeout(function () { setSyncStatus('', ''); }, 3000);
+    return true;
+  } catch (e) {
+    setSyncStatus('✗ Judges sync failed' + (e && e.message ? ' (' + e.message + ')' : ''), '#c0392b');
+    return false;
+  }
+}
+
+function jdTierOf(n) {
+  var t = JD_TIERS[0];
+  JD_TIERS.forEach(function (x) { if (n >= x.min) t = x; });
+  return t;
+}
+function jdNextTier(t) { return JD_TIERS[JD_TIERS.indexOf(t) + 1] || null; }
+
+// Riot IDs are GameName#TAG. Compared case-insensitively so a stray capital can never
+// split one judge into two.
+function jdNorm(n) { return String(n == null ? '' : n).trim().toLowerCase(); }
+function jdFindByName(d, name) {
+  var k = jdNorm(name);
+  return (d.judges || []).filter(function (j) { return jdNorm(j.riotName) === k; })[0] || null;
+}
+function jdById(d, id) {
+  return (d.judges || []).filter(function (j) { return j.id === id; })[0] || null;
+}
+
+// One event per night PER CITY — a date+city pair is the event, so its type is a property
+// of that night rather than of each entry, and a judge earns at most one shift on it.
+function jdShiftsOn(d, date, city) {
+  return (d.shifts || []).filter(function (s) {
+    return s.date === date && (city === undefined || s.city === city);
+  });
+}
+function jdNightType(d, date, city) {
+  var on = jdShiftsOn(d, date, city);
+  return on.length ? on[0].type : null;
+}
+
+// Everything the scorecard renders, derived fresh — nothing about rank is ever stored.
+function jdCompute(d) {
+  d = d || jdNew();
+  var byJudge = {};
+  (d.judges || []).forEach(function (j) {
+    byJudge[j.id] = { id: j.id, riotName: j.riotName, level: j.level || 1,
+                      active: j.active !== false, served: 0, last: null,
+                      mix: { NN: 0, PR: 0, C: 0, S: 0 }, log: [] };
+  });
+  (d.shifts || []).slice()
+    .sort(function (a, b) { return String(b.date).localeCompare(String(a.date)); })
+    .forEach(function (s) {
+      var e = byJudge[s.judge];
+      if (!e) return;                       // a shift for a deleted judge is ignored, not fatal
+      e.served++;
+      if (e.mix[s.type] != null) e.mix[s.type]++;
+      if (!e.last || s.date > e.last) e.last = s.date;
+      e.log.push(s);
+    });
+  var rows = Object.keys(byJudge).map(function (k) {
+    var e = byJudge[k];
+    e.tier = jdTierOf(e.served);
+    e.next = jdNextTier(e.tier);
+    e.toNext = e.next ? e.next.min - e.served : null;
+    e.pct = e.next ? Math.round((e.served - e.tier.min) / (e.next.min - e.tier.min) * 100) : 100;
+    return e;
+  });
+  rows.sort(function (a, b) {
+    return b.served - a.served || jdNorm(a.riotName).localeCompare(jdNorm(b.riotName));
+  });
+  return rows;
 }
 
 // ── AWARDS ────────────────────────────────────────────
@@ -3089,6 +3400,12 @@ function initSettingsPanel() {
   const fileEl = document.getElementById('gistInfoFile');
   if (idEl) idEl.textContent = cfg ? cfg.gistId : '—';
   if (fileEl) fileEl.textContent = cfg ? cfg.gistFile : '—';
+  const jgEl = document.getElementById('judgesGistInput');
+  if (jgEl) {
+    const custom = localStorage.getItem('rb_judges_gist');
+    jgEl.value = custom || '';
+    setJudgesGistStatus(custom ? 'Custom Gist ID in use' : 'Using the built-in default (' + JUDGES_GIST_DEFAULT.slice(0, 8) + '…)');
+  }
 }
 function setTokenStatus(msg, color) {
   const el = document.getElementById('tokenStatus');
@@ -3177,6 +3494,28 @@ async function testToken() {
         ? line('✓', 'Found <code>' + cfg.gistFile + '</code>' + (f.truncated ? ' <span style="color:#c9922a">(truncated by the API — the file is over 1 MB)</span>' : '') + '.', f.truncated ? '#c9922a' : '#4caf50')
         : line('•', 'No <code>' + cfg.gistFile + '</code> in the gist yet — the first save will create it.');
     }
+
+    // 3. The judges gist is a separate file with separate ownership, so check it separately —
+    // a token that writes the league gist may still fail here.
+    const jg = await fetch('https://api.github.com/gists/' + jdGistId(), { headers: { Authorization: 'token ' + token } });
+    if (jg.status === 404) {
+      okAll = false;
+      out += line('✗', '<strong>Judges Gist <code>' + jdGistId() + '</code> is not visible to this token.</strong> Check the ID in the Judges Gist card above.', '#c0392b');
+    } else if (!jg.ok) {
+      okAll = false;
+      out += line('✗', 'Could not read the judges Gist (HTTP ' + jg.status + ').', '#c0392b');
+    } else {
+      const jgist = await jg.json();
+      const jowner = (jgist.owner && jgist.owner.login) || '(unknown)';
+      if (jowner !== user.login) {
+        okAll = false;
+        out += line('✗', '<strong>The judges Gist belongs to ' + jowner + ', not ' + user.login + '.</strong> Shifts will never save.', '#c0392b');
+      } else {
+        const jf = jgist.files && jgist.files[JUDGES_FILE];
+        out += line('✓', 'Judges Gist <code>' + jdGistId().slice(0, 8) + '…</code> is writable' +
+          (jf ? ', and holds <code>' + JUDGES_FILE + '</code>.' : ' — <code>' + JUDGES_FILE + '</code> will be created on first save.'), '#4caf50');
+      }
+    }
   } catch (e) {
     okAll = false;
     out += line('✗', 'Could not reach GitHub (' + (e && e.message ? e.message : 'network error') + ').', '#c0392b');
@@ -3187,6 +3526,27 @@ async function testToken() {
   show(out);
   return okAll;
 }
+function setJudgesGistStatus(msg, color) {
+  var el = document.getElementById('judgesGistStatus');
+  if (el) { el.textContent = msg; el.style.color = color || 'rgba(245,237,214,0.4)'; }
+}
+function saveJudgesGist() {
+  var v = document.getElementById('judgesGistInput').value.trim();
+  if (!v) { resetJudgesGist(); return; }
+  // Gist IDs are hex. Catching a pasted full URL here saves a confusing 404 later.
+  var m = v.match(/[0-9a-f]{20,}/i);
+  if (!m) { setJudgesGistStatus('That does not look like a Gist ID — paste the hex string from the URL', '#c0392b'); return; }
+  localStorage.setItem('rb_judges_gist', m[0]);
+  document.getElementById('judgesGistInput').value = m[0];
+  setJudgesGistStatus('✓ Saved. Press 🔍 Test Token to confirm it can be written.', '#4caf50');
+}
+function resetJudgesGist() {
+  localStorage.removeItem('rb_judges_gist');
+  var el = document.getElementById('judgesGistInput');
+  if (el) el.value = '';
+  setJudgesGistStatus('Using the built-in default (' + JUDGES_GIST_DEFAULT.slice(0, 8) + '…)', 'rgba(245,237,214,0.4)');
+}
+
 function clearToken() {
   localStorage.removeItem('rb_gist_token');
   document.getElementById('tokenInput').value = '';
@@ -7536,6 +7896,488 @@ function swInitTab(){ swRenderSetup(); }
   window.pdInit = pdInit;
 })();
 // ==================== END PLAYER STATS ====================
+
+// ==================== JUDGES ====================
+// Two screens over one file: a read-only scorecard, and the console that feeds it.
+// Nothing about rank is stored — it is derived from the shift count on every render.
+(function(){
+  var JD_TIER_COL = { unranked:'#6b6355', bronze:'#a97142', silver:'#9aa4ad', gold:'#d9ad3f',
+                      platinum:'#4e9c8f', diamond:'#6f96d4', challenger:'#d8e4f0' };
+  var JD_TYPE_COL = { NN:'#e8b84b', PR:'#b58cd6', C:'#8fa88a', S:'#c8663a' };
+  var JD_CITIES = [ { id:'abudhabi', name:'Abu Dhabi', abbr:'AUH' }, { id:'dubai', name:'Dubai', abbr:'DXB' } ];
+  var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var DAYNAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+  var jdData = null;          // the judges file, as loaded
+  var jdQueue = [];           // shifts staged but not yet written
+  var jdView = new Date();    // calendar month on screen
+  var jdSel = null;           // selected date, ISO
+  var jdType = null, jdCity = 'abudhabi';
+  var jdAdding = false, jdNewLevel = 1;
+  // Ticked judges live here, not in the DOM. renderForm rebuilds the list whenever the add
+  // form opens or the city changes, and reading checkboxes back would silently drop the
+  // ticks every time.
+  var jdTicked = {};
+
+  function esc(v){
+    return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  // Riot IDs are GameName#TAG — dim the tag so a column of them still scans by name.
+  function riot(n){
+    var s = esc(n), i = s.indexOf('#');
+    return i === -1 ? s : s.slice(0,i) + '<span class="jd-tag">' + s.slice(i) + '</span>';
+  }
+  function isoOf(d){
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function ddmmyy(s){ var p = String(s).split('-'); return p[2] + '/' + p[1] + '/' + p[0].slice(2); }
+  function typeName(c){ return (JD_TYPES.filter(function(t){ return t.code===c; })[0]||{}).name || c; }
+  function cityOf(id){ return JD_CITIES.filter(function(c){ return c.id===id; })[0] || JD_CITIES[0]; }
+
+  // The queue is unsaved, but the console must treat it as real so the duplicate guard and
+  // the night's type lock both account for it.
+  function withQueue(){
+    var d = JSON.parse(JSON.stringify(jdData || jdNew()));
+    d.shifts = (d.shifts||[]).concat(jdQueue);
+    return d;
+  }
+
+  // ── SCORECARD ──────────────────────────────────────────────────────────
+  function jdRenderBoard(){
+    var board = document.getElementById('jdBoard');
+    if(!board) return;
+    var rows = jdCompute(jdData || jdNew());
+
+    var totals = document.getElementById('jdTotals');
+    var shifts = ((jdData||{}).shifts || []).length;
+    var byType = { NN:0, PR:0, C:0, S:0 };
+    ((jdData||{}).shifts || []).forEach(function(s){ if(byType[s.type]!=null) byType[s.type]++; });
+    var top = rows.filter(function(r){ return r.served > 0; })[0];
+    function tot(l, v, s, col){
+      return '<div class="stat"><div class="stat-l">'+l+'</div>'+
+        '<div class="stat-v"'+(col?' style="font-size:1rem;color:'+col+'"':'')+'>'+v+'</div>'+
+        (s?'<div style="font-size:0.66rem;color:rgba(245,237,214,0.3);margin-top:2px">'+s+'</div>':'')+'</div>';
+    }
+    totals.innerHTML =
+      tot('Judges', rows.length, rows.filter(function(r){ return !r.served; }).length + ' not yet served') +
+      tot('Shifts covered', shifts, 'all event types') +
+      tot('Nexus Nights', byType.NN, shifts ? Math.round(byType.NN/shifts*100)+'% of all shifts' : '') +
+      (top ? tot('Highest rank', top.tier.name.toUpperCase(), top.riotName, JD_TIER_COL[top.tier.id]) : '');
+
+    if(!rows.length){
+      board.innerHTML = '<div class="rv-empty"><div class="rv-empty-icon">⚖️</div>'+
+        'No judges yet — they are created by working a night, over in <strong style="color:var(--gold-light)">Log a Shift</strong>.</div>';
+      jdRenderLadder();
+      return;
+    }
+
+    board.innerHTML =
+      '<table><thead><tr><th>Riot Name</th><th class="c">Level</th><th>Rank</th>'+
+      '<th class="c">Served</th><th>Breakdown</th><th>Last served</th></tr></thead><tbody>'+
+      rows.map(function(r){
+        var col = JD_TIER_COL[r.tier.id];
+        var stale = r.last ? Math.round((Date.now() - new Date(r.last+'T00:00:00')) / 86400000) : null;
+        return '<tr>'+
+          '<td style="color:var(--gold-light);font-family:Cinzel,serif;font-weight:700">'+riot(r.riotName)+'</td>'+
+          '<td class="c"><span class="jd-pick-lvl" style="font-family:ui-monospace,Menlo,monospace;font-size:0.7rem;border:1px solid rgba(201,146,42,0.18);padding:2px 7px;color:rgba(245,237,214,0.6)">L'+r.level+'</span></td>'+
+          '<td style="min-width:150px"><div style="--tier:'+col+'">'+
+            '<span class="jd-tier">'+r.tier.name+'</span>'+
+            '<span class="jd-track"><i style="width:'+r.pct+'%"></i></span>'+
+            '<div style="font-size:0.68rem;color:rgba(245,237,214,0.26);margin-top:4px">'+
+              (r.next ? r.toNext + ' more to ' + r.next.name
+                      : '<em style="color:'+JD_TIER_COL.challenger+'">the ladder ends here</em>')+
+            '</div></div></td>'+
+          '<td class="c"><span style="font-family:Cinzel,serif;font-size:1.05rem;font-weight:700">'+r.served+'</span></td>'+
+          '<td><div style="display:flex;gap:4px;flex-wrap:wrap">'+
+            JD_TYPES.map(function(t){
+              var n = r.mix[t.code]||0;
+              return '<span class="jd-chip" style="color:'+JD_TYPE_COL[t.code]+';border-color:'+JD_TYPE_COL[t.code]+'55'+
+                     (n?'':';opacity:0.28')+'">'+t.code+' '+n+'</span>';
+            }).join('')+
+          '</div></td>'+
+          '<td>'+(r.last
+            ? '<span class="td-mono" style="font-size:0.76rem;opacity:0.6">'+ddmmyy(r.last)+'</span>'+
+              (stale > 60 ? '<br><span style="color:#8b3a1a;font-style:italic;font-size:0.72rem">'+stale+' days ago</span>' : '')
+            : '<span style="color:#8b3a1a;font-style:italic;font-size:0.74rem">never served</span>')+'</td>'+
+        '</tr>';
+      }).join('')+'</tbody></table>';
+    jdRenderLadder();
+  }
+
+  function jdRenderLadder(){
+    var el = document.getElementById('jdLadder');
+    if(!el) return;
+    el.innerHTML = JD_TIERS.map(function(t, i){
+      var nx = JD_TIERS[i+1], col = JD_TIER_COL[t.id];
+      return '<div class="jd-step" style="--tier:'+col+'">'+
+        '<div class="jd-tier">'+t.name+'</div>'+
+        '<div class="td-mono" style="font-size:0.84rem;margin-top:6px">'+(nx ? t.min+'–'+(nx.min-1) : t.min+'+')+'</div>'+
+        '<div style="font-size:0.7rem;color:rgba(245,237,214,0.26);margin-top:4px">'+t.note+'</div></div>';
+    }).join('');
+  }
+
+  // ── CALENDAR ───────────────────────────────────────────────────────────
+  function jdRenderCal(){
+    var grid = document.getElementById('jdCalGrid');
+    if(!grid) return;
+    var d = withQueue();
+    document.getElementById('jdCalMonth').textContent = MONTHS[jdView.getMonth()] + ' ' + jdView.getFullYear();
+    var first = new Date(jdView.getFullYear(), jdView.getMonth(), 1);
+    var lead = (first.getDay() + 6) % 7;                 // weeks start Monday
+    var days = new Date(jdView.getFullYear(), jdView.getMonth()+1, 0).getDate();
+    var today = isoOf(new Date());
+    var html = '';
+    for(var i=0;i<lead;i++) html += '<div class="jd-day pad"></div>';
+    for(var n=1;n<=days;n++){
+      var key = isoOf(new Date(jdView.getFullYear(), jdView.getMonth(), n));
+      var seen = {}, dots = '';
+      jdShiftsOn(d, key).forEach(function(s){
+        if(seen[s.type]) return;
+        seen[s.type] = 1;
+        dots += '<i style="background:'+(JD_TYPE_COL[s.type]||'#888')+'"></i>';
+      });
+      html += '<button class="jd-day'+(key===today?' today':'')+(key===jdSel?' sel':'')+'" data-d="'+key+'">'+
+              '<span>'+n+'</span><span class="jd-dots">'+dots+'</span></button>';
+    }
+    grid.innerHTML = html;
+    grid.querySelectorAll('.jd-day[data-d]').forEach(function(b){
+      b.addEventListener('click', function(){
+        jdSel = b.dataset.d;
+        var lk = jdNightType(withQueue(), jdSel, jdCity);
+        if(lk) jdType = lk;
+        jdAdding = false; jdTicked = {};
+        jdRefresh();
+      });
+    });
+    document.getElementById('jdCalKey').innerHTML = JD_TYPES.map(function(t){
+      return '<span><i style="background:'+JD_TYPE_COL[t.code]+'"></i>'+t.name+'</span>';
+    }).join('');
+  }
+
+  // ── FORM ───────────────────────────────────────────────────────────────
+  function jdRenderSegs(){
+    var d = withQueue();
+    var lock = jdSel ? jdNightType(d, jdSel, jdCity) : null;
+    document.getElementById('jdTypeSeg').innerHTML = JD_TYPES.map(function(t){
+      var off = lock && lock !== t.code;
+      return '<button data-t="'+t.code+'" aria-pressed="'+(jdType===t.code)+'"'+(off?' disabled':'')+
+             ' style="--sel:'+JD_TYPE_COL[t.code]+'"><code>'+t.code+'</code>'+t.name+'</button>';
+    }).join('') +
+    (lock ? '<p style="width:100%;margin:6px 0 0;font-size:0.72rem;color:rgba(245,237,214,0.3);font-style:italic">'+
+            'This night is already logged as '+typeName(lock)+'. One event per night — remove its entries below to change it.</p>' : '');
+    document.querySelectorAll('#jdTypeSeg button[data-t]').forEach(function(b){
+      b.addEventListener('click', function(){ jdType = b.dataset.t; jdRenderSegs(); jdRenderForm(); });
+    });
+
+    document.getElementById('jdCitySeg').innerHTML = JD_CITIES.map(function(c){
+      return '<button data-c="'+c.id+'" aria-pressed="'+(jdCity===c.id)+'" style="--sel:var(--gold-light)">'+c.name+'</button>';
+    }).join('');
+    document.querySelectorAll('#jdCitySeg button').forEach(function(b){
+      b.addEventListener('click', function(){
+        jdCity = b.dataset.c;
+        var lk = jdSel ? jdNightType(withQueue(), jdSel, jdCity) : null;
+        if(lk) jdType = lk;
+        jdRenderSegs(); jdRenderForm();
+      });
+    });
+  }
+
+  function jdRenderForm(){
+    var d = withQueue();
+    var dateEl = document.getElementById('jdPickedDate');
+    if(!jdSel) dateEl.textContent = '—';
+    else {
+      var dt = new Date(jdSel + 'T00:00:00');
+      dateEl.innerHTML = ddmmyy(jdSel) +
+        ' <span style="color:rgba(245,237,214,0.4);font-size:0.76rem;letter-spacing:0.08em;text-transform:uppercase">'+DAYNAMES[dt.getDay()]+'</span>';
+    }
+
+    var existing = jdSel ? jdShiftsOn(d, jdSel, jdCity) : [];
+    var computed = {};
+    jdCompute(jdData || jdNew()).forEach(function(r){ computed[r.id] = r; });
+
+    var rows = ((jdData||{}).judges || []).slice().sort(function(a,b){
+      return jdNorm(a.riotName).localeCompare(jdNorm(b.riotName));
+    }).map(function(j){
+      // One event per night means one shift per judge on it — regardless of type.
+      var dup = existing.some(function(s){ return s.judge === j.id; });
+      var served = (computed[j.id] || {}).served || 0;
+      if(dup) delete jdTicked[j.id];
+      var on = !dup && !!jdTicked[j.id];
+      return '<label class="jd-pick'+(dup?' dup':'')+(on?' on':'')+'" data-j="'+esc(j.id)+'">'+
+        '<input type="checkbox"'+(dup?' disabled':'')+(on?' checked':'')+'/>'+
+        '<span class="jn">'+riot(j.riotName)+'</span>'+
+        '<span class="jl">L'+(j.level||1)+'</span>'+
+        '<span class="js">'+(dup ? 'already on this night' : served + ' served')+'</span></label>';
+    }).join('');
+
+    // The ONLY door onto the roster: a judge is created by being entered on a night.
+    rows += jdAdding
+      ? '<div class="jd-addform">'+
+          '<div class="r"><input type="text" id="jdNewName" placeholder="Riot Name — e.g. SaraH#7212" autocomplete="off"/></div>'+
+          '<div class="r">'+
+            '<span style="font-size:0.7rem;color:rgba(245,237,214,0.35);letter-spacing:0.1em;text-transform:uppercase">Level</span>'+
+            '<span class="jd-lvlseg">'+[1,2,3].map(function(l){
+              return '<button data-lvl="'+l+'" aria-pressed="'+(jdNewLevel===l)+'">L'+l+'</button>';
+            }).join('')+'</span>'+
+            '<span style="flex:1"></span>'+
+            '<button class="btn ghost" id="jdAddCancel" style="width:auto;padding:6px 12px;font-size:0.68rem">Cancel</button>'+
+            '<button class="btn ghost" id="jdAddConfirm" style="width:auto;padding:6px 12px;font-size:0.68rem">Add &amp; tick</button>'+
+          '</div>'+
+          '<p id="jdAddHint" style="margin:0;font-size:0.72rem;color:rgba(245,237,214,0.3);font-style:italic">They join the roster and are ticked for this night.</p>'+
+        '</div>'
+      : '<button class="jd-addrow" id="jdOpenAdd">＋ New judge — adds them and ticks them for this night</button>';
+
+    document.getElementById('jdRoster').innerHTML = rows;
+
+    document.querySelectorAll('#jdRoster .jd-pick input').forEach(function(cb){
+      cb.addEventListener('change', function(){
+        var id = cb.closest('.jd-pick').dataset.j;
+        if(cb.checked) jdTicked[id] = true; else delete jdTicked[id];
+        cb.closest('.jd-pick').classList.toggle('on', cb.checked);
+        jdUpdateAdd();
+      });
+    });
+    var open = document.getElementById('jdOpenAdd');
+    if(open) open.addEventListener('click', function(){
+      jdAdding = true; jdRenderForm();
+      var f = document.getElementById('jdNewName'); if(f) f.focus();
+    });
+    var cancel = document.getElementById('jdAddCancel');
+    if(cancel) cancel.addEventListener('click', function(){ jdAdding = false; jdRenderForm(); });
+    document.querySelectorAll('#jdRoster [data-lvl]').forEach(function(b){
+      b.addEventListener('click', function(){
+        jdNewLevel = +b.dataset.lvl; jdRenderForm();
+        var f = document.getElementById('jdNewName'); if(f) f.focus();
+      });
+    });
+    var conf = document.getElementById('jdAddConfirm');
+    if(conf) conf.addEventListener('click', jdCreateJudge);
+    var nameIn = document.getElementById('jdNewName');
+    if(nameIn) nameIn.addEventListener('keydown', function(e){
+      if(e.key === 'Enter'){ e.preventDefault(); jdCreateJudge(); }
+    });
+
+    var wrap = document.getElementById('jdLoggedWrap');
+    if(jdSel && existing.length){
+      wrap.style.display = 'block';
+      document.getElementById('jdLoggedList').innerHTML = existing.map(function(s){
+        var j = jdById(d, s.judge) || { riotName: '(removed)' };
+        var qi = jdQueue.indexOf(s);
+        // Queue entries are objects copied into `d`, so match on value not identity
+        var pending = jdQueue.some(function(q){
+          return q.date===s.date && q.judge===s.judge && q.city===s.city && q.type===s.type;
+        });
+        return '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(201,146,42,0.08)">'+
+          '<span class="jd-chip" style="color:'+JD_TYPE_COL[s.type]+';border-color:'+JD_TYPE_COL[s.type]+'55">'+s.type+'</span>'+
+          '<span style="flex:1;font-family:Cinzel,serif;font-size:0.86rem;font-weight:700">'+riot(j.riotName)+'</span>'+
+          '<span class="td-mono" style="font-size:0.68rem;opacity:0.4">'+cityOf(s.city).abbr+'</span>'+
+          (pending
+            ? '<button data-unq="'+esc(s.judge)+'" style="background:none;border:none;color:rgba(245,237,214,0.3);cursor:pointer;font-size:0.8rem">✕</button>'
+            : '<span style="font-size:0.68rem;opacity:0.35">saved</span>')+
+        '</div>';
+      }).join('');
+      document.querySelectorAll('#jdLoggedList [data-unq]').forEach(function(b){
+        b.addEventListener('click', function(){
+          jdQueue = jdQueue.filter(function(q){
+            return !(q.judge===b.dataset.unq && q.date===jdSel && q.city===jdCity);
+          });
+          jdRefresh();
+        });
+      });
+    } else { wrap.style.display = 'none'; }
+
+    jdUpdateAdd();
+  }
+
+  function jdCreateJudge(){
+    var input = document.getElementById('jdNewName');
+    var hint  = document.getElementById('jdAddHint');
+    var name  = input.value.trim();
+    if(!name){
+      hint.style.color = '#c0392b'; hint.style.fontStyle = 'normal';
+      hint.textContent = 'A Riot Name is required.'; input.focus(); return;
+    }
+    var clash = jdFindByName(jdData, name);
+    if(clash){
+      hint.style.color = '#c0392b'; hint.style.fontStyle = 'normal';
+      hint.textContent = clash.riotName + ' is already on the roster — tick them above instead.';
+      return;
+    }
+    var id = 'j' + Date.now().toString(36);
+    jdData.judges.push({ id:id, riotName:name, level:jdNewLevel, active:true });
+    jdAdding = false; jdNewLevel = 1;
+    jdTicked[id] = true;   // adding a judge IS logging them
+    jdRenderForm();
+  }
+
+  function jdChecked(){ return Object.keys(jdTicked); }
+
+  function jdUpdateAdd(){
+    var n = jdChecked().length;
+    var ready = !!jdSel && !!jdType && n > 0;
+    var btn = document.getElementById('jdAddBtn');
+    if(btn) btn.disabled = !ready;
+    var hint = document.getElementById('jdFormHint');
+    if(!hint) return;
+    if(!jdSel)        hint.textContent = 'Pick a date to begin.';
+    else if(!jdType)  hint.textContent = 'Choose what kind of event it was.';
+    else if(!n)       hint.textContent = 'Tick at least one judge.';
+    else              hint.textContent = n + ' shift' + (n===1?'':'s') + ' ready to queue.';
+    hint.style.color = ready ? '#4caf50' : 'rgba(245,237,214,0.3)';
+  }
+
+  // ── QUEUE ──────────────────────────────────────────────────────────────
+  function jdRenderQueue(){
+    var el = document.getElementById('jdQueue');
+    if(!el) return;
+    document.getElementById('jdQCount').textContent = jdQueue.length;
+    if(!jdQueue.length){
+      el.innerHTML = '<p style="font-size:0.76rem;color:rgba(245,237,214,0.26);font-style:italic">Nothing queued yet.</p>';
+    } else {
+      var d = withQueue();
+      el.innerHTML = jdQueue.map(function(s, i){
+        var j = jdById(d, s.judge) || { riotName:'(unknown)' };
+        return '<div class="jd-qrow">'+
+          '<time>'+ddmmyy(s.date)+'</time>'+
+          '<span class="jd-chip" style="color:'+JD_TYPE_COL[s.type]+';border-color:'+JD_TYPE_COL[s.type]+'55">'+s.type+'</span>'+
+          '<span style="flex:1;font-size:0.84rem">'+riot(j.riotName)+'</span>'+
+          '<span class="td-mono" style="font-size:0.68rem;opacity:0.4">'+cityOf(s.city).abbr+'</span>'+
+          '<button data-q="'+i+'" style="background:none;border:none;color:rgba(245,237,214,0.3);cursor:pointer;font-size:0.8rem">✕</button></div>';
+      }).join('');
+      el.querySelectorAll('[data-q]').forEach(function(b){
+        b.addEventListener('click', function(){ jdQueue.splice(+b.dataset.q, 1); jdRefresh(); });
+      });
+    }
+    var save = document.getElementById('jdSaveBtn'), disc = document.getElementById('jdDiscardBtn');
+    if(save) save.disabled = !jdQueue.length;
+    if(disc) disc.disabled = !jdQueue.length;
+  }
+
+  function jdRefresh(){ jdRenderCal(); jdRenderSegs(); jdRenderForm(); jdRenderQueue(); jdRenderBoard(); }
+
+  // ── WIRING ─────────────────────────────────────────────────────────────
+  document.querySelectorAll('#tab-judges .rv-tab[data-jdtab]').forEach(function(tab){
+    tab.addEventListener('click', function(){
+      document.querySelectorAll('#tab-judges .rv-tab').forEach(function(t){ t.classList.remove('active'); });
+      document.querySelectorAll('#tab-judges .rv-tab-panel').forEach(function(p){ p.classList.remove('active'); });
+      tab.classList.add('active');
+      var p = document.getElementById('jdtab-' + tab.dataset.jdtab);
+      if(p) p.classList.add('active');
+    });
+  });
+
+  var addBtn = document.getElementById('jdAddBtn');
+  if(addBtn) addBtn.addEventListener('click', function(){
+    var note = (document.getElementById('jdNote')||{}).value || '';
+    note = note.trim();
+    jdChecked().forEach(function(id){
+      var row = { date: jdSel, type: jdType, judge: id, city: jdCity };
+      if(note) row.note = note;
+      jdQueue.push(row);
+    });
+    var n = document.getElementById('jdNote'); if(n) n.value = '';
+    jdTicked = {};
+    jdRefresh();
+  });
+
+  var prevM = document.getElementById('jdPrevM');
+  if(prevM) prevM.addEventListener('click', function(){
+    jdView = new Date(jdView.getFullYear(), jdView.getMonth()-1, 1); jdRenderCal();
+  });
+  var nextM = document.getElementById('jdNextM');
+  if(nextM) nextM.addEventListener('click', function(){
+    jdView = new Date(jdView.getFullYear(), jdView.getMonth()+1, 1); jdRenderCal();
+  });
+
+  var discard = document.getElementById('jdDiscardBtn');
+  if(discard) discard.addEventListener('click', function(){ jdQueue = []; jdRefresh(); });
+
+  var saveBtn = document.getElementById('jdSaveBtn');
+  if(saveBtn) saveBtn.addEventListener('click', async function(){
+    if(!jdQueue.length) return;
+    if(!getToken()){ jdSetSaveHint('⚠ No Gist token set (Settings tab)', '#c0392b'); return; }
+    saveBtn.disabled = true;
+    var orig = saveBtn.textContent;
+    saveBtn.textContent = '⟳ Saving…';
+    var n = jdQueue.length;
+    // Write against a copy, so a rejection leaves both the queue and the roster untouched
+    var next = JSON.parse(JSON.stringify(jdData));
+    next.shifts = (next.shifts||[]).concat(jdQueue);
+    next.shifts.sort(function(a,b){ return String(a.date).localeCompare(String(b.date)); });
+    if(!(await saveJudges(next))){
+      saveBtn.disabled = false;
+      saveBtn.textContent = orig;
+      jdSetSaveHint('✗ Not saved — the Gist rejected the write. The queue is intact; check your token in Settings.', '#c0392b');
+      return;
+    }
+    jdData = next;
+    jdQueue = [];
+    jdRefresh();
+    saveBtn.textContent = '✓ Saved';
+    jdSetSaveHint('✓ ' + n + ' shift' + (n===1?'':'s') + ' written.', '#4caf50');
+    setTimeout(function(){ saveBtn.textContent = orig; }, 2500);
+  });
+
+  function jdSetSaveHint(msg, col){
+    var el = document.getElementById('jdSaveHint');
+    if(el){ el.textContent = msg; el.style.color = col || 'rgba(245,237,214,0.3)'; }
+  }
+
+  // ── EXPORTS ────────────────────────────────────────────────────────────
+  function jdCsvCell(v){ v = String(v==null?'':v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
+  function jdExportCSV(){
+    var rows = jdCompute(jdData || jdNew());
+    if(!rows.length) return false;
+    var out = ['Riot Name,Level,Rank,Shifts Served,NN,PR,C,S,Last Served'].concat(rows.map(function(r){
+      return [jdCsvCell(r.riotName), 'L'+r.level, r.tier.name, r.served,
+              r.mix.NN, r.mix.PR, r.mix.C, r.mix.S, r.last ? ddmmyy(r.last) : ''].join(',');
+    }));
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([out.join('\n')], { type:'text/csv' }));
+    a.download = 'gnl-judges.csv';
+    a.click();
+    return true;
+  }
+  function jdCopyWhatsApp(){
+    var rows = jdCompute(jdData || jdNew()).filter(function(r){ return r.served > 0; });
+    if(!rows.length) return false;
+    var txt = '⚖️ *GNL JUDGE SCORECARD*\n\n' + rows.map(function(r){
+      return r.tier.name.toUpperCase() + ' — ' + r.riotName + ' (L' + r.level + ')\n' +
+             r.served + ' shift' + (r.served===1?'':'s') +
+             (r.next ? ' · ' + r.toNext + ' to ' + r.next.name : ' · apex');
+    }).join('\n\n');
+    return navigator.clipboard.writeText(txt).then(function(){ return true; }, function(){ return false; });
+  }
+  function jdWire(id, fn){
+    var b = document.getElementById(id);
+    if(!b) return;
+    b.addEventListener('click', async function(){
+      var orig = b.textContent;
+      b.disabled = true; b.textContent = '⟳ Working…';
+      var ok = false;
+      try { ok = await fn(); } catch(e){}
+      b.disabled = false;
+      b.textContent = ok ? '✓ Exported' : '⚠ No data to export';
+      setTimeout(function(){ b.textContent = orig; }, 2200);
+    });
+  }
+  jdWire('jdExportCSV', function(){ return jdExportCSV(); });
+  jdWire('jdCopyWhatsApp', function(){ return jdCopyWhatsApp(); });
+
+  var jdLoading = false;
+  async function jdInit(){
+    if(jdLoading) return;
+    jdLoading = true;
+    if(!jdData) jdData = loadJudges();
+    try { jdData = await loadJudgesFromGist(); } catch(e){ /* keep the local copy */ }
+    jdLoading = false;
+    if(!jdSel) jdSel = isoOf(new Date());
+    jdRefresh();
+  }
+  window.jdInit = jdInit;
+})();
+// ==================== END JUDGES ====================
 
 // ==================== GNL TOP 16 ====================
 // GSL group stage (4 groups of 4, double-elim within group) feeding a fixed
