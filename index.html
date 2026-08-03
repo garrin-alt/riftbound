@@ -1083,11 +1083,13 @@
           autocomplete="off"
           style="text-align:left;letter-spacing:0.05em;margin-bottom:12px;font-size:0.9rem"
         />
-        <div style="display:flex;gap:8px">
-          <button class="btn" onclick="saveToken()" style="flex:1">Save Token</button>
-          <button class="btn danger" onclick="clearToken()" style="flex:1">Clear Token</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" onclick="saveToken()" style="flex:1;min-width:110px">Save Token</button>
+          <button class="btn" onclick="testToken()" style="flex:1;min-width:110px" id="testTokenBtn">🔍 Test Token</button>
+          <button class="btn danger" onclick="clearToken()" style="flex:1;min-width:110px">Clear Token</button>
         </div>
         <p id="tokenStatus" style="margin-top:10px;font-size:0.8rem;min-height:1.2em;font-style:italic;color:rgba(245,237,214,0.4)"></p>
+        <div id="tokenDiag" style="margin-top:6px"></div>
       </div>
 
       <div class="card">
@@ -2758,14 +2760,98 @@ function setTokenStatus(msg, color) {
   const el = document.getElementById('tokenStatus');
   if (el) { el.textContent = msg; el.style.color = color; }
 }
-function saveToken() {
+async function saveToken() {
   const val = document.getElementById('tokenInput').value.trim();
   if (!val || val.startsWith('•')) { setTokenStatus('Please paste a real token first', '#c0392b'); return; }
   localStorage.setItem('rb_gist_token', val);
   document.getElementById('tokenInput').value = '••••••••••••••••••••';
-  setTokenStatus('✓ Token saved — syncing now…', '#4caf50');
-  // Immediately test by syncing current data
-  syncToGist(load());
+  setTokenStatus('⟳ Saved locally — testing against GitHub…', 'rgba(201,146,42,0.8)');
+  // "Saved" only ever meant "written to localStorage". Whether GitHub will accept it is a
+  // different question, and the one that actually matters — so answer it here rather than
+  // letting the first real save be the thing that discovers a bad token.
+  await testToken();
+}
+
+// Turn "the Gist rejected my write" into a specific, actionable answer. Every check below
+// corresponds to a real way this fails: an expired token, a token minted without the gist
+// scope, or — easy to miss — a perfectly valid token belonging to an account that does not
+// own this city's gist. Only the owner can write to a gist; everyone else gets a 404 on
+// PATCH, which reads like the gist does not exist.
+async function testToken() {
+  const el = document.getElementById('tokenDiag');
+  const btn = document.getElementById('testTokenBtn');
+  const cfg = getCityConfig() || {};
+  const token = getToken();
+  const line = (icon, text, color) =>
+    '<div style="font-size:0.76rem;color:' + (color || 'rgba(245,237,214,0.5)') +
+    ';line-height:1.7">' + icon + ' ' + text + '</div>';
+  const show = html => { if (el) el.innerHTML = html; };
+
+  if (!token) {
+    setTokenStatus('No token set', '#c0392b');
+    show(line('✗', 'No token saved in this browser. Paste one above and press Save Token.', '#c0392b'));
+    return false;
+  }
+  if (btn) { btn.disabled = true; btn.textContent = '⟳ Testing…'; }
+  let out = '', okAll = true;
+  try {
+    // 1. Is the token itself valid, and what can it do?
+    const me = await fetch('https://api.github.com/user', { headers: { Authorization: 'token ' + token } });
+    if (me.status === 401) {
+      setTokenStatus('✗ Token rejected by GitHub', '#c0392b');
+      show(line('✗', '<strong>401 — GitHub does not recognise this token.</strong> It has expired, been revoked, or was pasted incompletely. Mint a new one and paste it again.', '#c0392b'));
+      return false;
+    }
+    if (!me.ok) throw new Error('user ' + me.status);
+    const user = await me.json();
+    const scopes = me.headers.get('x-oauth-scopes');
+    out += line('✓', 'Token is valid, and belongs to <strong style="color:var(--gold-light)">' + user.login + '</strong>.', '#4caf50');
+
+    // Classic PATs report their scopes in a header; fine-grained ones do not, so a missing
+    // header is "unknown", never "missing".
+    if (scopes === null) {
+      out += line('•', 'Fine-grained token — scopes are not reported. It needs <strong>read and write access to Gists</strong>.');
+    } else if (!/\bgist\b/.test(scopes)) {
+      okAll = false;
+      out += line('✗', '<strong>Missing the <code>gist</code> scope.</strong> This token can read but never write. Its scopes are: <code>' +
+        (scopes || 'none') + '</code>. Mint a new classic token with <strong>gist</strong> ticked.', '#c0392b');
+    } else {
+      out += line('✓', 'Has the <code>gist</code> scope.', '#4caf50');
+    }
+
+    // 2. Does this token's account actually own the gist it is being asked to write?
+    const g = await fetch('https://api.github.com/gists/' + cfg.gistId, { headers: { Authorization: 'token ' + token } });
+    if (g.status === 404) {
+      okAll = false;
+      out += line('✗', '<strong>404 — gist <code>' + cfg.gistId + '</code> is not visible to this token.</strong> Either the ID is wrong or the gist was deleted.', '#c0392b');
+    } else if (!g.ok) {
+      okAll = false;
+      out += line('✗', 'Could not read the gist (HTTP ' + g.status + ').', '#c0392b');
+    } else {
+      const gist = await g.json();
+      const owner = (gist.owner && gist.owner.login) || '(unknown)';
+      if (owner !== user.login) {
+        okAll = false;
+        out += line('✗', '<strong>This gist belongs to <span style="color:var(--gold-light)">' + owner +
+          '</span>, but the token belongs to ' + user.login + '.</strong> Only the owner can write to a gist — a token for any other account is read-only here, however many scopes it has. Use a token from the ' +
+          owner + ' account.', '#c0392b');
+      } else {
+        out += line('✓', 'Owns gist <code>' + cfg.gistId + '</code> (' + (cfg.label || 'this city') + ') — write access is available.', '#4caf50');
+      }
+      const f = gist.files && gist.files[cfg.gistFile];
+      out += f
+        ? line('✓', 'Found <code>' + cfg.gistFile + '</code>' + (f.truncated ? ' <span style="color:#c9922a">(truncated by the API — the file is over 1 MB)</span>' : '') + '.', f.truncated ? '#c9922a' : '#4caf50')
+        : line('•', 'No <code>' + cfg.gistFile + '</code> in the gist yet — the first save will create it.');
+    }
+  } catch (e) {
+    okAll = false;
+    out += line('✗', 'Could not reach GitHub (' + (e && e.message ? e.message : 'network error') + ').', '#c0392b');
+  }
+  if (btn) { btn.disabled = false; btn.textContent = '🔍 Test Token'; }
+  setTokenStatus(okAll ? '✓ Token can write to this city\'s Gist' : '✗ This token cannot save — see below',
+                 okAll ? '#4caf50' : '#c0392b');
+  show(out);
+  return okAll;
 }
 function clearToken() {
   localStorage.removeItem('rb_gist_token');
