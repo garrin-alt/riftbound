@@ -4753,15 +4753,19 @@ function swInitTab(){ swRenderSetup(); }
     });
   }
 
-  // Tournament-platform filenames look like matchesevent408514round1roundid1054636.csv —
-  // the number right after "event" is the event ID (round numbers and round IDs
-  // appear later in the name, so only the "event" prefix is trusted).
+  // Tournament-platform filenames look like matchesevent408514round1roundid1054636.csv
+  // OR matches-event-344954-round-8-roundid-414619.csv (the live export tool hyphenates
+  // every segment) — the number right after "event" is the event ID (round numbers and
+  // round IDs appear later in the name, so only the "event" prefix is trusted). The
+  // optional separator must be a SINGLE character so "roundid-414619" is never mistaken
+  // for a round number: after "round" comes "id", not a digit or a lone separator, so it
+  // still correctly fails to match.
   function rvEventIdFromName(fname){
-    var m = String(fname||'').match(/event(\d+)/i);
+    var m = String(fname||'').match(/event[-_]?(\d+)/i);
     return m ? m[1] : null;
   }
   function rvRoundNumFromName(fname){
-    var m = String(fname||'').match(/round(\d+)/i);
+    var m = String(fname||'').match(/round[-_]?(\d+)/i);
     return m ? +m[1] : 0;
   }
 
