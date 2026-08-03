@@ -1774,6 +1774,7 @@
       <div id="jdOrphanWarn" style="display:none;margin-bottom:14px;padding:12px 14px;border:1px dashed rgba(201,146,42,0.35);background:rgba(201,146,42,0.05)"></div>
       <div id="jdBoard"></div>
       <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+        <button class="btn ghost" id="jdExportImage" style="width:auto;flex:1;min-width:140px">📸 Export Scorecard</button>
         <button class="btn ghost" id="jdExportCSV" style="width:auto;flex:1;min-width:140px">⬇ Export CSV</button>
         <button class="btn ghost" id="jdCopyWhatsApp" style="width:auto;flex:1;min-width:140px">📋 Copy for WhatsApp</button>
       </div>
@@ -8466,6 +8467,172 @@ function swInitTab(){ swRenderSetup(); }
   }
 
   // ── EXPORTS ────────────────────────────────────────────────────────────
+  // Same palette, frame and card-drawing idiom as rvAwExportImage / the Vendetta ladder
+  // export (RIVALRY ANALYZER module) — kept independent rather than shared because the
+  // two modules don't share scope, matching how jdExportCSV already duplicates its own
+  // download logic instead of reaching into rv*.
+  async function jdExportImage(){
+    var rows = jdCompute(jdData || jdNew());
+    if(!rows.length) return false;
+    if(document.fonts && document.fonts.ready){ try { await document.fonts.ready; } catch(e){} }
+
+    var shifts = ((jdData||{}).shifts || []).length;
+    var byType = { NN:0, PR:0, C:0, S:0 };
+    ((jdData||{}).shifts || []).forEach(function(s){ if(byType[s.type]!=null) byType[s.type]++; });
+    var top = rows.filter(function(r){ return r.served > 0; })[0];
+    var notYet = rows.filter(function(r){ return !r.served; }).length;
+
+    var W = 1280, left = 70, right = W-70;
+    var headerH = 260, statsH = 150, theadH = 44, rowH = 78, footerH = 96;
+    var H = Math.max(760, headerH + statsH + theadH + rows.length*rowH + footerH);
+
+    var c = document.createElement('canvas'); c.width = W; c.height = H;
+    var x = c.getContext('2d');
+    var accentRGBA = 'rgba(201,146,42,', parch = 'rgba(245,237,214,';
+
+    var g = x.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'#201709'); g.addColorStop(0.45,'#15100a'); g.addColorStop(1,'#0c0906');
+    x.fillStyle = g; x.fillRect(0,0,W,H);
+    var rg = x.createRadialGradient(W/2,150,40, W/2,150,780);
+    rg.addColorStop(0, accentRGBA+'0.14)'); rg.addColorStop(1, accentRGBA+'0)');
+    x.fillStyle = rg; x.fillRect(0,0,W,H);
+    x.strokeStyle = accentRGBA+'0.55)'; x.lineWidth = 3; x.strokeRect(34,34,W-68,H-68);
+    x.strokeStyle = accentRGBA+'0.18)'; x.lineWidth = 1; x.strokeRect(46,46,W-92,H-92);
+
+    function fit(txt, maxW){
+      if(x.measureText(txt).width <= maxW) return txt;
+      while(txt.length > 1 && x.measureText(txt+'…').width > maxW) txt = txt.slice(0,-1);
+      return txt+'…';
+    }
+
+    x.textAlign = 'center';
+    x.fillStyle = parch+'0.5)';
+    x.font = '600 22px "IBM Plex Sans", Georgia, serif';
+    x.fillText('G U L F   N E X U S   L E A G U E', W/2, 108);
+    x.fillStyle = '#e8b84b';
+    x.font = '700 52px "IBM Plex Sans", Georgia, serif';
+    x.fillText('⚖ JUDGE SCORECARD', W/2, 176);
+    var dg = x.createLinearGradient(W/2-220,0,W/2+220,0);
+    dg.addColorStop(0, accentRGBA+'0)'); dg.addColorStop(0.5, accentRGBA+'0.9)'); dg.addColorStop(1, accentRGBA+'0)');
+    x.fillStyle = dg; x.fillRect(W/2-220,200,440,2);
+    var cityLbl = ''; try { var cfg = getCityConfig(); cityLbl = cfg ? cfg.label : ''; } catch(e){}
+    x.fillStyle = parch+'0.45)';
+    x.font = 'italic 24px "IBM Plex Sans", Georgia, serif';
+    x.fillText((cityLbl ? cityLbl + '  •  ' : '') + new Date().toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}), W/2, 240);
+
+    var tileGap = 16, tileY = headerH, tileH = statsH - 30;
+    var tileW = (right - left - 3*tileGap) / 4;
+    var tiles = [
+      { l:'JUDGES', v:String(rows.length), s:notYet+' not yet served' },
+      { l:'SHIFTS COVERED', v:String(shifts), s:'all event types' },
+      { l:'NEXUS NIGHTS', v:String(byType.NN), s:(shifts?Math.round(byType.NN/shifts*100):0)+'% of all shifts' },
+      { l:'HIGHEST RANK', v: top ? top.tier.name.toUpperCase() : '—', s: top ? top.riotName : '', col: top ? JD_TIER_COL[top.tier.id] : null }
+    ];
+    tiles.forEach(function(t, i){
+      var tx = left + i*(tileW+tileGap);
+      x.strokeStyle = accentRGBA+'0.22)'; x.lineWidth = 1; x.strokeRect(tx, tileY, tileW, tileH);
+      x.textAlign = 'left';
+      x.fillStyle = parch+'0.32)';
+      x.font = '600 13px "IBM Plex Sans", Georgia, serif';
+      x.fillText(t.l, tx+16, tileY+30);
+      x.fillStyle = t.col || (parch+'0.85)');
+      x.font = '700 25px "IBM Plex Sans", Georgia, serif';
+      x.fillText(fit(t.v, tileW-32), tx+16, tileY+64);
+      x.fillStyle = parch+'0.3)';
+      x.font = '400 13px "IBM Plex Sans", Georgia, serif';
+      x.fillText(fit(t.s, tileW-32), tx+16, tileY+86);
+    });
+
+    var colName = left, colLevel = left+320, colTier = left+400, colServed = left+700, colBreak = left+800;
+    var theadY = headerH + statsH;
+    x.textAlign = 'left';
+    x.fillStyle = parch+'0.28)';
+    x.font = '600 13px "IBM Plex Sans", Georgia, serif';
+    ['RIOT NAME','LVL','RANK','SERVED','BREAKDOWN'].forEach(function(lbl, i){
+      var lx = [colName, colLevel, colTier, colServed, colBreak][i];
+      x.fillText(lbl, lx, theadY+theadH-14);
+    });
+    x.textAlign = 'right';
+    x.fillText('LAST SERVED', right, theadY+theadH-14);
+
+    var tableTop = theadY + theadH;
+    rows.forEach(function(r, i){
+      var y = tableTop + i*rowH, midY = y + rowH/2;
+      x.fillStyle = parch + (i%2===0 ? '0.045)' : '0.02)');
+      x.fillRect(left, y, right-left, rowH-6);
+
+      x.textAlign = 'left';
+      x.fillStyle = '#e8b84b';
+      x.font = '700 24px "IBM Plex Sans", Georgia, serif';
+      x.fillText(fit(r.riotName, colLevel-colName-16), colName, midY+8);
+
+      var lvlTxt = 'L'+r.level;
+      x.font = '600 15px ui-monospace, Menlo, monospace';
+      var lvlW = x.measureText(lvlTxt).width + 16;
+      x.strokeStyle = accentRGBA+'0.3)'; x.lineWidth = 1;
+      x.strokeRect(colLevel, midY-15, lvlW, 30);
+      x.fillStyle = parch+'0.6)';
+      x.textAlign = 'center';
+      x.fillText(lvlTxt, colLevel+lvlW/2, midY+5);
+
+      var tierCol = JD_TIER_COL[r.tier.id];
+      x.textAlign = 'left';
+      x.fillStyle = tierCol;
+      x.font = '700 18px "IBM Plex Sans", Georgia, serif';
+      x.fillText(r.tier.name, colTier, y+28);
+      var trackW = 250;
+      x.fillStyle = parch+'0.12)'; x.fillRect(colTier, y+38, trackW, 6);
+      x.fillStyle = tierCol; x.fillRect(colTier, y+38, trackW*(r.pct/100), 6);
+      x.fillStyle = parch+'0.26)';
+      x.font = 'italic 13px "IBM Plex Sans", Georgia, serif';
+      x.fillText(r.next ? (r.toNext+' more to '+r.next.name) : 'the ladder ends here', colTier, y+62);
+
+      x.textAlign = 'center';
+      x.fillStyle = '#e8b84b';
+      x.font = '700 28px "IBM Plex Sans", Georgia, serif';
+      x.fillText(String(r.served), colServed+30, midY+10);
+
+      var bx = colBreak;
+      JD_TYPES.forEach(function(t){
+        var n = r.mix[t.code]||0;
+        if(!n) return;
+        var col = JD_TYPE_COL[t.code];
+        var txt = t.code+' ×'+n;
+        x.font = '600 13px "IBM Plex Sans", Georgia, serif';
+        var w = x.measureText(txt).width + 14;
+        if(bx + w > right-140) return;
+        x.strokeStyle = col+'88'; x.lineWidth = 1;
+        x.strokeRect(bx, midY-13, w, 26);
+        x.fillStyle = col;
+        x.textAlign = 'center';
+        x.fillText(txt, bx+w/2, midY+5);
+        bx += w + 8;
+      });
+
+      x.textAlign = 'right';
+      x.fillStyle = parch+'0.35)';
+      x.font = '400 15px "IBM Plex Sans", Georgia, serif';
+      x.fillText(r.last ? ddmmyy(r.last) : 'never', right, midY+6);
+    });
+
+    x.textAlign = 'center';
+    x.fillStyle = parch+'0.42)';
+    x.font = '400 16px "IBM Plex Sans", Georgia, serif';
+    x.fillText('PR = Pre-Rift  ·  NN = Nexus Night  ·  C = Casuals  ·  S = Skirmish', W/2, H-58);
+    x.fillStyle = parch+'0.28)';
+    x.font = 'italic 15px "IBM Plex Sans", Georgia, serif';
+    x.fillText('— riftbound.eahmed.me —', W/2, H-30);
+
+    return new Promise(function(resolve){
+      c.toBlob(function(blob){
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'gnl-judge-scorecard-'+new Date().toISOString().slice(0,10)+'.png';
+        a.click();
+        resolve(true);
+      }, 'image/png');
+    });
+  }
   function jdCsvCell(v){ v = String(v==null?'':v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
   function jdExportCSV(){
     var rows = jdCompute(jdData || jdNew());
@@ -8503,6 +8670,7 @@ function swInitTab(){ swRenderSetup(); }
       setTimeout(function(){ b.textContent = orig; }, 2200);
     });
   }
+  jdWire('jdExportImage', function(){ return jdExportImage(); });
   jdWire('jdExportCSV', function(){ return jdExportCSV(); });
   jdWire('jdCopyWhatsApp', function(){ return jdCopyWhatsApp(); });
 
