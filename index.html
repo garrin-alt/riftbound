@@ -2349,10 +2349,22 @@ var JD_TIERS = [
 
 function jdNew() { return { v: 1, judges: [], shifts: [], updatedAt: null }; }
 
+// The judges file MUST be a plain object, and this is checked rather than assumed because
+// `[]` survives every other guard. It is valid JSON, it is not '' and not '{}', and an array
+// happily accepts `.judges`/`.shifts` as named properties — so a poisoned file loads, renders
+// the full roster on screen, and looks completely healthy. But JSON.stringify drops every
+// non-index property of an array, so the next save serialises the whole roster back down to
+// "[]", writes those two bytes to the gist, gets a 200, and reports "✓ saved". A gist created
+// by hand holding `[]` as placeholder content destroyed a night of logged shifts exactly this
+// way, three saves in a row, each one a +0/-0 revision. Anything not a plain object is refused
+// here so it can never reach JSON.stringify.
+function jdIsFile(d) { return !!d && typeof d === 'object' && !Array.isArray(d); }
+
 function loadJudges() {
   try {
     var raw = localStorage.getItem(JUDGES_KEY);
     var d = raw ? JSON.parse(raw) : jdNew();
+    if (!jdIsFile(d)) return jdNew();
     d.judges = d.judges || []; d.shifts = d.shifts || [];
     return d;
   } catch (e) { return jdNew(); }
@@ -2366,9 +2378,13 @@ async function loadJudgesFromGist() {
     var raw = gist.files && gist.files[JUDGES_FILE] && gist.files[JUDGES_FILE].content;
     if (raw && raw.trim() !== '' && raw.trim() !== '{}') {
       var d = JSON.parse(raw);
-      d.judges = d.judges || []; d.shifts = d.shifts || [];
-      localStorage.setItem(JUDGES_KEY, JSON.stringify(d));
-      return d;
+      // Refusing a non-object here means a poisoned gist falls through to the local copy
+      // rather than overwriting it — see jdIsFile.
+      if (jdIsFile(d)) {
+        d.judges = d.judges || []; d.shifts = d.shifts || [];
+        localStorage.setItem(JUDGES_KEY, JSON.stringify(d));
+        return d;
+      }
     }
   } catch (e) { /* fall through to the local copy */ }
   return loadJudges();
