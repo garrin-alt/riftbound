@@ -1803,7 +1803,9 @@ function save(d, hist) {
     if (cfg) hist.city = cfg.label;
     localStorage.setItem(cfg?.histKey || 'rb_hist_abudhabi', JSON.stringify(hist));
   }
-  syncToGist(d, hist);
+  // Returns a promise resolving to whether the gist write landed. Fire-and-forget callers
+  // are unaffected; callers that confirm success to the user should await it.
+  return syncToGist(d, hist);
 }
 
 function loadHist() {
@@ -2011,10 +2013,16 @@ function setSyncStatus(msg, color) {
 // The history file is NEVER PATCHed on its own — when present it goes in the same request
 // body as the primary file. Two reasons: the pair stays atomic, and every consumer that
 // inspects a write (including the test suite) reads files[gistFile] unconditionally.
+// Returns true only if the write actually landed in the gist. Callers that show their own
+// "✓ Saved" confirmation MUST await this and report what it says — a rejected token or a
+// 403 otherwise leaves the caller announcing success for a write that never happened,
+// while the local copy has already moved on. The two then diverge until the next
+// loadFromGist() silently overwrites local with the untouched remote, which reads to the
+// user as "my change didn't stick".
 async function syncToGist(data, hist) {
   const cfg = getCityConfig();
-  if (!cfg) return;
-  if (!getToken()) { setSyncStatus('⚠ No token set', '#c0392b'); return; }
+  if (!cfg) return false;
+  if (!getToken()) { setSyncStatus('⚠ No token set', '#c0392b'); return false; }
   setSyncStatus('⟳ Saving…', 'rgba(201,146,42,0.7)');
   try {
     const files = { [cfg.gistFile]: { content: JSON.stringify(data) } };
@@ -2030,8 +2038,10 @@ async function syncToGist(data, hist) {
     if (!res.ok) throw new Error(res.status);
     setSyncStatus('✓ Saved to Gist', '#4caf50');
     setTimeout(() => setSyncStatus('', ''), 3000);
+    return true;
   } catch(e) {
-    setSyncStatus('✗ Gist sync failed', '#c0392b');
+    setSyncStatus('✗ Gist sync failed'+(e && e.message ? ' ('+e.message+')' : ''), '#c0392b');
+    return false;
   }
 }
 
@@ -4210,9 +4220,25 @@ function swInitTab(){ swRenderSetup(); }
     rvClearArmed = false;
     clearGistBtn.textContent = '⟳ Clearing…';
     try {
+      // Snapshot both files before touching anything. save() writes localStorage first and
+      // only then PATCHes, so a rejected write would otherwise leave the local copy emptied
+      // and the gist untouched — the app looks cleared until the next load quietly restores
+      // it from the gist, which is exactly how a failed clear disguises itself as one that
+      // "didn't stick".
+      var prevData = JSON.stringify(load());
+      var prevHist = JSON.stringify(loadHist());
+      var cfg = getCityConfig() || {};
+
       var data = load();
       delete data.rivalry;
-      save(data, rvHistNew((getCityConfig()||{}).label));
+      var landed = await save(data, rvHistNew(cfg.label));
+      if(!landed){
+        localStorage.setItem(cfg.localKey || 'rb_league_abudhabi', prevData);
+        if(cfg.histKey) localStorage.setItem(cfg.histKey, prevHist);
+        clearGistBtn.textContent = '🗑 Clear Rivalry Data';
+        rvSetGistStatus('✗ Nothing was deleted — the Gist rejected the write. Check your token in Settings.', '#c0392b');
+        return;
+      }
       rvSavedSeasonData = null;
       rvSeasonH2H = null;
       rvScores = []; rvPairs = []; rvH2H = {};
@@ -4234,7 +4260,7 @@ function swInitTab(){ swRenderSetup(); }
   });
 
   var saveGistBtn = document.getElementById('rvSaveGist');
-  if(saveGistBtn) saveGistBtn.addEventListener('click', function(){
+  if(saveGistBtn) saveGistBtn.addEventListener('click', async function(){
     if(!rvScores.length){ rvSetGistStatus('⚠ Nothing to save — analyze first', '#c0392b'); return; }
     if(typeof getToken==='function' && !getToken()){
       rvSetGistStatus('⚠ No Gist token set (Settings tab)', '#c0392b'); return;
@@ -4259,7 +4285,10 @@ function swInitTab(){ swRenderSetup(); }
         updatedAt: new Date().toISOString()
       };
       rvSavedSeasonData = data.rivalry;
-      save(data); // existing save() persists locally AND triggers syncToGist()
+      if(!(await save(data))){
+        rvSetGistStatus('✗ Not saved — the Gist rejected the write. Check your token in Settings.', '#c0392b');
+        return;
+      }
       rvSetGistStatus('✓ Saved to Gist', '#4caf50');
       setTimeout(function(){ rvSetGistStatus('',''); }, 3000);
     } catch(e){
@@ -4520,7 +4549,7 @@ function swInitTab(){ swRenderSetup(); }
     });
 
     var declareArmed = false;
-    document.getElementById('rvEventDeclareBtn').addEventListener('click', function(){
+    document.getElementById('rvEventDeclareBtn').addEventListener('click', async function(){
       var btn = document.getElementById('rvEventDeclareBtn');
       if(!getToken()){ btn.textContent = '⚠ No Gist token (Settings)'; setTimeout(function(){ btn.textContent = '☁ Declare Vendettas'; }, 2500); return; }
       // An older declaration in the Gist gets replaced — ask for a second click first
@@ -4548,7 +4577,12 @@ function swInitTab(){ swRenderSetup(); }
         data.rivalry = rivalry;
         rvStampDisplay(rivalry);
         rvSavedSeasonData = rivalry;
-        save(data); // persists locally AND syncs to the Gist
+        if(!(await save(data))){
+          btn.disabled = false;
+          btn.textContent = '✗ Gist rejected it — retry';
+          setTimeout(function(){ btn.textContent = '☁ Declare Vendettas'; }, 3000);
+          return;
+        }
         btn.textContent = '✓ Vendetta declared';
       } catch(e){
         btn.textContent = '✗ Declare failed';
@@ -4925,7 +4959,7 @@ function swInitTab(){ swRenderSetup(); }
   }
 
   // Step 2: apply the processed results to season data and persist to the Gist.
-  function rvSaveResults(){
+  async function rvSaveResults(){
     if(!rvPendingResults) return;
     saveResultsBtn.disabled = true;
     saveResultsBtn.textContent = '⟳ Saving…';
@@ -4957,7 +4991,14 @@ function swInitTab(){ swRenderSetup(); }
     rvSavedSeasonData = rivalry;
 
     try {
-      save(data, evId ? hist : undefined);
+      // Await the write before consuming rvPendingResults. Clearing it on a rejected save
+      // would strand the round: nothing in the gist, and no way to retry short of
+      // re-uploading the CSV.
+      if(!(await save(data, evId ? hist : undefined))){
+        saveResultsBtn.textContent = '✗ Gist rejected it — retry';
+        saveResultsBtn.disabled = false;
+        return;
+      }
       saveResultsBtn.textContent = '☁ Save to Gist';
       rvPendingResults = null; // consumed — a re-save would double-count
       rvRenderResultsSummary(rivalMatchesFound, pointsAwarded, true);
@@ -5634,7 +5675,7 @@ function swInitTab(){ swRenderSetup(); }
   }
 
   var peSaveBtn = document.getElementById('rvPeSaveBtn');
-  if(peSaveBtn) peSaveBtn.addEventListener('click', function(){
+  if(peSaveBtn) peSaveBtn.addEventListener('click', async function(){
     if(!rvPePending) return;
     if(!getToken()){
       peSaveBtn.textContent = '⚠ No Gist token (Settings)';
@@ -5683,7 +5724,13 @@ function swInitTab(){ swRenderSetup(); }
 
       data.rivalry = rivalry;
       rvSavedSeasonData = rivalry;
-      save(data, wroteHist ? hist : undefined); // persists locally AND syncs to the Gist
+      // Awaited for the same reason as the live path: rvPePending is consumed below, so
+      // announcing success for a write that never landed would lose the whole event.
+      if(!(await save(data, wroteHist ? hist : undefined))){
+        peSaveBtn.disabled = false;
+        peSaveBtn.textContent = '✗ Gist rejected it — retry';
+        return;
+      }
 
       rvPeReport = rvPeBuildReport(rivalry, prevPoints, rvPePending);
       rvPeRenderSummary(true);
@@ -6002,7 +6049,7 @@ function swInitTab(){ swRenderSetup(); }
   }
 
   var histRebuildBtn = document.getElementById('rvHistRebuildBtn');
-  if(histRebuildBtn) histRebuildBtn.addEventListener('click', function(){
+  if(histRebuildBtn) histRebuildBtn.addEventListener('click', async function(){
     var c = rvHistCoverageStats();
     var season = rvSavedSeasonData || (load().rivalry || {});
     var already = season.history && season.history.lifetimeSource === 'ledger';
@@ -6042,7 +6089,11 @@ function swInitTab(){ swRenderSetup(); }
       rivalry.updatedAt = new Date().toISOString();
       data.rivalry = rivalry;
       rvSavedSeasonData = rivalry;
-      save(data, hist);
+      if(!(await save(data, hist))){
+        histRebuildBtn.disabled = false;
+        histRebuildBtn.textContent = '✗ Gist rejected it — retry';
+        return;
+      }
 
       document.getElementById('rvHistSummary').innerHTML =
         '<p style="font-size:0.76rem;color:#4caf50">✓ Lifetime H2H rebuilt from the ledger — '+
@@ -6115,7 +6166,7 @@ function swInitTab(){ swRenderSetup(); }
   });
 
   var histSaveBtn = document.getElementById('rvHistSaveBtn');
-  if(histSaveBtn) histSaveBtn.addEventListener('click', function(){
+  if(histSaveBtn) histSaveBtn.addEventListener('click', async function(){
     if(!rvHistPending) return;
     if(!getToken()){
       histSaveBtn.textContent = '⚠ No Gist token (Settings)';
@@ -6154,7 +6205,11 @@ function swInitTab(){ swRenderSetup(); }
                           lifetimeSource: 'aggregate', updatedAt: new Date().toISOString() };
       data.rivalry = rivalry;
       rvSavedSeasonData = rivalry;
-      save(data, hist);
+      if(!(await save(data, hist))){
+        histSaveBtn.disabled = false;
+        histSaveBtn.textContent = '✗ Gist rejected it — retry';
+        return;
+      }
 
       var n = rvHistPending.length, mt = rvHistPending.reduce(function(s,e){ return s+e.matches; },0);
       rvHistPending = null; rvHistFiles = [];
