@@ -1463,6 +1463,11 @@
                 <span style="font-size:0.72rem;color:rgba(245,237,214,0.3)">Every event in this upload is tagged with this set.</span>
               </div>
               <div id="rvHistCoverage" style="margin-top:12px"></div>
+              <div id="rvHistGaps" style="display:none;margin-top:10px"></div>
+              <div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <button class="btn ghost" id="rvHistRebuildBtn" style="width:auto;padding:7px 14px;font-size:0.7rem" disabled>♻ Rebuild lifetime H2H from ledger</button>
+                <span id="rvHistRebuildNote" style="font-size:0.7rem;color:rgba(245,237,214,0.3);flex:1;min-width:180px"></span>
+              </div>
             </div>
 
             <div class="card" style="margin-bottom:14px">
@@ -3730,20 +3735,30 @@ function swInitTab(){ swRenderSetup(); }
     try {
       if(typeof loadFromGist === 'function'){
         var data = await loadFromGist();
-        if(data && data.rivalry){
-          rvSavedSeasonData = data.rivalry;
-          rvRenderSavedSeason();
-        }
+        if(data && data.rivalry) rvSavedSeasonData = data.rivalry;
+        rvRenderSavedSeason(); // called even with no rivalry — it reveals a ledger-only league
       }
     } catch(e){ /* silent — user can still manually load via the button or Event Day tab */ }
   }
   var rivalryNavEl = document.getElementById('snav-rivalry');
   if(rivalryNavEl) rivalryNavEl.addEventListener('click', rvEnsureSeasonDataLoaded);
 
+  // Reveal the sub-tabs even with no head-to-head data. Every sub-tab lives inside
+  // #rvResults, so gating it on a non-empty h2h left a league with no aggregate — a brand
+  // new city, or one that just used Clear Rivalry Data — unable to reach the League
+  // History upload tab, which is precisely where it would need to start.
+  function rvRevealPanels(){
+    document.getElementById('rvEmpty').style.display = 'none';
+    document.getElementById('rvResults').style.display = 'block';
+  }
+
   // Render the saved season straight from the Gist (no CSV upload needed).
   function rvRenderSavedSeason(){
     if(rvScores.length) return; // don't clobber a fresh in-session analysis
-    if(!rvSavedSeasonData || !rvSavedSeasonData.h2h || !rvSavedSeasonData.h2h.length) return;
+    if(!rvSavedSeasonData || !rvSavedSeasonData.h2h || !rvSavedSeasonData.h2h.length){
+      if(loadHist().events.length) rvRevealPanels();
+      return;
+    }
     rvScores = rvSavedSeasonData.h2h.slice().sort(function(a,b){ return (b.score||0)-(a.score||0); });
     if(rvSavedSeasonData.savedPairs && rvSavedSeasonData.savedPairs.length){
       rvPairs = rvSavedSeasonData.savedPairs.slice();
@@ -3756,8 +3771,7 @@ function swInitTab(){ swRenderSetup(); }
         if(!assigned[a] && !assigned[b]){ rvPairs.push(r); assigned[a]=true; assigned[b]=true; }
       });
     }
-    document.getElementById('rvEmpty').style.display = 'none';
-    document.getElementById('rvResults').style.display = 'block';
+    rvRevealPanels();
     rvRenderCards();
     rvRenderH2H();
     rvRenderPairings();
@@ -4063,8 +4077,7 @@ function swInitTab(){ swRenderSetup(); }
       if(!assigned[a] && !assigned[b]){ rvPairs.push(r); assigned[a]=true; assigned[b]=true; }
     });
 
-    document.getElementById('rvEmpty').style.display = 'none';
-    document.getElementById('rvResults').style.display = 'block';
+    rvRevealPanels();
     rvRenderCards();
     rvRenderH2H();
     rvRenderPairings();
@@ -4172,7 +4185,10 @@ function swInitTab(){ swRenderSetup(); }
     if(el){ el.textContent = msg; el.style.color = color || 'rgba(245,237,214,0.3)'; }
   }
 
-  // Clear ALL rivalry data from the Gist (h2h, pairings, points, event log).
+  // Clear ALL rivalry data from the Gist (h2h, pairings, points, event log) — and the
+  // history ledger with it. Leaving the ledger behind would make the button a lie: one
+  // "Rebuild lifetime H2H from ledger" would resurrect everything it claims to delete.
+  // (The narrower "Clear GNL: Vendetta" button, which only resets points, keeps both.)
   // Two-click confirm: first click arms it, second click (within 5s) executes.
   var clearGistBtn = document.getElementById('rvClearGist');
   var rvClearArmed = false;
@@ -4183,7 +4199,7 @@ function swInitTab(){ swRenderSetup(); }
     if(!rvClearArmed){
       rvClearArmed = true;
       clearGistBtn.textContent = '⚠ Click again to confirm';
-      rvSetGistStatus('This deletes ALL rivalry data permanently', '#c0392b');
+      rvSetGistStatus('This deletes ALL rivalry data permanently — including the history ledger', '#c0392b');
       setTimeout(function(){
         rvClearArmed = false;
         clearGistBtn.textContent = '🗑 Clear Rivalry Data';
@@ -4196,7 +4212,7 @@ function swInitTab(){ swRenderSetup(); }
     try {
       var data = load();
       delete data.rivalry;
-      save(data);
+      save(data, rvHistNew((getCityConfig()||{}).label));
       rvSavedSeasonData = null;
       rvSeasonH2H = null;
       rvScores = []; rvPairs = []; rvH2H = {};
@@ -4207,6 +4223,7 @@ function swInitTab(){ swRenderSetup(); }
       if(lbBody) lbBody.innerHTML = '';
       var lbEmpty = document.getElementById('rvLeaderboardEmpty');
       if(lbEmpty) lbEmpty.style.display = 'block';
+      rvHistSetOptions(); rvHistRenderCoverage();
       clearGistBtn.textContent = '🗑 Clear Rivalry Data';
       rvSetGistStatus('✓ Rivalry data cleared', '#4caf50');
       setTimeout(function(){ rvSetGistStatus('',''); }, 3000);
@@ -5050,6 +5067,9 @@ function swInitTab(){ swRenderSetup(); }
 
   // ── LEADERBOARD EXPORTS ──────────────────────────────────────────────────
   function rvCsvCell(v){ v = String(v==null?'':v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
+  function rvEsc(v){
+    return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
   function rvDownloadFile(href, filename){
     var a = document.createElement('a');
     a.href = href; a.download = filename; a.click();
@@ -5834,22 +5854,59 @@ function swInitTab(){ swRenderSetup(); }
       .map(function(s){ return '<option value="'+s.id+'"'+(s.id===cur?' selected':'')+'>'+s.name+'</option>'; }).join('');
   }
 
-  // Coverage: what the ledger knows versus what the lifetime aggregate knows. This is
-  // the checklist of which CSVs are still missing.
-  function rvHistRenderCoverage(){
-    var el = document.getElementById('rvHistCoverage');
-    if(!el) return;
+  // Coverage: what the ledger knows versus what the lifetime aggregate knows.
+  //
+  // Compared PAIR BY PAIR, not on the totals. Totals can agree while the underlying
+  // records disagree — a ledger holding two events the aggregate never saw would mask
+  // two missing ones. `short` per pair is the honest measure, and it doubles as the
+  // checklist of which CSVs are still missing.
+  function rvHistCoverageStats(){
     var hist = loadHist();
     var season = rvSavedSeasonData || (load().rivalry || {});
     var agg = season.h2h || [];
     var derived = rvDeriveFromLedger(hist).h2h;
-    var aggMeet = agg.reduce(function(s,e){ return s + (e.meetings||0); }, 0);
+
+    var byKey = {}, unseen = {};
+    derived.forEach(function(e){
+      var k = e.players.slice().sort().join('|');
+      byKey[k] = e; unseen[k] = 1;
+    });
+
+    var gaps = [], aggMeet = 0, missing = 0, covered = 0;
+    agg.forEach(function(e){
+      var k = e.players.slice().sort().join('|');
+      var led = (byKey[k] && byKey[k].meetings) || 0;
+      var have = e.meetings || 0;
+      aggMeet += have;
+      covered += Math.min(have, led);
+      delete unseen[k];
+      if(led < have){
+        missing += have - led;
+        gaps.push({ players: e.players, agg: have, led: led, short: have - led });
+      }
+    });
+    gaps.sort(function(a,b){ return b.short - a.short || a.players[0].localeCompare(b.players[0]); });
+
     var ledMeet = derived.reduce(function(s,e){ return s + (e.meetings||0); }, 0);
-    var pct = aggMeet ? Math.round(ledMeet/aggMeet*100) : (ledMeet ? 100 : 0);
+    var ahead = Object.keys(unseen).map(function(k){ return byKey[k]; });
+
+    return { hist: hist, agg: agg, derived: derived, gaps: gaps, ahead: ahead,
+             aggMeet: aggMeet, ledMeet: ledMeet, missing: missing,
+             pct: aggMeet ? Math.round(covered/aggMeet*100) : (ledMeet ? 100 : 0),
+             complete: aggMeet ? missing === 0 : ledMeet > 0 };
+  }
+
+  var rvHistGapsOpen = false;
+  var rvHistRebuildArmed = false;
+
+  function rvHistRenderCoverage(){
+    var el = document.getElementById('rvHistCoverage');
+    if(!el) return;
+    var c = rvHistCoverageStats();
 
     var bySet = {};
-    hist.events.forEach(function(e){ bySet[e.set] = (bySet[e.set]||0) + 1; });
-    var strip = (hist.sets||[]).slice().sort(function(a,b){ return a.order-b.order; }).map(function(s){
+    c.hist.events.forEach(function(e){ bySet[e.set] = (bySet[e.set]||0) + 1; });
+    var strip = (c.hist.sets||[]).slice().sort(function(a,b){ return a.order-b.order; }).map(function(s){
       var n = bySet[s.id]||0;
       return '<span style="margin-right:14px;color:'+(n?'var(--gold-light)':'rgba(245,237,214,0.3)')+'">'+
              s.name+' <span class="td-mono">'+(n?n+' ev':'—')+'</span></span>';
@@ -5858,10 +5915,164 @@ function swInitTab(){ swRenderSetup(); }
     el.innerHTML =
       '<div style="font-size:0.72rem;color:rgba(245,237,214,0.45);margin-bottom:6px">'+strip+'</div>'+
       '<div style="font-size:0.74rem;color:rgba(245,237,214,0.5)">'+
-        'Ledger: <span class="rv-score-gold">'+ledMeet.toLocaleString()+'</span> of '+aggMeet.toLocaleString()+
-        ' lifetime meetings ('+pct+'%) · '+hist.events.length+' event'+(hist.events.length===1?'':'s')+
-        ' · '+derived.length+' of '+agg.length+' pairs'+
-      '</div>';
+        'Ledger: <span class="rv-score-gold">'+c.ledMeet.toLocaleString()+'</span> of '+c.aggMeet.toLocaleString()+
+        ' lifetime meetings ('+c.pct+'%) · '+c.hist.events.length+' event'+(c.hist.events.length===1?'':'s')+
+        ' · '+c.derived.length+' of '+c.agg.length+' pairs'+
+      '</div>'+
+      (c.gaps.length
+        ? '<div style="margin-top:6px"><a href="#" id="rvHistGapsBtn" style="font-size:0.72rem;color:#c9922a;text-decoration:none">'+
+            (rvHistGapsOpen ? '▾' : '▸')+' '+(rvHistGapsOpen ? 'Hide' : 'Show')+' the '+c.gaps.length.toLocaleString()+
+            ' pair'+(c.gaps.length===1?'':'s')+' still missing ('+c.missing.toLocaleString()+' meeting'+(c.missing===1?'':'s')+')</a></div>'
+        : '');
+
+    var gapsBtn = document.getElementById('rvHistGapsBtn');
+    if(gapsBtn) gapsBtn.addEventListener('click', function(e){
+      e.preventDefault();
+      rvHistGapsOpen = !rvHistGapsOpen;
+      rvHistRenderCoverage();
+    });
+
+    rvHistRenderGaps(c);
+    rvHistRenderRebuild(c);
+  }
+
+  function rvHistRenderGaps(c){
+    var el = document.getElementById('rvHistGaps');
+    if(!el) return;
+    if(!rvHistGapsOpen || !c.gaps.length){ el.style.display = 'none'; el.innerHTML = ''; return; }
+    el.style.display = 'block';
+    var shown = c.gaps.slice(0, 40);
+    el.innerHTML =
+      '<p style="font-size:0.72rem;color:rgba(245,237,214,0.35);font-style:italic;margin-bottom:8px">'+
+        'Meetings the lifetime aggregate has recorded that the ledger has not seen yet — each one is a round CSV still to upload.</p>'+
+      '<table><thead><tr><th>Pair</th><th class="c">Aggregate</th><th class="c">Ledger</th><th class="c">Missing</th></tr></thead><tbody>'+
+      shown.map(function(g){
+        return '<tr><td style="font-size:0.75rem">'+rvEsc(g.players[0])+' <span style="opacity:0.35">vs</span> '+rvEsc(g.players[1])+'</td>'+
+          '<td class="c td-mono">'+g.agg+'</td>'+
+          '<td class="c td-mono" style="opacity:0.6">'+g.led+'</td>'+
+          '<td class="c td-mono" style="color:#e08080">'+g.short+'</td></tr>';
+      }).join('')+
+      '</tbody></table>'+
+      (c.gaps.length > shown.length
+        ? '<p style="font-size:0.72rem;color:rgba(245,237,214,0.3);margin-top:6px">…and '+(c.gaps.length-shown.length).toLocaleString()+' more — export the full list below.</p>'
+        : '')+
+      (c.ahead.length
+        ? '<p style="font-size:0.72rem;color:rgba(245,237,214,0.35);margin-top:8px">🌱 '+c.ahead.length.toLocaleString()+
+          ' pair'+(c.ahead.length===1?'':'s')+' exist only in the ledger — matches the aggregate never recorded.</p>'
+        : '')+
+      '<button class="btn ghost" id="rvHistGapsCSV" style="width:auto;padding:6px 12px;font-size:0.68rem;margin-top:8px">⬇ Export gap list CSV</button>';
+
+    var btn = document.getElementById('rvHistGapsCSV');
+    if(btn) btn.addEventListener('click', function(){
+      var out = ['Player A,Player B,Aggregate Meetings,Ledger Meetings,Missing'].concat(
+        c.gaps.map(function(g){
+          return [rvCsvCell(g.players[0]), rvCsvCell(g.players[1]), g.agg, g.led, g.short].join(',');
+        }));
+      rvDownloadFile('data:text/csv;charset=utf-8,'+encodeURIComponent(out.join('\n')), 'gnl-history-gaps.csv');
+    });
+  }
+
+  // The rebuild retires the legacy aggregate: it replaces rivalry.h2h with the ledger's
+  // own derivation and flips lifetimeSource to 'ledger'. Gated on FULL coverage, because
+  // an aggregate cannot be decomposed by subtraction — anything the ledger is missing is
+  // simply lost. Below 100% the button states the exact loss rather than just refusing.
+  function rvHistRenderRebuild(c){
+    var btn = document.getElementById('rvHistRebuildBtn');
+    var note = document.getElementById('rvHistRebuildNote');
+    if(!btn || !note) return;
+    var season = rvSavedSeasonData || (load().rivalry || {});
+    var already = season.history && season.history.lifetimeSource === 'ledger';
+
+    if(already){
+      btn.disabled = false;
+      note.innerHTML = '<span style="color:#4caf50">✓ Lifetime H2H is already derived from the ledger.</span> Rebuilding again is safe and idempotent.';
+    } else if(!c.complete){
+      btn.disabled = true;
+      rvHistRebuildArmed = false;
+      note.innerHTML = c.aggMeet
+        ? '<span style="color:#e08080">Locked</span> — rebuilding now would lose <strong>'+c.missing.toLocaleString()+
+          ' meeting'+(c.missing===1?'':'s')+'</strong> across '+c.gaps.length.toLocaleString()+' pair'+(c.gaps.length===1?'':'s')+
+          '. Upload the missing CSVs first.'
+        : 'Nothing to rebuild — the ledger is empty.';
+    } else {
+      btn.disabled = false;
+      note.innerHTML = 'The ledger covers every recorded meeting. Rebuilding replaces the lifetime aggregate with the ledger’s own derivation.';
+    }
+    btn.textContent = rvHistRebuildArmed ? '⚠ Click again to confirm' : '♻ Rebuild lifetime H2H from ledger';
+  }
+
+  var histRebuildBtn = document.getElementById('rvHistRebuildBtn');
+  if(histRebuildBtn) histRebuildBtn.addEventListener('click', function(){
+    var c = rvHistCoverageStats();
+    var season = rvSavedSeasonData || (load().rivalry || {});
+    var already = season.history && season.history.lifetimeSource === 'ledger';
+    if(!c.complete && !already) return;
+
+    // Two clicks: the first arms, the second commits. This overwrites the league's
+    // whole lifetime record, so it should never be one stray tap away.
+    if(!rvHistRebuildArmed){
+      rvHistRebuildArmed = true;
+      histRebuildBtn.textContent = '⚠ Click again to confirm';
+      setTimeout(function(){
+        if(rvHistRebuildArmed){ rvHistRebuildArmed = false; rvHistRenderRebuild(rvHistCoverageStats()); }
+      }, 6000);
+      return;
+    }
+    rvHistRebuildArmed = false;
+
+    if(!getToken()){
+      histRebuildBtn.textContent = '⚠ No Gist token (Settings)';
+      setTimeout(function(){ rvHistRenderRebuild(rvHistCoverageStats()); }, 2500);
+      return;
+    }
+    histRebuildBtn.disabled = true;
+    histRebuildBtn.textContent = '⟳ Rebuilding…';
+    try {
+      var hist = loadHist();
+      var rebuilt = rvHistScorePairs(rvDeriveFromLedger(hist).h2h);
+      var data = load();
+      var rivalry = data.rivalry || { h2h: [], savedPairs: [], eventLog: [], rivalryPoints: {} };
+      var wasPairs = (rivalry.h2h||[]).length, wasMeet = c.aggMeet;
+      rivalry.h2h = rebuilt;
+      rivalry.history = Object.assign({}, rivalry.history || {}, {
+        lifetimeSource: 'ledger', rebuiltAt: new Date().toISOString(),
+        events: hist.events.length,
+        matches: hist.events.reduce(function(s,e){ return s+e.m.length; }, 0)
+      });
+      rivalry.updatedAt = new Date().toISOString();
+      data.rivalry = rivalry;
+      rvSavedSeasonData = rivalry;
+      save(data, hist);
+
+      document.getElementById('rvHistSummary').innerHTML =
+        '<p style="font-size:0.76rem;color:#4caf50">✓ Lifetime H2H rebuilt from the ledger — '+
+        rebuilt.length.toLocaleString()+' pairs (was '+wasPairs.toLocaleString()+'), '+
+        c.ledMeet.toLocaleString()+' meetings (was '+wasMeet.toLocaleString()+'). '+
+        'League Points and the ladder are untouched.</p>';
+      rvHistRenderCoverage();
+      histRebuildBtn.textContent = '✓ Rebuilt';
+      setTimeout(function(){ rvHistRenderRebuild(rvHistCoverageStats()); }, 2500);
+    } catch(e){
+      histRebuildBtn.disabled = false;
+      histRebuildBtn.textContent = 'Rebuild failed — retry';
+    }
+  });
+
+  // Rivalry score is a weighted blend normalised across the whole field, so it can only
+  // be computed once the full set of pairs is known. Same formula and same weights as
+  // rvAnalyze, so a rebuilt h2h feeds rvComputeVendettas exactly as an analyzed one does.
+  function rvHistScorePairs(pairs){
+    if(!pairs.length) return pairs;
+    var maxM = Math.max.apply(null, pairs.map(function(e){ return e.meetings; }).concat([1]));
+    var maxC = Math.max.apply(null, pairs.map(function(e){ return e.close; }).concat([1]));
+    var maxS = Math.max.apply(null, pairs.map(function(e){ return e.swings; }).concat([1]));
+    var w = [wMeet, wClose, wSwing].map(function(sl, i){ return sl ? +sl.value : [70,20,10][i]; });
+    var total = (w[0] + w[1] + w[2]) || 1;
+    var wm = w[0]/total, wc = w[1]/total, ws = w[2]/total;
+    return pairs.map(function(e){
+      var score = wm*(e.meetings/maxM) + wc*(e.close/maxC) + ws*(e.swings/maxS);
+      return Object.assign({}, e, { score: Math.round(score*10000)/10000 });
+    }).sort(function(a,b){ return b.score-a.score; });
   }
 
   var histProcBtn = document.getElementById('rvHistProcessBtn');
