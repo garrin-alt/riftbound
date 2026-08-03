@@ -8344,15 +8344,18 @@ function swInitTab(){ swRenderSetup(); }
     next.shifts = (next.shifts||[]).concat(jdQueue);
     next.shifts.sort(function(a,b){ return String(a.date).localeCompare(String(b.date)); });
 
-    // Refuse to write a shift whose judge is not in the roster. Such a row is invisible on
-    // the board and unfixable from the UI, so it must never leave here.
+    // Refuse to write a QUEUED shift whose judge is not in the roster — that row would be
+    // invisible on the board and unfixable from the UI. Only the queue is inspected:
+    // orphans already sitting in the file are a separate problem, cleaned up by the purge
+    // button on the scorecard, and must never block a good save.
     var known = {};
     (next.judges||[]).forEach(function(j){ known[j.id] = true; });
-    var orphans = next.shifts.filter(function(s){ return !known[s.judge]; });
-    if(orphans.length && orphans.length === jdQueue.length){
+    var badQueued = jdQueue.filter(function(s){ return !known[s.judge]; });
+    if(badQueued.length){
       saveBtn.disabled = false;
       saveBtn.textContent = orig;
-      jdSetSaveHint('✗ Not saved — the queued shifts reference judges this browser no longer has. Reload the tab and re-enter them.', '#c0392b');
+      jdSetSaveHint('✗ Not saved — ' + badQueued.length + ' queued shift' + (badQueued.length===1?'':'s') +
+                    ' reference a judge this browser no longer has. Discard the queue and re-enter them.', '#c0392b');
       return;
     }
     if(!(await saveJudges(next))){
