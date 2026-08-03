@@ -815,6 +815,21 @@
     .rv-rec-w { color: #5ec88a; font-family: 'Cinzel', serif; font-size: 0.8rem; }
     .rv-rec-l { color: #e08080; font-family: 'Cinzel', serif; font-size: 0.8rem; }
     .rv-score-gold { font-family: 'Cinzel', serif; font-size: 0.82rem; color: var(--gold-light); font-weight: 700; }
+    .rv-aw-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 10px; }
+    .rv-aw { border: 1px solid rgba(201,146,42,0.18); background: rgba(245,237,214,0.02); padding: 14px 15px; position: relative; }
+    .rv-aw.pending { opacity: 0.55; }
+    .rv-aw.hidden-card { opacity: 0.32; border-style: dashed; }
+    .rv-aw-t { font-family: 'Cinzel', serif; font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(245,237,214,0.5); margin-bottom: 7px; padding-right: 46px; }
+    .rv-aw-w { font-family: 'Cinzel', serif; font-size: 1rem; color: var(--gold-light); font-weight: 700; }
+    .rv-aw-d { font-size: 0.73rem; color: rgba(245,237,214,0.5); margin-top: 3px; line-height: 1.5; }
+    .rv-aw-b { font-size: 0.69rem; color: rgba(245,237,214,0.28); margin-top: 9px; font-style: italic; line-height: 1.5; }
+    .rv-aw-r { font-size: 0.68rem; color: rgba(245,237,214,0.32); margin-top: 7px; padding-top: 7px; border-top: 1px solid rgba(201,146,42,0.1); }
+    .rv-aw-edit { position: absolute; top: 11px; right: 12px; font-size: 0.72rem; color: rgba(201,146,42,0.7); cursor: pointer; user-select: none; }
+    .rv-aw-form { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(201,146,42,0.15); display: flex; gap: 6px; flex-wrap: wrap; }
+    .rv-aw-form input { flex: 1; min-width: 100px; background: #1f170c; border: 1px solid rgba(201,146,42,0.3); color: rgba(245,237,214,0.8); font-family: inherit; font-size: 0.72rem; padding: 5px 8px; }
+    .rv-aw-form button { background: none; border: 1px solid rgba(201,146,42,0.3); color: rgba(245,237,214,0.6); font-family: inherit; font-size: 0.68rem; padding: 5px 10px; cursor: pointer; }
+    .rv-aw-sec { font-family: 'Cinzel', serif; font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold-light); margin: 22px 0 8px; }
+    .rv-aw-sec:first-child { margin-top: 0; }
     .pd-narr-h { font-family: 'Cinzel', serif; font-size: 0.8rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold-light); margin: 24px 0 6px; padding-top: 14px; border-top: 1px solid rgba(201,146,42,0.15); }
 
     .rv-empty { text-align: center; padding: 60px 20px; color: rgba(245,237,214,0.18); font-style: italic; font-size: 0.9rem; }
@@ -1406,6 +1421,7 @@
             <div class="rv-tab" data-rvtab="pairings">Suggested Pairings</div>
             <div class="rv-tab" data-rvtab="eventday">⚔ Event Day</div>
             <div class="rv-tab" data-rvtab="history">📜 League History</div>
+            <div class="rv-tab" data-rvtab="awards">🏅 Awards</div>
             <div class="rv-tab" data-rvtab="leaderboard">⚔ GNL: Vendetta</div>
             <!-- Board/point display names are also published to the gist (rivalry.display) so a public site can read them -->
 
@@ -1491,6 +1507,36 @@
               <button class="btn" id="rvHistSaveBtn" style="flex:1" disabled>☁ Save to History</button>
             </div>
             <div id="rvHistSummary" style="margin-top:12px"></div>
+          </div>
+
+          <!-- AWARDS -->
+          <div class="rv-tab-panel" id="rvtab-awards">
+            <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic;margin-bottom:14px;line-height:1.6">
+              Season-long titles for the things the ladder doesn't measure. Awards are <strong style="color:rgba(245,237,214,0.6)">recognition, not competition</strong> — they carry <strong style="color:rgba(245,237,214,0.6)">no League Points</strong>, never appear on GNL: Vendetta, and every player is eligible regardless of rank.
+              <br/>Each one has its own threshold, so a newcomer can hold a title. Holders are recomputed from the record every time you open this tab — pin a different one below where the story needs a human.
+            </p>
+            <div id="rvAwardsMeta" style="margin-bottom:14px"></div>
+            <div id="rvAwardsBody"></div>
+            <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+              <button class="btn ghost" id="rvAwExportCSV" style="width:auto;flex:1;min-width:140px">⬇ Export CSV</button>
+              <button class="btn ghost" id="rvAwCopyWhatsApp" style="width:auto;flex:1;min-width:140px">📋 Copy for WhatsApp</button>
+              <button class="btn ghost" id="rvAwExportImg" style="width:auto;flex:1;min-width:140px">📸 Export Image</button>
+            </div>
+            <div class="card" style="margin-top:16px">
+              <div class="card-label">🏅 Add a Custom Award</div>
+              <p style="font-size:0.72rem;color:rgba(245,237,214,0.3);font-style:italic;margin-bottom:8px">For the things the data can't see — best deck, best sport, longest drive to the venue.</p>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                <input id="rvAwNewIcon" placeholder="🏅" maxlength="4" style="width:56px;background:#1f170c;border:1px solid rgba(201,146,42,0.3);color:rgba(245,237,214,0.8);font-family:inherit;font-size:0.78rem;padding:6px 8px;text-align:center"/>
+                <input id="rvAwNewTitle" placeholder="Award name" style="flex:2;min-width:130px;background:#1f170c;border:1px solid rgba(201,146,42,0.3);color:rgba(245,237,214,0.8);font-family:inherit;font-size:0.78rem;padding:6px 10px"/>
+                <input id="rvAwNewPlayer" placeholder="Holder" style="flex:2;min-width:120px;background:#1f170c;border:1px solid rgba(201,146,42,0.3);color:rgba(245,237,214,0.8);font-family:inherit;font-size:0.78rem;padding:6px 10px"/>
+                <input id="rvAwNewDetail" placeholder="Why (optional)" style="flex:3;min-width:150px;background:#1f170c;border:1px solid rgba(201,146,42,0.3);color:rgba(245,237,214,0.8);font-family:inherit;font-size:0.78rem;padding:6px 10px"/>
+                <button class="btn ghost" id="rvAwAddBtn" style="width:auto;padding:7px 14px;font-size:0.7rem">Add</button>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap">
+              <button class="btn" id="rvAwSaveBtn" style="width:auto;padding:8px 18px;font-size:0.72rem">☁ Save Awards</button>
+              <span id="rvAwStatus" style="font-size:0.72rem;color:rgba(245,237,214,0.3)"></span>
+            </div>
           </div>
 
           <!-- EVENT DAY -->
@@ -2081,6 +2127,294 @@ function rvDerivePlayer(hist, name) {
     if (s.pct != null) prev = s;
   });
   return out;
+}
+
+// ── AWARDS ────────────────────────────────────────────
+// Recognition, not competition. Awards never touch League Points, never appear on
+// GNL: Vendetta, and every player is eligible regardless of rank. They are season-long
+// standing holders, recomputed on every render so they track the record with no
+// staleness — only the organiser's overrides and hand-written customs are ever stored.
+//
+// Each award carries its OWN threshold rather than a global gate, so a newcomer can hold
+// one. Three of them need chronology (Ascension, Unstoppable, The Glorious Executioner)
+// and read the ledger; the rest read the lifetime aggregate.
+
+var RV_AWARDS_META = [
+  { id:'giantslayer', icon:'🗡', title:'Giant Slayer',   kind:'giant' },
+  { id:'mortal',      icon:'💀', title:'Mortal Reminder', kind:'giant' },
+  { id:'mirror',      icon:'⚖', title:'Mirror Match',    kind:'rivalry' },
+  { id:'godlike',     icon:'🩸', title:'Godlike',         kind:'rivalry' },
+  { id:'ebbflow',     icon:'🌊', title:'Ebb and Flow',    kind:'rivalry' },
+  { id:'hound',       icon:'🐺', title:'The Hound of a Hundred Bites', kind:'achievement' },
+  { id:'caretaker',   icon:'🎖', title:'The Wandering Caretaker',      kind:'achievement' },
+  { id:'vendetta',    icon:'⛓', title:'Vendetta',        kind:'achievement' },
+  { id:'ascension',   icon:'⛈', title:'Ascension',       kind:'achievement' },
+  { id:'unstoppable', icon:'🛡', title:'Unstoppable',     kind:'achievement' },
+  { id:'executioner', icon:'☠', title:'The Glorious Executioner',     kind:'achievement' }
+];
+
+function rvPctOf(w, l) { return (w + l) ? Math.round(w / (w + l) * 100) : null; }
+
+function rvComputeAwards(rivalry, hist) {
+  rivalry = rivalry || {};
+  var h2h = rivalry.h2h || [];
+  var attendance = rivalry.attendance || {};
+  var points = rivalry.rivalryPoints || {};
+  var stored = rivalry.awards || {};
+  var overrides = stored.overrides || {};
+
+  // ── Player table from the lifetime aggregate ──
+  var P = {};
+  function ent(n){ return P[n] || (P[n] = { name:n, mw:0, ml:0, opponents:0 }); }
+  h2h.forEach(function (r) {
+    var a = ent(r.players[0]), b = ent(r.players[1]);
+    a.mw += r.matchWinsA||0; a.ml += r.matchWinsB||0; a.opponents++;
+    b.mw += r.matchWinsB||0; b.ml += r.matchWinsA||0; b.opponents++;
+  });
+  Object.keys(P).forEach(function (n) {
+    P[n].decisive = P[n].mw + P[n].ml;
+    P[n].rate = rvPctOf(P[n].mw, P[n].ml);
+  });
+
+  // ── Giants: top quartile by match win rate among players with enough decisive matches.
+  // Self-scaling, so the bar rises with the league instead of being frozen in code.
+  var GIANT_MIN = 15;
+  var pool = Object.values(P).filter(function (p) { return p.decisive >= GIANT_MIN; })
+                             .sort(function (a, b) { return b.rate - a.rate; });
+  var take = Math.max(1, Math.ceil(pool.length / 4));
+  var giantList = pool.length ? pool.slice(0, take) : [];
+  var giantCut = giantList.length ? giantList[giantList.length - 1].rate : null;
+  var isGiant = {};
+  giantList.forEach(function (g) { isGiant[g.name] = true; });
+
+  // ── Chronology, for the three awards the aggregate cannot answer ──
+  var ledgerEvents = (hist && hist.events) || [];
+  var led = ledgerEvents.length ? rvDeriveFromLedger(hist) : null;
+
+  var out = [];
+  function add(id, winner, runnerUp, blurb, extra) {
+    var m = RV_AWARDS_META.find(function (x) { return x.id === id; }) || {};
+    var card = { id:id, icon:m.icon, title:m.title, kind:m.kind, blurb:blurb,
+                 winner:winner || null, runnerUp:runnerUp || null,
+                 pending:!winner, source:(extra && extra.source) || 'aggregate' };
+    if (extra && extra.blocked) { card.blocked = true; card.pending = true; }
+    var ov = overrides[id];
+    if (ov) {
+      if (ov.hidden) card.hidden = true;
+      else if (ov.player) {
+        card.winner = { name: ov.player, detail: ov.detail || 'set by the organiser' };
+        card.pending = false; card.overridden = true;
+      }
+    }
+    out.push(card);
+  }
+  // Pick the best of a scored list, and the next one down for the runner-up line.
+  //
+  // Ties are named rather than silently broken. Counting awards tie constantly — two
+  // players on nine wins, three on a five-event streak — and picking one by object key
+  // order would hand a title out by accident and quietly change holder whenever the data
+  // is re-saved. The order is made deterministic by name, and co-holders are stated.
+  function best(list, score, detail) {
+    var ranked = list.filter(function (x) { return score(x) != null; })
+                     .sort(function (a, b) {
+                       return score(b) - score(a) ||
+                              String(a.name || '').localeCompare(String(b.name || ''));
+                     });
+    if (!ranked.length) return [null, null];
+    var top = score(ranked[0]);
+    var tied = ranked.filter(function (x) { return score(x) === top; });
+    var w = detail(ranked[0]);
+    if (w && tied.length > 1) {
+      var others = tied.slice(1).map(function (x) { return x.name; });
+      w.detail += ' — shared with ' + (others.length <= 2 ? others.join(' and ')
+                                                          : others.length + ' others');
+      w.shared = others;
+    }
+    // The runner-up line is only interesting below the tie, not inside it
+    var next = ranked[tied.length];
+    return [ w, next && detail(next) ];
+  }
+
+  // ── Giant-slaying ──
+  var slayer = Object.values(P).filter(function (p) { return !isGiant[p.name]; }).map(function (p) {
+    var wins = 0, over = {};
+    h2h.forEach(function (r) {
+      var i = r.players.indexOf(p.name);
+      if (i === -1) return;
+      var opp = r.players[i ? 0 : 1];
+      if (!isGiant[opp]) return;
+      var w = i === 0 ? (r.matchWinsA||0) : (r.matchWinsB||0);
+      if (w) { wins += w; over[opp] = w; }
+    });
+    return { name: p.name, wins: wins, rate: p.rate, over: Object.keys(over).length };
+  });
+  // Wins first, then how many DIFFERENT giants were beaten, then the slayer's own record —
+  // two players on nine wins is common, and beating seven giants on a 51% record is the
+  // better story than beating six on 59%.
+  var sl = best(slayer, function (x) {
+    return x.wins ? x.wins * 10000 + x.over * 100 + (100 - (x.rate == null ? 100 : x.rate)) : null;
+  }, function (x) {
+    return { name:x.name, detail: x.wins + ' win' + (x.wins===1?'':'s') + ' over Giants, across ' +
+             x.over + ' of them' + (x.rate!=null ? ' — on a ' + x.rate + '% record of their own' : '') };
+  });
+  add('giantslayer', sl[0], sl[1],
+      'Most match wins over Giants — by a player who is not one. Giants are the top quartile by match win rate among players with ' +
+      GIANT_MIN + '+ decisive matches' + (giantCut!=null ? ', currently ' + giantList.length + ' players at a ' + giantCut + '% cut-off' : '') + '.');
+
+  var mortal = [];
+  h2h.forEach(function (r) {
+    var a = P[r.players[0]], b = P[r.players[1]];
+    if (!a || !b || (r.meetings||0) < 3) return;
+    if (a.decisive < 10 || b.decisive < 10 || a.rate == null || b.rate == null) return;
+    var lowIsA = a.rate < b.rate;
+    var low = lowIsA ? a : b, high = lowIsA ? b : a;
+    var lowWins  = lowIsA ? (r.matchWinsA||0) : (r.matchWinsB||0);
+    var highWins = lowIsA ? (r.matchWinsB||0) : (r.matchWinsA||0);
+    if (lowWins <= highWins) return; // the underdog must actually own the series
+    mortal.push({ name:low.name, gap: high.rate - low.rate, high:high, low:low,
+                  score: lowWins + '–' + highWins, meetings: r.meetings });
+  });
+  var mo = best(mortal, function (x) { return x.gap; }, function (x) {
+    return { name:x.name, detail: x.low.rate + '% owns ' + x.high.name + ' (' + x.high.rate + '%) ' +
+             x.score + ' over ' + x.meetings + ' meetings — a ' + x.gap + '-point gap' };
+  });
+  add('mortal', mo[0], mo[1],
+      'The biggest win-rate gap where the lower-rated player owns the series. Both players 10+ decisive matches, 3+ meetings.');
+
+  // ── Rivalries ──
+  var mirror = h2h.filter(function (r) {
+    return (r.meetings||0) >= 4 && (r.matchWinsA||0) === (r.matchWinsB||0) && (r.matchWinsA||0) > 0;
+  }).sort(function (a, b) { return (b.meetings-a.meetings) || ((b.close||0)-(a.close||0)); });
+  function pairCard(r, detail) { return { name: r.players[0] + ' & ' + r.players[1], detail: detail }; }
+  add('mirror',
+      mirror[0] && pairCard(mirror[0], (mirror[0].matchWinsA||0) + '–' + (mirror[0].matchWinsB||0) +
+        ' across ' + mirror[0].meetings + ' meetings, ' + (mirror[0].close||0) + ' of them close'),
+      mirror[1] && pairCard(mirror[1], (mirror[1].matchWinsA||0) + '–' + (mirror[1].matchWinsB||0) +
+        ' across ' + mirror[1].meetings + ' meetings'),
+      'Dead level after four meetings or more. Tiebreak: most meetings, then most close matches.');
+
+  var godlike = h2h.filter(function (r) {
+    var g = (r.winsA||0) + (r.winsB||0);
+    return g >= 5 && ((r.winsA||0) === 0 || (r.winsB||0) === 0);
+  }).map(function (r) {
+    var aWon = (r.winsA||0) > 0;
+    return { name: r.players[aWon?0:1], loser: r.players[aWon?1:0],
+             games: (r.winsA||0) + (r.winsB||0), meetings: r.meetings||0 };
+  }).sort(function (a, b) { return b.games - a.games || b.meetings - a.meetings; });
+  add('godlike',
+      godlike[0] && { name: godlike[0].name, detail: 'has never dropped a game to ' + godlike[0].loser +
+        ' — ' + godlike[0].games + '–0 in games over ' + godlike[0].meetings + ' meetings' },
+      godlike[1] && { name: godlike[1].name, detail: godlike[1].games + '–0 in games over ' + godlike[1].loser },
+      'Every single game won in a rivalry, over at least five games played.');
+
+  // swings is order-dependent, so the ledger's chronological count is the correct one
+  // wherever the ledger reaches. Falls back to the aggregate, which counts in upload order.
+  var swingSrc = led ? led.h2h : h2h;
+  var ebb = swingSrc.filter(function (r) { return (r.swings||0) > 0; })
+                    .sort(function (a, b) { return (b.swings-a.swings) || ((b.meetings||0)-(a.meetings||0)); });
+  add('ebbflow',
+      ebb[0] && pairCard(ebb[0], ebb[0].swings + ' lead change' + (ebb[0].swings===1?'':'s') +
+        ' across ' + ebb[0].meetings + ' meetings'),
+      ebb[1] && pairCard(ebb[1], ebb[1].swings + ' lead change' + (ebb[1].swings===1?'':'s')),
+      'The rivalry whose lead has changed hands most often.' +
+      (led ? ' Counted chronologically from the history ledger.' : ' Counted in upload order — upload history to make this exact.'),
+      { source: led ? 'ledger' : 'aggregate' });
+
+  // ── Achievements ──
+  var ho = best(Object.values(P), function (x) { return x.opponents || null; }, function (x) {
+    return { name:x.name, detail: x.opponents + ' distinct opponents faced' };
+  });
+  add('hound', ho[0], ho[1], 'The widest circle — most distinct opponents faced.');
+
+  var att = Object.keys(attendance).map(function (n) { return { name:n, n:(attendance[n]||[]).length }; });
+  var ca = best(att, function (x) { return x.n || null; }, function (x) {
+    return { name:x.name, detail: x.n + ' event' + (x.n===1?'':'s') + ' attended' };
+  });
+  add('caretaker', ca[0], ca[1], 'Most events attended. Turning up is its own achievement.');
+
+  var vd = best(Object.keys(points).map(function (n) { return { name:n, n:points[n].vendettaWins||0 }; }),
+    function (x) { return x.n || null; },
+    function (x) { return { name:x.name, detail: x.n + ' grudge' + (x.n===1?'':'s') + ' settled' }; });
+  add('vendetta', vd[0], vd[1], 'Most declared Vendettas won. Worth no League Points — only the story.');
+
+  // ── The three that need chronology ──
+  if (!led) {
+    add('ascension',   null, null, 'The biggest rise in win rate from the first half of a career to the second.', { blocked:true });
+    add('unstoppable', null, null, 'The longest run of consecutive league events attended — not most events, but never missing one.', { blocked:true });
+    add('executioner', null, null, 'The best record when the Top Cut starts.', { blocked:true });
+  } else {
+    var names = {};
+    h2h.forEach(function (r) { r.players.forEach(function (p) { names[p] = 1; }); });
+    (hist.players || []).forEach(function (p) { names[p] = 1; });
+
+    var risers = Object.keys(names).map(function (n) {
+      var st = rvDerivePlayer(hist, n);
+      if (st.events.length < 4) return null;
+      var half = Math.floor(st.events.length / 2);
+      var A = { w:0, l:0 }, B = { w:0, l:0 };
+      st.events.forEach(function (e, i) {
+        var t = i < half ? A : B;
+        t.w += e.w; t.l += e.l;
+      });
+      if (A.w + A.l < 3 || B.w + B.l < 3) return null;
+      var pa = rvPctOf(A.w, A.l), pb = rvPctOf(B.w, B.l);
+      return { name:n, delta: pb - pa, from:pa, to:pb, events: st.events.length };
+    }).filter(Boolean);
+    var as = best(risers, function (x) { return x.delta > 0 ? x.delta : null; }, function (x) {
+      return { name:x.name, detail: x.from + '% → ' + x.to + '% across ' + x.events +
+               ' events — up ' + x.delta + ' points' };
+    });
+    add('ascension', as[0], as[1],
+        'The biggest rise in win rate from the first half of a career to the second. 4+ events, 3+ decisive matches in each half.',
+        { source:'ledger' });
+
+    // Consecutive means consecutive LEAGUE events, not consecutive appearances — missing
+    // a night has to break the run, or this would just re-elect the most active player.
+    var order = ledgerEvents.map(function (e) { return e.id; });
+    var attended = {};
+    ledgerEvents.forEach(function (e) {
+      (e.m || []).forEach(function (row) {
+        var f = row.split(',');
+        [hist.players[+f[1]], hist.players[+f[2]]].forEach(function (p) {
+          if (p) (attended[p] = attended[p] || {})[e.id] = 1;
+        });
+      });
+    });
+    var streaks = Object.keys(attended).map(function (n) {
+      var run = 0, bestRun = 0;
+      order.forEach(function (id) {
+        if (attended[n][id]) { run++; if (run > bestRun) bestRun = run; } else run = 0;
+      });
+      return { name:n, run:bestRun, total:Object.keys(attended[n]).length };
+    });
+    var un = best(streaks, function (x) { return x.run > 1 ? x.run : null; }, function (x) {
+      return { name:x.name, detail: x.run + ' events in a row' +
+               (x.total > x.run ? ' (of ' + x.total + ' attended)' : '') };
+    });
+    add('unstoppable', un[0], un[1],
+        'The longest run of consecutive league events attended — not most events, but never missing one. Counted against every event in the ledger, so a missed night breaks the run.',
+        { source:'ledger' });
+
+    var cut = Object.keys(led.totals).map(function (n) {
+      var t = led.totals[n];
+      return { name:n, w:t.playoffW||0, l:t.playoffL||0, n:(t.playoffW||0)+(t.playoffL||0) };
+    }).filter(function (x) { return x.n >= 3; });
+    var ex = best(cut, function (x) { return rvPctOf(x.w, x.l) * 1000 + x.w; }, function (x) {
+      return { name:x.name, detail: x.w + 'W–' + x.l + 'L in Top Cut (' + rvPctOf(x.w, x.l) + '%)' };
+    });
+    add('executioner', ex[0], ex[1],
+        'The best record once the Top Cut starts. 3+ knockout matches played.', { source:'ledger' });
+  }
+
+  (stored.custom || []).forEach(function (c) {
+    out.push({ id:c.id, icon:c.icon || '🏅', title:c.title, kind:'custom', custom:true,
+               blurb:c.blurb || 'Awarded by the organiser.',
+               winner: c.player ? { name:c.player, detail:c.detail || '' } : null,
+               pending: !c.player });
+  });
+
+  return { awards: out, giants: giantList.map(function (g) { return g.name; }),
+           giantCut: giantCut, giantMin: GIANT_MIN, hasLedger: !!led };
 }
 
 function setSyncStatus(msg, color) {
@@ -5124,6 +5458,23 @@ function swInitTab(){ swRenderSetup(); }
       retro: !!vendetta.retro,
       postEvent: !!vendetta.postEvent
     });
+
+    // Republish the award holders alongside the results, so a public site reading the gist
+    // gets the current board without reimplementing any of the logic. Overwritten every
+    // save, never appended — the computed holders are a snapshot, not a record.
+    try {
+      var awStore = rivalry.awards || {};
+      var computed = rvComputeAwards(rivalry, loadHist()).awards;
+      rivalry.awards = {
+        overrides: awStore.overrides || {},
+        custom: awStore.custom || [],
+        current: computed.filter(function(a){ return !a.hidden && a.winner; }).map(function(a){
+          return { id:a.id, icon:a.icon, title:a.title, kind:a.kind,
+                   player:a.winner.name, detail:a.winner.detail };
+        }),
+        updatedAt: new Date().toISOString()
+      };
+    } catch(e){ /* awards are decoration — never let them block a results save */ }
   }
 
   // Step 2: apply the processed results to season data and persist to the Gist.
@@ -6390,6 +6741,322 @@ function swInitTab(){ swRenderSetup(); }
       histSaveBtn.disabled = false;
       histSaveBtn.textContent = 'Save failed — retry';
     }
+  });
+
+  // ── AWARDS PANEL ────────────────────────────────────────────────────────
+  // Holders recompute on every render, so the board tracks the season with no staleness.
+  // Only overrides and hand-written customs are ever stored.
+  var rvAwDraft = null;      // { overrides, custom } — unsaved organiser edits
+  var rvAwOpenEditor = null; // which card's editor is showing
+
+  function rvAwStored(){
+    var r = rvSavedSeasonData || (load().rivalry || {});
+    var a = r.awards || {};
+    return { overrides: JSON.parse(JSON.stringify(a.overrides || {})),
+             custom: JSON.parse(JSON.stringify(a.custom || [])) };
+  }
+  function rvAwState(){ return rvAwDraft || (rvAwDraft = rvAwStored()); }
+  function rvAwDirty(){
+    var s = rvAwStored();
+    return JSON.stringify(s) !== JSON.stringify(rvAwState());
+  }
+
+  function rvAwCompute(){
+    var r = JSON.parse(JSON.stringify(rvSavedSeasonData || load().rivalry || {}));
+    r.awards = rvAwState();
+    return rvComputeAwards(r, loadHist());
+  }
+
+  var RV_AW_SECTIONS = [
+    { kind:'giant',       label:'⚔ Giant-Slaying' },
+    { kind:'rivalry',     label:'🔥 Rivalries' },
+    { kind:'achievement', label:'🎖 Achievements' },
+    { kind:'custom',      label:'🏅 Organiser Awards' }
+  ];
+
+  function rvAwRender(){
+    var body = document.getElementById('rvAwardsBody');
+    var meta = document.getElementById('rvAwardsMeta');
+    if(!body) return;
+    var res = rvAwCompute();
+
+    if(meta) meta.innerHTML =
+      '<div style="font-size:0.73rem;color:rgba(245,237,214,0.45);line-height:1.6">'+
+        (res.giantCut != null
+          ? '<strong style="color:var(--gold-light)">Giants</strong> — the top quartile by match win rate among players with '+
+            res.giantMin+'+ decisive matches: <strong style="color:var(--gold-light)">'+res.giants.length+
+            ' players</strong> at a <strong style="color:var(--gold-light)">'+res.giantCut+'%</strong> cut-off. The bar rises as the league does.'
+          : 'Not enough decisive matches yet to name any Giants.')+
+        (res.hasLedger ? '' : '<br><span style="color:#c9922a">⛈🛡☠ Three awards need the history ledger — upload past events in 📜 League History to unlock them.</span>')+
+      '</div>';
+
+    var html = '';
+    RV_AW_SECTIONS.forEach(function(sec){
+      var cards = res.awards.filter(function(a){ return a.kind === sec.kind; });
+      if(!cards.length) return;
+      html += '<div class="rv-aw-sec">'+sec.label+'</div><div class="rv-aw-grid">'+
+        cards.map(rvAwCardHtml).join('')+'</div>';
+    });
+    body.innerHTML = html;
+    rvAwWireCards(body);
+    rvAwSetStatus(rvAwDirty() ? '● Unsaved changes' : '', rvAwDirty() ? '#c9922a' : '');
+  }
+
+  function rvAwCardHtml(a){
+    var cls = 'rv-aw' + (a.hidden ? ' hidden-card' : (a.pending ? ' pending' : ''));
+    var holder = a.hidden
+      ? '<div class="rv-aw-w" style="font-size:0.85rem;opacity:0.6">Hidden</div>'+
+        '<div class="rv-aw-d">This award will not appear in exports.</div>'
+      : a.winner
+        ? '<div class="rv-aw-w">'+rvEsc(a.winner.name)+'</div>'+
+          '<div class="rv-aw-d">'+rvEsc(a.winner.detail)+'</div>'+
+          (a.overridden ? '<div class="rv-aw-d" style="color:#c9922a">📌 pinned by the organiser</div>' : '')
+        : '<div class="rv-aw-w" style="font-size:0.85rem;opacity:0.5">'+(a.blocked ? 'Locked' : 'Unclaimed')+'</div>'+
+          '<div class="rv-aw-d">'+(a.blocked
+            ? 'Needs the history ledger — this one cannot be answered from lifetime totals.'
+            : 'Nobody qualifies yet. It will claim itself as the season runs.')+'</div>';
+    return '<div class="'+cls+'" data-award="'+rvEsc(a.id)+'">'+
+      '<span class="rv-aw-edit" data-awedit="'+rvEsc(a.id)+'">✎</span>'+
+      '<div class="rv-aw-t">'+a.icon+' '+rvEsc(a.title)+'</div>'+
+      holder+
+      '<div class="rv-aw-b">'+rvEsc(a.blurb)+'</div>'+
+      (a.runnerUp && !a.hidden
+        ? '<div class="rv-aw-r">Runner-up: <span style="color:rgba(245,237,214,0.55)">'+rvEsc(a.runnerUp.name)+
+          '</span> — '+rvEsc(a.runnerUp.detail)+'</div>'
+        : '')+
+      (rvAwOpenEditor === a.id ? rvAwEditorHtml(a) : '')+
+    '</div>';
+  }
+
+  function rvAwEditorHtml(a){
+    return '<div class="rv-aw-form">'+
+      '<input class="rv-aw-in-p" data-for="'+rvEsc(a.id)+'" placeholder="Pin a holder" value="'+
+        rvEsc((a.overridden && a.winner) ? a.winner.name : '')+'"/>'+
+      '<input class="rv-aw-in-d" data-for="'+rvEsc(a.id)+'" placeholder="Reason (optional)" value="'+
+        rvEsc((a.overridden && a.winner) ? a.winner.detail : '')+'"/>'+
+      '<button data-awpin="'+rvEsc(a.id)+'">📌 Pin</button>'+
+      '<button data-awhide="'+rvEsc(a.id)+'">'+(a.hidden ? '👁 Show' : '🚫 Hide')+'</button>'+
+      '<button data-awreset="'+rvEsc(a.id)+'">↺ Auto</button>'+
+      (a.custom ? '<button data-awdel="'+rvEsc(a.id)+'">🗑 Remove</button>' : '')+
+    '</div>';
+  }
+
+  function rvAwWireCards(root){
+    root.querySelectorAll('[data-awedit]').forEach(function(el){
+      el.addEventListener('click', function(){
+        rvAwOpenEditor = rvAwOpenEditor === el.dataset.awedit ? null : el.dataset.awedit;
+        rvAwRender();
+      });
+    });
+    root.querySelectorAll('[data-awpin]').forEach(function(b){
+      b.addEventListener('click', function(){
+        var id = b.dataset.awpin, st = rvAwState();
+        var p = root.querySelector('.rv-aw-in-p[data-for="'+id+'"]').value.trim();
+        var d = root.querySelector('.rv-aw-in-d[data-for="'+id+'"]').value.trim();
+        var custom = (st.custom || []).find(function(c){ return c.id === id; });
+        if(custom){ custom.player = p; custom.detail = d; }
+        else if(p) st.overrides[id] = { player: p, detail: d };
+        else delete st.overrides[id];
+        rvAwOpenEditor = null;
+        rvAwRender();
+      });
+    });
+    root.querySelectorAll('[data-awhide]').forEach(function(b){
+      b.addEventListener('click', function(){
+        var id = b.dataset.awhide, st = rvAwState();
+        if(st.overrides[id] && st.overrides[id].hidden) delete st.overrides[id];
+        else st.overrides[id] = { hidden: true };
+        rvAwOpenEditor = null;
+        rvAwRender();
+      });
+    });
+    root.querySelectorAll('[data-awreset]').forEach(function(b){
+      b.addEventListener('click', function(){
+        delete rvAwState().overrides[b.dataset.awreset];
+        rvAwOpenEditor = null;
+        rvAwRender();
+      });
+    });
+    root.querySelectorAll('[data-awdel]').forEach(function(b){
+      b.addEventListener('click', function(){
+        var st = rvAwState();
+        st.custom = (st.custom || []).filter(function(c){ return c.id !== b.dataset.awdel; });
+        rvAwOpenEditor = null;
+        rvAwRender();
+      });
+    });
+  }
+
+  function rvAwSetStatus(msg, color){
+    var el = document.getElementById('rvAwStatus');
+    if(el){ el.textContent = msg; el.style.color = color || 'rgba(245,237,214,0.3)'; }
+  }
+
+  var awAddBtn = document.getElementById('rvAwAddBtn');
+  if(awAddBtn) awAddBtn.addEventListener('click', function(){
+    var t = document.getElementById('rvAwNewTitle').value.trim();
+    if(!t){ rvAwSetStatus('⚠ A custom award needs a name', '#c0392b'); return; }
+    var st = rvAwState();
+    st.custom = st.custom || [];
+    st.custom.push({
+      id: 'custom-' + Date.now().toString(36),
+      icon: document.getElementById('rvAwNewIcon').value.trim() || '🏅',
+      title: t,
+      player: document.getElementById('rvAwNewPlayer').value.trim(),
+      detail: document.getElementById('rvAwNewDetail').value.trim()
+    });
+    ['rvAwNewIcon','rvAwNewTitle','rvAwNewPlayer','rvAwNewDetail'].forEach(function(id){
+      document.getElementById(id).value = '';
+    });
+    rvAwRender();
+  });
+
+  var awSaveBtn = document.getElementById('rvAwSaveBtn');
+  if(awSaveBtn) awSaveBtn.addEventListener('click', async function(){
+    if(!getToken()){ rvAwSetStatus('⚠ No Gist token set (Settings tab)', '#c0392b'); return; }
+    awSaveBtn.disabled = true;
+    awSaveBtn.textContent = '⟳ Saving…';
+    try {
+      var data = load();
+      var rivalry = data.rivalry || { h2h: [], savedPairs: [], eventLog: [], rivalryPoints: {} };
+      var st = rvAwState();
+      rivalry.awards = { overrides: st.overrides, custom: st.custom || [],
+                         current: rvAwPublishable(), updatedAt: new Date().toISOString() };
+      data.rivalry = rivalry;
+      if(!(await save(data))){
+        awSaveBtn.disabled = false;
+        awSaveBtn.textContent = '☁ Save Awards';
+        rvAwSetStatus('✗ Not saved — the Gist rejected the write. Check your token in Settings.', '#c0392b');
+        return;
+      }
+      rvSavedSeasonData = rivalry;
+      rvAwDraft = null;
+      rvAwRender();
+      awSaveBtn.textContent = '✓ Saved';
+      rvAwSetStatus('✓ Awards saved. Standings untouched.', '#4caf50');
+      setTimeout(function(){ awSaveBtn.textContent = '☁ Save Awards'; }, 2500);
+    } catch(e){
+      awSaveBtn.textContent = '☁ Save Awards';
+      rvAwSetStatus('✗ Save failed', '#c0392b');
+    }
+    awSaveBtn.disabled = false;
+  });
+
+  // Flattened holders, stamped into the gist so a public site can read the board without
+  // reimplementing any of the logic. Overwritten on every save, never appended.
+  function rvAwPublishable(){
+    return rvAwCompute().awards.filter(function(a){ return !a.hidden && a.winner; })
+      .map(function(a){
+        return { id:a.id, icon:a.icon, title:a.title, kind:a.kind,
+                 player:a.winner.name, detail:a.winner.detail };
+      });
+  }
+
+  function rvAwVisible(){
+    return rvAwCompute().awards.filter(function(a){ return !a.hidden; });
+  }
+
+  function rvAwExportCSV(){
+    var rows = rvAwVisible();
+    if(!rows.length) return false;
+    var out = ['Award,Category,Holder,Detail,Status'].concat(rows.map(function(a){
+      return [rvCsvCell(a.title), a.kind, rvCsvCell(a.winner ? a.winner.name : ''),
+              rvCsvCell(a.winner ? a.winner.detail : ''),
+              a.blocked ? 'locked' : (a.pending ? 'unclaimed' : (a.overridden ? 'pinned' : 'computed'))].join(',');
+    }));
+    rvDownloadFile(URL.createObjectURL(new Blob([out.join('\n')],{type:'text/csv'})), 'gnl-awards.csv');
+    return true;
+  }
+
+  function rvAwCopyWhatsApp(){
+    var rows = rvAwVisible().filter(function(a){ return a.winner; });
+    if(!rows.length) return false;
+    var cfg = getCityConfig() || {};
+    var txt = '🏅 *GNL AWARDS*' + (cfg.label ? ' — ' + cfg.label : '') + '\n' +
+      '_Recognition only — no League Points, no effect on standings._\n\n' +
+      rows.map(function(a){
+        return a.icon + ' *' + a.title + '*\n' + a.winner.name +
+               (a.winner.detail ? '\n_' + a.winner.detail + '_' : '');
+      }).join('\n\n');
+    return navigator.clipboard.writeText(txt).then(function(){ return true; }, function(){ return false; });
+  }
+
+  // Portrait 1080×1350 card, same palette and frame as the ladder export
+  async function rvAwExportImage(){
+    var rows = rvAwVisible().filter(function(a){ return a.winner; }).slice(0, 8);
+    if(!rows.length) return false;
+    if(document.fonts && document.fonts.ready){ try { await document.fonts.ready; } catch(e){} }
+    var W = 1080, H = 1350;
+    var c = document.createElement('canvas'); c.width = W; c.height = H;
+    var x = c.getContext('2d');
+    var accent = '#e8b84b', accentRGBA = 'rgba(201,146,42,', parch = 'rgba(245,237,214,';
+
+    var g = x.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'#201709'); g.addColorStop(0.45,'#15100a'); g.addColorStop(1,'#0c0906');
+    x.fillStyle = g; x.fillRect(0,0,W,H);
+    var rg = x.createRadialGradient(W/2,150,40, W/2,150,760);
+    rg.addColorStop(0, accentRGBA+'0.14)'); rg.addColorStop(1, accentRGBA+'0)');
+    x.fillStyle = rg; x.fillRect(0,0,W,H);
+    x.strokeStyle = accentRGBA+'0.55)'; x.lineWidth = 3; x.strokeRect(34,34,W-68,H-68);
+    x.strokeStyle = accentRGBA+'0.18)'; x.lineWidth = 1; x.strokeRect(46,46,W-92,H-92);
+
+    x.textAlign = 'center';
+    x.fillStyle = parch+'0.5)';
+    x.font = '600 24px Cinzel, Georgia, serif';
+    x.fillText('R I F T B O U N D   L E A G U E', W/2, 118);
+    x.fillStyle = accent;
+    x.font = '700 58px Cinzel, Georgia, serif';
+    x.fillText('🏅 AWARDS', W/2, 196);
+    var dg = x.createLinearGradient(W/2-220,0,W/2+220,0);
+    dg.addColorStop(0, accentRGBA+'0)'); dg.addColorStop(0.5, accentRGBA+'0.9)'); dg.addColorStop(1, accentRGBA+'0)');
+    x.fillStyle = dg; x.fillRect(W/2-220,222,440,2);
+    var cityLbl = ''; try { var cfg = getCityConfig(); cityLbl = cfg ? cfg.label : ''; } catch(e){}
+    x.fillStyle = parch+'0.45)';
+    x.font = 'italic 26px "Crimson Pro", Georgia, serif';
+    x.fillText((cityLbl ? cityLbl + '  •  ' : '') + new Date().toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'}), W/2, 264);
+
+    function fit(txt, maxW){
+      if(x.measureText(txt).width <= maxW) return txt;
+      while(txt.length > 1 && x.measureText(txt+'…').width > maxW) txt = txt.slice(0,-1);
+      return txt+'…';
+    }
+
+    var rowH = 118, startY = 306, left = 76, right = W-76;
+    rows.forEach(function(a,i){
+      var y = startY + i*rowH;
+      x.fillStyle = parch + (i%2===0 ? '0.045)' : '0.02)');
+      x.fillRect(left, y, right-left, rowH-12);
+      x.textAlign = 'left';
+      x.fillStyle = parch+'0.45)';
+      x.font = '600 23px Cinzel, Georgia, serif';
+      x.fillText(fit(a.icon + '  ' + a.title.toUpperCase(), right-left-44), left+22, y+36);
+      x.fillStyle = accent;
+      x.font = '700 36px Cinzel, Georgia, serif';
+      x.fillText(fit(a.winner.name, right-left-44), left+22, y+80);
+      x.fillStyle = parch+'0.35)';
+      x.font = 'italic 21px "Crimson Pro", Georgia, serif';
+      x.fillText(fit(a.winner.detail || '', right-left-44), left+22, y+104);
+    });
+
+    x.textAlign = 'center';
+    x.fillStyle = parch+'0.3)';
+    x.font = 'italic 23px "Crimson Pro", Georgia, serif';
+    x.fillText('— Recognition only. No League Points were harmed. —', W/2, H-62);
+
+    return new Promise(function(resolve){
+      c.toBlob(function(blob){
+        rvDownloadFile(URL.createObjectURL(blob), 'gnl-awards.png');
+        resolve(true);
+      }, 'image/png');
+    });
+  }
+
+  rvWireExport('rvAwExportCSV',     function(){ return rvAwExportCSV(); });
+  rvWireExport('rvAwCopyWhatsApp',  function(){ return rvAwCopyWhatsApp(); });
+  rvWireExport('rvAwExportImg',     function(){ return rvAwExportImage(); });
+
+  document.querySelectorAll('.rv-tab[data-rvtab="awards"]').forEach(function(tab){
+    tab.addEventListener('click', function(){ rvAwOpenEditor = null; rvAwRender(); });
   });
 
   document.querySelectorAll('.rv-tab[data-rvtab="history"]').forEach(function(tab){
