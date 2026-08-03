@@ -1771,6 +1771,7 @@
         <br/>Rank follows one number, total shifts served, and only ever rises.
       </p>
       <div id="jdTotals" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:16px"></div>
+      <div id="jdOrphanWarn" style="display:none;margin-bottom:14px;padding:12px 14px;border:1px dashed rgba(201,146,42,0.35);background:rgba(201,146,42,0.05)"></div>
       <div id="jdBoard"></div>
       <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
         <button class="btn ghost" id="jdExportCSV" style="width:auto;flex:1;min-width:140px">⬇ Export CSV</button>
@@ -7908,8 +7909,14 @@ function swInitTab(){ swRenderSetup(); }
   var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   var DAYNAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
+  var JD_QUEUE_KEY = 'rb_judges_queue';
   var jdData = null;          // the judges file, as loaded
-  var jdQueue = [];           // shifts staged but not yet written
+  // Staged but not yet written. Persisted, because it is the ONLY record of that work —
+  // a refresh or a stray tab switch must not silently discard a night's logging.
+  var jdQueue = (function(){
+    try { return JSON.parse(localStorage.getItem(JD_QUEUE_KEY) || '[]'); } catch(e){ return []; }
+  })();
+  function jdSaveQueue(){ localStorage.setItem(JD_QUEUE_KEY, JSON.stringify(jdQueue)); }
   var jdView = new Date();    // calendar month on screen
   var jdSel = null;           // selected date, ISO
   var jdType = null, jdCity = 'abudhabi';
@@ -7963,6 +7970,32 @@ function swInitTab(){ swRenderSetup(); }
       tot('Shifts covered', shifts, 'all event types') +
       tot('Nexus Nights', byType.NN, shifts ? Math.round(byType.NN/shifts*100)+'% of all shifts' : '') +
       (top ? tot('Highest rank', top.tier.name.toUpperCase(), top.riotName, JD_TIER_COL[top.tier.id]) : '');
+
+    // Shifts whose judge is gone render nowhere and inflate nothing, but they are real rows
+    // in the file and the only place they can be seen is here.
+    var known = {};
+    ((jdData||{}).judges || []).forEach(function(j){ known[j.id] = true; });
+    var orphans = ((jdData||{}).shifts || []).filter(function(s){ return !known[s.judge]; });
+    var warn = document.getElementById('jdOrphanWarn');
+    if(warn){
+      if(orphans.length){
+        warn.style.display = 'block';
+        warn.innerHTML =
+          '<p style="font-size:0.76rem;color:#c9922a;margin-bottom:8px">⚠ '+orphans.length+
+          ' shift'+(orphans.length===1?'':'s')+' in the Gist reference a judge that is not on the roster. '+
+          'They count towards nothing and cannot be seen anywhere else.</p>'+
+          '<button class="btn ghost" id="jdPurgeBtn" style="width:auto;padding:7px 14px;font-size:0.7rem">🧹 Remove '+
+          orphans.length+' orphaned shift'+(orphans.length===1?'':'s')+'</button>';
+        var purge = document.getElementById('jdPurgeBtn');
+        if(purge) purge.addEventListener('click', async function(){
+          purge.disabled = true; purge.textContent = '⟳ Removing…';
+          var next = JSON.parse(JSON.stringify(jdData));
+          next.shifts = (next.shifts||[]).filter(function(s){ return known[s.judge]; });
+          if(await saveJudges(next)){ jdData = next; jdRefresh(); }
+          else { purge.disabled = false; purge.textContent = '✗ Gist rejected it — retry'; }
+        });
+      } else { warn.style.display = 'none'; warn.innerHTML = ''; }
+    }
 
     if(!rows.length){
       board.innerHTML = '<div class="rv-empty"><div class="rv-empty-icon">⚖️</div>'+
@@ -8182,6 +8215,7 @@ function swInitTab(){ swRenderSetup(); }
           jdQueue = jdQueue.filter(function(q){
             return !(q.judge===b.dataset.unq && q.date===jdSel && q.city===jdCity);
           });
+          jdSaveQueue();
           jdRefresh();
         });
       });
@@ -8206,6 +8240,9 @@ function swInitTab(){ swRenderSetup(); }
     }
     var id = 'j' + Date.now().toString(36);
     jdData.judges.push({ id:id, riotName:name, level:jdNewLevel, active:true });
+    // Written locally at once: until the queue is saved this browser is the only place
+    // this judge exists.
+    localStorage.setItem(JUDGES_KEY, JSON.stringify(jdData));
     jdAdding = false; jdNewLevel = 1;
     jdTicked[id] = true;   // adding a judge IS logging them
     jdRenderForm();
@@ -8246,7 +8283,7 @@ function swInitTab(){ swRenderSetup(); }
           '<button data-q="'+i+'" style="background:none;border:none;color:rgba(245,237,214,0.3);cursor:pointer;font-size:0.8rem">✕</button></div>';
       }).join('');
       el.querySelectorAll('[data-q]').forEach(function(b){
-        b.addEventListener('click', function(){ jdQueue.splice(+b.dataset.q, 1); jdRefresh(); });
+        b.addEventListener('click', function(){ jdQueue.splice(+b.dataset.q, 1); jdSaveQueue(); jdRefresh(); });
       });
     }
     var save = document.getElementById('jdSaveBtn'), disc = document.getElementById('jdDiscardBtn');
@@ -8278,6 +8315,7 @@ function swInitTab(){ swRenderSetup(); }
     });
     var n = document.getElementById('jdNote'); if(n) n.value = '';
     jdTicked = {};
+    jdSaveQueue();
     jdRefresh();
   });
 
@@ -8291,7 +8329,7 @@ function swInitTab(){ swRenderSetup(); }
   });
 
   var discard = document.getElementById('jdDiscardBtn');
-  if(discard) discard.addEventListener('click', function(){ jdQueue = []; jdRefresh(); });
+  if(discard) discard.addEventListener('click', function(){ jdQueue = []; jdSaveQueue(); jdRefresh(); });
 
   var saveBtn = document.getElementById('jdSaveBtn');
   if(saveBtn) saveBtn.addEventListener('click', async function(){
@@ -8305,6 +8343,18 @@ function swInitTab(){ swRenderSetup(); }
     var next = JSON.parse(JSON.stringify(jdData));
     next.shifts = (next.shifts||[]).concat(jdQueue);
     next.shifts.sort(function(a,b){ return String(a.date).localeCompare(String(b.date)); });
+
+    // Refuse to write a shift whose judge is not in the roster. Such a row is invisible on
+    // the board and unfixable from the UI, so it must never leave here.
+    var known = {};
+    (next.judges||[]).forEach(function(j){ known[j.id] = true; });
+    var orphans = next.shifts.filter(function(s){ return !known[s.judge]; });
+    if(orphans.length && orphans.length === jdQueue.length){
+      saveBtn.disabled = false;
+      saveBtn.textContent = orig;
+      jdSetSaveHint('✗ Not saved — the queued shifts reference judges this browser no longer has. Reload the tab and re-enter them.', '#c0392b');
+      return;
+    }
     if(!(await saveJudges(next))){
       saveBtn.disabled = false;
       saveBtn.textContent = orig;
@@ -8313,6 +8363,7 @@ function swInitTab(){ swRenderSetup(); }
     }
     jdData = next;
     jdQueue = [];
+    jdSaveQueue();
     jdRefresh();
     saveBtn.textContent = '✓ Saved';
     jdSetSaveHint('✓ ' + n + ' shift' + (n===1?'':'s') + ' written.', '#4caf50');
@@ -8366,11 +8417,41 @@ function swInitTab(){ swRenderSetup(); }
   jdWire('jdCopyWhatsApp', function(){ return jdCopyWhatsApp(); });
 
   var jdLoading = false;
+  // Reconcile what the gist has with what is only in this browser. A judge that has been
+  // created but not yet saved exists NOWHERE else, so the remote copy must never simply
+  // replace the local one — that silently deletes them, and leaves any queued shift
+  // pointing at an id that no longer exists.
+  function jdMerge(remote, local){
+    var out = JSON.parse(JSON.stringify(remote || jdNew()));
+    out.judges = out.judges || []; out.shifts = out.shifts || [];
+    var byId = {}, byName = {};
+    out.judges.forEach(function(j){ byId[j.id] = true; byName[jdNorm(j.riotName)] = j; });
+    ((local && local.judges) || []).forEach(function(j){
+      if(byId[j.id]) return;
+      // The same person added on two devices gets two ids but one Riot Name — keep the
+      // remote one and let the local shift ids be repointed at it below.
+      var sameName = byName[jdNorm(j.riotName)];
+      if(sameName){ out.aliasOf = out.aliasOf || {}; out.aliasOf[j.id] = sameName.id; return; }
+      out.judges.push(j);
+      byId[j.id] = true; byName[jdNorm(j.riotName)] = j;
+    });
+    return out;
+  }
+
   async function jdInit(){
     if(jdLoading) return;
     jdLoading = true;
     if(!jdData) jdData = loadJudges();
-    try { jdData = await loadJudgesFromGist(); } catch(e){ /* keep the local copy */ }
+    try {
+      var remote = await loadJudgesFromGist();
+      jdData = jdMerge(remote, jdData);
+      // Repoint anything queued against a judge the merge folded into an existing one
+      if(jdData.aliasOf){
+        jdQueue.forEach(function(s){ if(jdData.aliasOf[s.judge]) s.judge = jdData.aliasOf[s.judge]; });
+        delete jdData.aliasOf;
+      }
+      localStorage.setItem(JUDGES_KEY, JSON.stringify(jdData));
+    } catch(e){ /* keep the local copy */ }
     jdLoading = false;
     if(!jdSel) jdSel = isoOf(new Date());
     jdRefresh();
