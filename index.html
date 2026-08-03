@@ -2289,6 +2289,26 @@ function rvDerivePlayer(hist, name) {
   return out;
 }
 
+// Every GitHub call goes through here. None of them had a timeout, so a stalled request
+// left the UI spinning indefinitely — the save button disabled at "⟳ Saving…" with no
+// error, no retry, and nothing written. A hung request is now a loud failure after 20s
+// rather than a silent one forever.
+function rbFetch(url, opts, ms) {
+  opts = Object.assign({}, opts || {});
+  var ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  if (ctl) opts.signal = ctl.signal;
+  var timer = setTimeout(function () { if (ctl) ctl.abort(); }, ms || 20000);
+  return fetch(url, opts).then(
+    function (r) { clearTimeout(timer); return r; },
+    function (e) {
+      clearTimeout(timer);
+      // AbortError is indistinguishable from a user cancel, and there is no user cancel here
+      if (e && e.name === 'AbortError') throw new Error('timed out');
+      throw e;
+    }
+  );
+}
+
 // ── JUDGES ────────────────────────────────────────────
 // The judge roster and their service record live in their OWN gist, separate from either
 // city. Judges cross cities — the same person works Abu Dhabi and Dubai — so a shared file
@@ -2340,7 +2360,7 @@ function loadJudges() {
 
 async function loadJudgesFromGist() {
   try {
-    var res = await fetch('https://api.github.com/gists/' + jdGistId() + '?_=' + Date.now());
+    var res = await rbFetch('https://api.github.com/gists/' + jdGistId() + '?_=' + Date.now());
     if (!res.ok) throw new Error(res.status);
     var gist = await res.json();
     var raw = gist.files && gist.files[JUDGES_FILE] && gist.files[JUDGES_FILE].content;
@@ -2356,14 +2376,16 @@ async function loadJudgesFromGist() {
 
 // Its own gist, so its own write. Returns true only if the write landed — same contract as
 // syncToGist, for the same reason: a caller that says "saved" must have been told so.
+var jdLastSaveError = '';
 async function saveJudges(d) {
+  jdLastSaveError = '';
   d.updatedAt = new Date().toISOString();
   localStorage.setItem(JUDGES_KEY, JSON.stringify(d));
   if (!getToken()) { setSyncStatus('⚠ No token set', '#c0392b'); return false; }
   setSyncStatus('⟳ Saving judges…', 'rgba(201,146,42,0.7)');
   try {
     var files = {}; files[JUDGES_FILE] = { content: JSON.stringify(d) };
-    var res = await fetch('https://api.github.com/gists/' + jdGistId(), {
+    var res = await rbFetch('https://api.github.com/gists/' + jdGistId(), {
       method: 'PATCH',
       headers: { 'Authorization': 'token ' + getToken(), 'Content-Type': 'application/json' },
       body: JSON.stringify({ files: files })
@@ -2373,7 +2395,8 @@ async function saveJudges(d) {
     setTimeout(function () { setSyncStatus('', ''); }, 3000);
     return true;
   } catch (e) {
-    setSyncStatus('✗ Judges sync failed' + (e && e.message ? ' (' + e.message + ')' : ''), '#c0392b');
+    jdLastSaveError = (e && e.message) || 'network error';
+    setSyncStatus('✗ Judges sync failed (' + jdLastSaveError + ')', '#c0392b');
     return false;
   }
 }
@@ -2757,7 +2780,7 @@ async function syncToGist(data, hist) {
   try {
     const files = { [cfg.gistFile]: { content: JSON.stringify(data) } };
     if (hist && cfg.histFile) files[cfg.histFile] = { content: JSON.stringify(hist) };
-    const res = await fetch(`https://api.github.com/gists/${cfg.gistId}`, {
+    const res = await rbFetch(`https://api.github.com/gists/${cfg.gistId}`, {
       method: 'PATCH',
       headers: {
         'Authorization': `token ${getToken()}`,
@@ -2779,7 +2802,7 @@ async function loadFromGist() {
   setSyncStatus('⟳ Loading…', 'rgba(201,146,42,0.7)');
   try {
     const cfg2 = getCityConfig();
-    const res = await fetch(`https://api.github.com/gists/${cfg2.gistId}?_=${Date.now()}`);
+    const res = await rbFetch(`https://api.github.com/gists/${cfg2.gistId}?_=${Date.now()}`);
     if (!res.ok) throw new Error(res.status);
     const gist = await res.json();
 
@@ -3448,7 +3471,7 @@ async function testToken() {
   let out = '', okAll = true;
   try {
     // 1. Is the token itself valid, and what can it do?
-    const me = await fetch('https://api.github.com/user', { headers: { Authorization: 'token ' + token } });
+    const me = await rbFetch('https://api.github.com/user', { headers: { Authorization: 'token ' + token } });
     if (me.status === 401) {
       setTokenStatus('✗ Token rejected by GitHub', '#c0392b');
       show(line('✗', '<strong>401 — GitHub does not recognise this token.</strong> It has expired, been revoked, or was pasted incompletely. Mint a new one and paste it again.', '#c0392b'));
@@ -3472,7 +3495,7 @@ async function testToken() {
     }
 
     // 2. Does this token's account actually own the gist it is being asked to write?
-    const g = await fetch('https://api.github.com/gists/' + cfg.gistId, { headers: { Authorization: 'token ' + token } });
+    const g = await rbFetch('https://api.github.com/gists/' + cfg.gistId, { headers: { Authorization: 'token ' + token } });
     if (g.status === 404) {
       okAll = false;
       out += line('✗', '<strong>404 — gist <code>' + cfg.gistId + '</code> is not visible to this token.</strong> Either the ID is wrong or the gist was deleted.', '#c0392b');
@@ -3498,7 +3521,7 @@ async function testToken() {
 
     // 3. The judges gist is a separate file with separate ownership, so check it separately —
     // a token that writes the league gist may still fail here.
-    const jg = await fetch('https://api.github.com/gists/' + jdGistId(), { headers: { Authorization: 'token ' + token } });
+    const jg = await rbFetch('https://api.github.com/gists/' + jdGistId(), { headers: { Authorization: 'token ' + token } });
     if (jg.status === 404) {
       okAll = false;
       out += line('✗', '<strong>Judges Gist <code>' + jdGistId() + '</code> is not visible to this token.</strong> Check the ID in the Judges Gist card above.', '#c0392b');
@@ -8398,7 +8421,10 @@ function swInitTab(){ swRenderSetup(); }
     if(!(await saveJudges(next))){
       saveBtn.disabled = false;
       saveBtn.textContent = orig;
-      jdSetSaveHint('✗ Not saved — the Gist rejected the write. The queue is intact; check your token in Settings.', '#c0392b');
+      jdSetSaveHint(jdLastSaveError === 'timed out'
+        ? '✗ Not saved — GitHub did not answer within 20 seconds. The queue is intact; press Save again.'
+        : '✗ Not saved — the Gist rejected the write' + (jdLastSaveError ? ' (' + jdLastSaveError + ')' : '') +
+          '. The queue is intact; check your token in Settings.', '#c0392b');
       return;
     }
     jdData = next;
