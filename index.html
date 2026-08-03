@@ -815,6 +815,7 @@
     .rv-rec-w { color: #5ec88a; font-family: 'Cinzel', serif; font-size: 0.8rem; }
     .rv-rec-l { color: #e08080; font-family: 'Cinzel', serif; font-size: 0.8rem; }
     .rv-score-gold { font-family: 'Cinzel', serif; font-size: 0.82rem; color: var(--gold-light); font-weight: 700; }
+    .pd-narr-h { font-family: 'Cinzel', serif; font-size: 0.8rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gold-light); margin: 24px 0 6px; padding-top: 14px; border-top: 1px solid rgba(201,146,42,0.15); }
 
     .rv-empty { text-align: center; padding: 60px 20px; color: rgba(245,237,214,0.18); font-style: italic; font-size: 0.9rem; }
     .rv-empty-icon { font-size: 2.5rem; margin-bottom: 10px; opacity: 0.25; }
@@ -1997,6 +1998,87 @@ function rvDeriveFromLedger(hist, opts) {
     delete totals[p].events;
   });
   return { h2h: Object.values(h2h), totals: totals, events: evs };
+}
+
+// One player's story, read out of the ledger in order. Everything narrative — the
+// career timeline, the per-set splits, the rivalry arcs, the firsts — comes from this
+// single forward pass, so every surface agrees by construction rather than by care.
+//
+// The pass is chronological because that is the whole point: rivalry.h2h can say a
+// player is 12–8 against someone, but only the order says whether they are 12–8 having
+// just lost five straight.
+//   returns { events, sets, opponents, firsts, totals }
+function rvDerivePlayer(hist, name) {
+  var out = { events: [], sets: [], opponents: {}, firsts: {},
+              totals: { matches: 0, w: 0, l: 0, d: 0, gw: 0, gl: 0 } };
+  if (!hist || !hist.events || !name) return out;
+
+  var setMeta = {};
+  (hist.sets || []).forEach(function (s) { setMeta[s.id] = s; });
+  var bySet = {}, order = [];
+  var runW = 0, runL = 0;
+
+  hist.events.forEach(function (ev) {
+    // Rebuild this event's matches in round order, keeping only the ones this player was in
+    var bySlot = [];
+    (ev.m || []).forEach(function (row) {
+      var f = row.split(',');
+      var a = hist.players[+f[1]], b = hist.players[+f[2]];
+      if (a !== name && b !== name) return;
+      var me = a === name;
+      (bySlot[+f[0]] = bySlot[+f[0]] || []).push({
+        opp: me ? b : a, gw: me ? +f[3] : +f[4], gl: me ? +f[4] : +f[3],
+        playoff: ((ev.r || [])[+f[0]] || [])[1] === 'p'
+      });
+    });
+    var mine = [];
+    bySlot.forEach(function (rows) { (rows || []).forEach(function (m) { mine.push(m); }); });
+    if (!mine.length) return;
+
+    var e = { id: ev.id, set: ev.set, date: ev.date, label: ev.label || '',
+              w: 0, l: 0, d: 0, gw: 0, gl: 0, matches: mine };
+    mine.forEach(function (m) {
+      e.gw += m.gw; e.gl += m.gl;
+      if (m.gw > m.gl) e.w++; else if (m.gw < m.gl) e.l++; else e.d++;
+
+      var arc = out.opponents[m.opp] = out.opponents[m.opp] || { opp: m.opp, w: 0, l: 0, d: 0, meetings: [] };
+      if (m.gw > m.gl) arc.w++; else if (m.gw < m.gl) arc.l++; else arc.d++;
+      arc.meetings.push({ id: ev.id, date: ev.date, set: ev.set, label: ev.label || '',
+                          gw: m.gw, gl: m.gl, playoff: m.playoff,
+                          result: m.gw > m.gl ? 'W' : (m.gw < m.gl ? 'L' : 'D'),
+                          seriesW: arc.w, seriesL: arc.l, seriesD: arc.d });
+
+      if (!out.firsts.debut) out.firsts.debut = { id: ev.id, date: ev.date, set: ev.set, opp: m.opp };
+      if (!out.firsts.firstWin && m.gw > m.gl) out.firsts.firstWin = { id: ev.id, date: ev.date, set: ev.set, opp: m.opp };
+    });
+
+    // Running win% is decisive-only, matching every other win% in the app
+    runW += e.w; runL += e.l;
+    e.runW = runW; e.runL = runL;
+    e.runPct = (runW + runL) ? Math.round(runW / (runW + runL) * 100) : null;
+    out.events.push(e);
+
+    var s = bySet[ev.set];
+    if (!s) { s = bySet[ev.set] = { id: ev.set, events: 0, matches: 0, w: 0, l: 0, d: 0, gw: 0, gl: 0 }; order.push(ev.set); }
+    s.events++; s.matches += mine.length; s.w += e.w; s.l += e.l; s.d += e.d; s.gw += e.gw; s.gl += e.gl;
+
+    out.totals.matches += mine.length; out.totals.w += e.w; out.totals.l += e.l;
+    out.totals.d += e.d; out.totals.gw += e.gw; out.totals.gl += e.gl;
+    out.firsts.latest = { id: ev.id, date: ev.date, set: ev.set, label: ev.label || '' };
+  });
+
+  // Sets in league order, not first-seen order, and each carrying its delta against the
+  // previous set the player actually played. That delta is the ascent, rendered.
+  out.sets = order.map(function (id) { return bySet[id]; })
+    .sort(function (a, b) { return ((setMeta[a.id] || {}).order || 0) - ((setMeta[b.id] || {}).order || 0); });
+  var prev = null;
+  out.sets.forEach(function (s) {
+    s.name = (setMeta[s.id] || {}).name || s.id;
+    s.pct = (s.w + s.l) ? Math.round(s.w / (s.w + s.l) * 100) : null;
+    s.delta = (prev && prev.pct != null && s.pct != null) ? s.pct - prev.pct : null;
+    if (s.pct != null) prev = s;
+  });
+  return out;
 }
 
 function setSyncStatus(msg, color) {
@@ -6245,6 +6327,12 @@ function swInitTab(){ swRenderSetup(); }
     return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
   function pdH2H(){ return (pdSeason && pdSeason.h2h) || []; }
+  function pdHist(){ try { return loadHist(); } catch(e){ return { events: [], sets: [], players: [] }; } }
+  function pdDate(s){
+    if(!s) return '';
+    var d = new Date(s);
+    return isNaN(d) ? String(s) : d.toLocaleDateString(undefined, { day:'numeric', month:'short', year:'numeric' });
+  }
   function pdPct(w,l){ var d=w+l; return d ? Math.round(w/d*100) : null; }
   function pdPctCell(w,l){
     var p = pdPct(w,l);
@@ -6377,10 +6465,140 @@ function swInitTab(){ swRenderSetup(); }
     });
   }
 
+  // ── NARRATIVE SURFACES ───────────────────────────────────────────────────
+  // Everything below reads the chronological ledger, never rivalry.h2h. The aggregate
+  // knows a player is 12–8 against someone; only the ledger knows whether they got there
+  // by winning the last five or losing them.
+
+  function pdDeltaCell(d){
+    if(d == null) return '<span style="opacity:0.25">—</span>';
+    if(d === 0) return '<span style="opacity:0.45">±0</span>';
+    var up = d > 0;
+    return '<span style="color:'+(up?'#5ec88a':'#e08080')+'">'+(up?'▲ +':'▼ ')+d+'</span>';
+  }
+
+  // Per-set splits. The delta column is the ascent made literal — how much a player
+  // improved or fell away between one set and the next.
+  function pdSetsHtml(story){
+    if(story.sets.length < 1) return '';
+    return '<div class="pd-narr-h">📈 Career by Set</div>'+
+      '<p style="font-size:0.72rem;color:rgba(245,237,214,0.3);font-style:italic;margin-bottom:8px">'+
+        'Each set is its own chapter — the game changes, and so does the record. Δ compares to the previous set played.</p>'+
+      '<table id="pdSetsTable"><thead><tr><th>Set</th><th class="c">Events</th><th class="c">Matches</th>'+
+      '<th class="c">Record</th><th class="c">Win %</th><th class="c">Δ</th><th class="c">Games</th></tr></thead><tbody>'+
+      story.sets.map(function(s){
+        return '<tr><td style="color:var(--gold-light)">'+pdEsc(s.name)+'</td>'+
+          '<td class="c td-mono">'+s.events+'</td>'+
+          '<td class="c td-mono">'+s.matches+'</td>'+
+          '<td class="c"><span class="rv-rec-w">'+s.w+'W</span> – <span class="rv-rec-l">'+s.l+'L</span></td>'+
+          '<td class="c">'+pdPctCell(s.w, s.l)+'</td>'+
+          '<td class="c td-mono">'+pdDeltaCell(s.delta)+'</td>'+
+          '<td class="c td-mono" style="opacity:0.6">'+s.gw+'–'+s.gl+'</td></tr>';
+      }).join('')+'</tbody></table>';
+  }
+
+  // Firsts and lasts — the bookends of a career, which the aggregate cannot see at all.
+  function pdFirstsHtml(story){
+    var f = story.firsts;
+    if(!f.debut) return '';
+    function card(icon, label, o, extra){
+      if(!o) return '';
+      return '<div class="stat"><div class="stat-l">'+icon+' '+label+'</div>'+
+        '<div class="stat-v" style="font-size:0.85rem">'+pdDate(o.date)+'</div>'+
+        '<div style="font-size:0.66rem;color:rgba(245,237,214,0.35);margin-top:3px">'+extra+'</div></div>';
+    }
+    var setName = function(id){ var s = story.sets.find(function(x){ return x.id===id; }); return s ? s.name : id; };
+    return '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:16px">'+
+      card('🌱','Debut', f.debut, pdEsc(setName(f.debut.set))+' · vs '+pdEsc(f.debut.opp))+
+      (f.firstWin
+        ? card('🏆','First Win', f.firstWin, pdEsc(setName(f.firstWin.set))+' · beat '+pdEsc(f.firstWin.opp))
+        : '<div class="stat"><div class="stat-l">🏆 First Win</div><div class="stat-v" style="font-size:0.85rem;opacity:0.4">—</div>'+
+          '<div style="font-size:0.66rem;color:rgba(245,237,214,0.35);margin-top:3px">still to come</div></div>')+
+      card('📍','Latest Event', f.latest, pdEsc(f.latest.label || setName(f.latest.set)))+
+      '<div class="stat"><div class="stat-l">📅 Events in Ledger</div>'+
+        '<div class="stat-v">'+story.events.length+'</div>'+
+        '<div style="font-size:0.66rem;color:rgba(245,237,214,0.35);margin-top:3px">'+
+          story.sets.length+' set'+(story.sets.length===1?'':'s')+'</div></div>'+
+    '</div>';
+  }
+
+  // The timeline. Grouped by set, newest first, with the running lifetime win% after
+  // each night — the number that actually shows a player rising or sliding.
+  var pdTimelineAll = false;
+  function pdTimelineHtml(story){
+    if(!story.events.length) return '';
+    var evs = story.events.slice().reverse();
+    var CAP = 15;
+    var shown = pdTimelineAll ? evs : evs.slice(0, CAP);
+    var setName = function(id){ var s = story.sets.find(function(x){ return x.id===id; }); return s ? s.name : id; };
+
+    var rows = '', lastSet = null;
+    shown.forEach(function(e){
+      if(e.set !== lastSet){
+        lastSet = e.set;
+        rows += '<tr><td colspan="6" style="padding-top:12px;font-family:Cinzel,serif;font-size:0.68rem;'+
+          'letter-spacing:0.12em;text-transform:uppercase;color:rgba(201,146,42,0.7)">'+pdEsc(setName(e.set))+'</td></tr>';
+      }
+      var beat = e.w > e.l ? '#5ec88a' : (e.w < e.l ? '#e08080' : 'rgba(245,237,214,0.5)');
+      rows += '<tr>'+
+        '<td class="td-mono" style="font-size:0.72rem;opacity:0.6">'+pdDate(e.date)+'</td>'+
+        '<td style="font-size:0.75rem">'+pdEsc(e.label || 'Event '+e.id)+'</td>'+
+        '<td class="c" style="color:'+beat+'">'+e.w+'W – '+e.l+'L'+(e.d?' – '+e.d+'D':'')+'</td>'+
+        '<td class="c td-mono" style="opacity:0.6">'+e.gw+'–'+e.gl+'</td>'+
+        '<td class="c td-mono" style="opacity:0.5">'+e.runW+'–'+e.runL+'</td>'+
+        '<td class="c">'+(e.runPct!=null ? '<span style="font-family:Cinzel,serif;font-size:0.8rem">'+e.runPct+'%</span>' : '—')+'</td>'+
+      '</tr>';
+    });
+
+    return '<div class="pd-narr-h">📜 Timeline</div>'+
+      '<p style="font-size:0.72rem;color:rgba(245,237,214,0.3);font-style:italic;margin-bottom:8px">'+
+        'Every night in the ledger, newest first. <strong style="color:rgba(245,237,214,0.45)">Career</strong> is the running lifetime record after that event.</p>'+
+      '<table id="pdTimelineTable"><thead><tr><th>Date</th><th>Event</th><th class="c">Night</th>'+
+      '<th class="c">Games</th><th class="c">Career</th><th class="c">Win %</th></tr></thead><tbody>'+
+      rows+'</tbody></table>'+
+      (evs.length > CAP
+        ? '<a href="#" id="pdTimelineMore" style="display:inline-block;margin-top:8px;font-size:0.72rem;color:#c9922a;text-decoration:none">'+
+          (pdTimelineAll ? '▴ Show fewer' : '▾ Show all '+evs.length+' events')+'</a>'
+        : '');
+  }
+
+  // A rivalry arc: every meeting in order with the running series score, so you can see
+  // exactly when the grudge flipped. Rendered inline under the opponent row.
+  function pdArcHtml(arc, story){
+    var setName = function(id){ var s = story.sets.find(function(x){ return x.id===id; }); return s ? s.name : id; };
+    var lastSet = null;
+    var lead = null, flips = 0;
+    var body = arc.meetings.map(function(m){
+      var now = m.seriesW > m.seriesL ? 'up' : (m.seriesW < m.seriesL ? 'down' : 'level');
+      if(now !== 'level'){ if(lead && lead !== now) flips++; lead = now; }
+      var tag = (m.set !== lastSet) ? pdEsc(setName(m.set)) : '';
+      lastSet = m.set;
+      var col = m.result === 'W' ? '#5ec88a' : (m.result === 'L' ? '#e08080' : 'rgba(245,237,214,0.5)');
+      return '<tr>'+
+        '<td class="td-mono" style="font-size:0.7rem;opacity:0.55">'+pdDate(m.date)+'</td>'+
+        '<td style="font-size:0.7rem;color:rgba(201,146,42,0.6)">'+tag+'</td>'+
+        '<td class="c" style="color:'+col+';font-weight:700">'+m.result+'</td>'+
+        '<td class="c td-mono">'+m.gw+'–'+m.gl+'</td>'+
+        '<td class="c td-mono">'+m.seriesW+'–'+m.seriesL+(m.seriesD?'–'+m.seriesD:'')+'</td>'+
+        '<td class="c" style="font-size:0.7rem;opacity:0.5">'+(m.playoff ? 'Top Cut' : '')+'</td>'+
+      '</tr>';
+    }).join('');
+    return '<div style="padding:10px 0 4px">'+
+      '<div style="font-size:0.72rem;color:rgba(245,237,214,0.45);margin-bottom:6px">'+
+        '⚔ Every meeting with <span style="color:var(--gold-light)">'+pdEsc(arc.opp)+'</span>, in order · series now '+
+        '<span class="rv-rec-w">'+arc.w+'</span>–<span class="rv-rec-l">'+arc.l+'</span>'+(arc.d?'–'+arc.d:'')+
+        (flips ? ' · <span style="color:#c9922a">the lead changed hands '+flips+' time'+(flips===1?'':'s')+'</span>' : '')+
+      '</div>'+
+      '<table><thead><tr><th>Date</th><th>Set</th><th class="c">Result</th><th class="c">Games</th>'+
+      '<th class="c">Series</th><th class="c"></th></tr></thead><tbody>'+body+'</tbody></table></div>';
+  }
+
   function pdShowPlayer(name){
     var mine = pdH2H().filter(function(r){ return r.players[0]===name || r.players[1]===name; });
     if(!mine.length){ pdRenderIndex(); return; }
+    if(name !== pdSelected) pdTimelineAll = false;
     pdSelected = name;
+    var story = rvDerivePlayer(pdHist(), name);
     var search = document.getElementById('pdSearch');
     if(search) search.value = name;
     pdSetStatus();
@@ -6462,11 +6680,14 @@ function swInitTab(){ swRenderSetup(); }
         hlCard('🎯','Best Matchup', best)+
         hlCard('💀','Nemesis', worst)+
       '</div>'+
+      pdFirstsHtml(story)+
       '<table><thead><tr>'+
         '<th>Opponent</th><th class="c">Matches</th><th class="c">Record</th>'+
         '<th class="c">Win %</th><th class="c">Games</th><th class="c">Close</th><th class="r">Rivalry</th>'+
+        '<th class="c">Arc</th>'+
       '</tr></thead><tbody>'+
       opps.sort(function(a,b){ return b.meetings-a.meetings || b.score-a.score; }).map(function(o){
+        var arc = story.opponents[o.opp];
         return '<tr class="pd-row" data-player="'+pdEsc(o.opp)+'" style="cursor:pointer">'+
           '<td>'+pdEsc(o.opp)+'</td>'+
           '<td class="c td-mono">'+o.meetings+'</td>'+
@@ -6475,8 +6696,19 @@ function swInitTab(){ swRenderSetup(); }
           '<td class="c td-mono" style="opacity:0.6">'+o.gw+'–'+o.gl+'</td>'+
           '<td class="c td-mono">'+o.close+'</td>'+
           '<td class="r"><span class="rv-score-gold">'+Math.round(o.score*100)+'</span></td>'+
-        '</tr>';
-      }).join('')+'</tbody></table>';
+          '<td class="c">'+(arc
+            ? '<a href="#" class="pd-arc-btn" data-arc="'+pdEsc(o.opp)+'" style="color:#c9922a;text-decoration:none;font-size:0.72rem">📖</a>'
+            : '<span style="opacity:0.2">—</span>')+'</td>'+
+        '</tr>'+
+        (arc ? '<tr class="pd-arc-row" data-arcrow="'+pdEsc(o.opp)+'" style="display:none"><td colspan="8" style="background:rgba(201,146,42,0.04)">'+
+               pdArcHtml(arc, story)+'</td></tr>' : '');
+      }).join('')+'</tbody></table>'+
+      (story.events.length
+        ? pdSetsHtml(story) + pdTimelineHtml(story)
+        : (pdHist().events.length
+            ? '<p style="font-size:0.72rem;color:rgba(245,237,214,0.3);font-style:italic;margin-top:18px">'+
+              'No dated events for this player in the history ledger yet — the timeline and per-set splits appear once their events are uploaded in Rivalry → 📜 League History.</p>'
+            : ''));
 
     pdShow('dash');
     document.getElementById('pdBack').addEventListener('click', function(){
@@ -6484,8 +6716,26 @@ function swInitTab(){ swRenderSetup(); }
       if(s2) s2.value = '';
       pdRenderIndex();
     });
+    // Arc toggles are bound BEFORE the navigation handler and stop propagation, so
+    // opening an arc never navigates away to the opponent it belongs to.
+    dash.querySelectorAll('.pd-arc-btn').forEach(function(btn){
+      btn.addEventListener('click', function(e){
+        e.preventDefault(); e.stopPropagation();
+        var row = dash.querySelector('.pd-arc-row[data-arcrow="'+btn.dataset.arc.replace(/"/g,'\\"')+'"]');
+        if(!row) return;
+        var open = row.style.display !== 'none';
+        row.style.display = open ? 'none' : 'table-row';
+        btn.textContent = open ? '📖' : '📕';
+      });
+    });
     dash.querySelectorAll('[data-player]').forEach(function(el){
       el.addEventListener('click', function(){ pdShowPlayer(el.dataset.player); });
+    });
+    var moreBtn = document.getElementById('pdTimelineMore');
+    if(moreBtn) moreBtn.addEventListener('click', function(e){
+      e.preventDefault();
+      pdTimelineAll = !pdTimelineAll;
+      pdShowPlayer(name);
     });
   }
 
