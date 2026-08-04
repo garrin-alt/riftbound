@@ -7996,6 +7996,7 @@ function swInitTab(){ swRenderSetup(); }
     } catch(e){ return []; }
   })();
   function jdSaveQueue(){ localStorage.setItem(JD_QUEUE_KEY, JSON.stringify(jdQueue)); }
+  var jdShiftRemoveArmed = {}; // key: date|judge|city|type -> true while armed
   var jdView = new Date();    // calendar month on screen
   var jdSel = null;           // selected date, ISO
   var jdType = null, jdCity = 'abudhabi';
@@ -8280,13 +8281,15 @@ function swInitTab(){ swRenderSetup(); }
         var pending = jdQueue.some(function(q){
           return q.date===s.date && q.judge===s.judge && q.city===s.city && q.type===s.type;
         });
+        var rmKey = s.date+'|'+s.judge+'|'+s.city+'|'+s.type;
+        var armed = !!jdShiftRemoveArmed[rmKey];
         return '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(201,146,42,0.08)">'+
           '<span class="jd-chip" style="color:'+JD_TYPE_COL[s.type]+';border-color:'+JD_TYPE_COL[s.type]+'55">'+s.type+'</span>'+
           '<span style="flex:1;font-family:\'IBM Plex Sans\',serif;font-size:0.86rem;font-weight:700">'+riot(j.riotName)+'</span>'+
           '<span class="td-mono" style="font-size:0.68rem;opacity:0.4">'+cityOf(s.city).abbr+'</span>'+
           (pending
             ? '<button data-unq="'+esc(s.judge)+'" style="background:none;border:none;color:rgba(245,237,214,0.3);cursor:pointer;font-size:0.8rem">✕</button>'
-            : '<span style="font-size:0.68rem;opacity:0.35">saved</span>')+
+            : '<button data-rmshift="'+esc(rmKey)+'" style="background:none;border:1px solid '+(armed?'rgba(192,57,43,0.5)':'transparent')+';color:'+(armed?'#e05060':'rgba(245,237,214,0.3)')+';cursor:pointer;font-size:0.68rem;padding:2px 8px;border-radius:3px">'+(armed?'⚠ confirm':'✕ remove')+'</button>')+
         '</div>';
       }).join('');
       document.querySelectorAll('#jdLoggedList [data-unq]').forEach(function(b){
@@ -8296,6 +8299,30 @@ function swInitTab(){ swRenderSetup(); }
           });
           jdSaveQueue();
           jdRefresh();
+        });
+      });
+      document.querySelectorAll('#jdLoggedList [data-rmshift]').forEach(function(b){
+        b.addEventListener('click', function(){
+          var key = b.dataset.rmshift;
+          if(!jdShiftRemoveArmed[key]){
+            jdShiftRemoveArmed[key] = true;
+            b.textContent = '⚠ confirm';
+            b.style.borderColor = 'rgba(192,57,43,0.5)';
+            b.style.color = '#e05060';
+            setTimeout(function(){ delete jdShiftRemoveArmed[key]; jdRenderForm(); }, 5000);
+            return;
+          }
+          var parts = key.split('|'); // date, judge, city, type
+          b.disabled = true; b.textContent = '⟳';
+          var next = JSON.parse(JSON.stringify(jdData));
+          next.shifts = (next.shifts||[]).filter(function(s){
+            return !(s.date===parts[0] && s.judge===parts[1] && s.city===parts[2] && s.type===parts[3]);
+          });
+          saveJudges(next).then(function(ok){
+            delete jdShiftRemoveArmed[key];
+            if(ok){ jdData = next; jdRefresh(); }
+            else { b.disabled = false; b.textContent = '✗ retry'; setTimeout(function(){ jdRenderForm(); }, 2000); }
+          });
         });
       });
     } else { wrap.style.display = 'none'; }
