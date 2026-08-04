@@ -3100,7 +3100,7 @@ function renderLB(data, filter = '') {
               style="font-size:0.6rem;padding:2px 7px;border:1px solid ${playerDrops[p.uid] ? 'rgba(192,57,43,0.6)' : 'rgba(201,146,42,0.25)'};
               background:${playerDrops[p.uid] ? 'rgba(192,57,43,0.15)' : 'transparent'};
               color:${playerDrops[p.uid] ? '#e05060' : 'rgba(245,237,214,0.3)'};
-              cursor:pointer;font-family:"IBM Plex Sans",serif;letter-spacing:0.05em;
+              cursor:pointer;font-family:'IBM Plex Sans',serif;letter-spacing:0.05em;
               transition:all 0.15s;white-space:nowrap">
               ${playerDrops[p.uid] ? '✕ drop' : '↓ drop'}
             </button>` : ''}
@@ -3768,7 +3768,7 @@ function tcgUpdateSummary() {
   if (summaryEl) {
     summaryEl.innerHTML = `
       <div style="font-size:0.7rem;color:rgba(245,237,214,0.3);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px">Pack Breakdown — ${filledPlayers} players</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:0.78rem;font-family:"IBM Plex Sans",serif">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:0.78rem;font-family:'IBM Plex Sans',serif">
         <div style="color:rgba(245,237,214,0.4)">TO Pack: <span style="color:var(--gold)">1</span></div>
         <div style="color:rgba(245,237,214,0.4)">Door Prize: <span style="color:var(--gold)">1</span></div>
         <div style="color:rgba(245,237,214,0.4)">Round 1: <span style="color:var(--gold)">${splits.r1}</span></div>
@@ -3842,7 +3842,7 @@ function tcgRenderSetup() {
           <div id="tcgMilestones">${milestoneRows}</div>
           <div id="tcgPackSummary" style="margin-top:12px;padding:12px;background:rgba(201,146,42,0.04);border:1px solid rgba(201,146,42,0.12)">
             <div style="font-size:0.7rem;color:rgba(245,237,214,0.3);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px">Pack Breakdown — ${filledPlayers} players</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:0.78rem;font-family:"IBM Plex Sans",serif">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:0.78rem;font-family:'IBM Plex Sans',serif">
               <div style="color:rgba(245,237,214,0.4)">TO Pack: <span style="color:var(--gold)">1</span></div>
               <div style="color:rgba(245,237,214,0.4)">Door Prize: <span style="color:var(--gold)">1</span></div>
               <div style="color:rgba(245,237,214,0.4)">Round 1: <span style="color:var(--gold)">${splits.r1}</span></div>
