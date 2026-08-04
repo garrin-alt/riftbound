@@ -1997,9 +1997,24 @@ function getToken() { return localStorage.getItem('rb_gist_token') || ''; }
 
 // ── DATA ──────────────────────────────────────────────
 // Schema: { events: [{ id, name, date, players: [{uid,name,display,rank,record,mp,pp,ap,total,dns}] }] }
+// The league file MUST be a plain object, checked rather than assumed for exactly the
+// reason jdIsFile exists in the JUDGES module. `[]` is valid JSON, it is neither '' nor
+// '{}', and an array happily accepts `.events`/`.rivalry` as named properties — so a
+// poisoned file loads, renders the whole season, and looks completely healthy. But
+// JSON.stringify drops every non-index property of an array, so the next save()
+// serialises the season back down to "[]", PATCHes two bytes, gets a 200 and reports
+// "✓ Saved to Gist". That is precisely how the judges gist destroyed its roster: three
+// consecutive saves, each a +0/-0 revision. Same guard, higher-value data.
+// Kept separate from jdIsFile because JUDGES is its own IIFE and does not share scope —
+// the same reason jdExportCSV reimplements its own download logic.
+function rbIsFile(d) { return !!d && typeof d === 'object' && !Array.isArray(d); }
+
 function load() {
   const key = getCityConfig()?.localKey || 'rb_league_abudhabi';
-  try { return JSON.parse(localStorage.getItem(key) || '{"events":[]}'); }
+  try {
+    const d = JSON.parse(localStorage.getItem(key) || '{"events":[]}');
+    return rbIsFile(d) ? d : { events: [] };
+  }
   catch { return { events: [] }; }
 }
 function save(d, hist) {
@@ -2022,7 +2037,8 @@ function loadHist() {
   const cfg = getCityConfig();
   try {
     const raw = localStorage.getItem(cfg?.histKey || 'rb_hist_abudhabi');
-    return raw ? JSON.parse(raw) : rvHistNew(cfg?.label);
+    const d = raw ? JSON.parse(raw) : rvHistNew(cfg?.label);
+    return rbIsFile(d) ? d : rvHistNew(cfg?.label);
   } catch { return rvHistNew(cfg?.label); }
 }
 
@@ -2828,17 +2844,23 @@ async function loadFromGist() {
     try {
       const hraw = cfg2.histFile && gist.files[cfg2.histFile]?.content;
       if (hraw && hraw.trim() !== '{}' && hraw.trim() !== '') {
-        localStorage.setItem(cfg2.histKey, JSON.stringify(JSON.parse(hraw)));
+        const h = JSON.parse(hraw);
+        // Caching a non-object ledger would hand loadHist() an array to build on — see rbIsFile.
+        if (rbIsFile(h)) localStorage.setItem(cfg2.histKey, JSON.stringify(h));
       }
     } catch(e) { /* a malformed ledger must never block the primary load */ }
 
     const raw = gist.files[cfg2.gistFile]?.content;
     if (raw && raw.trim() !== '{}' && raw.trim() !== '') {
       const data = JSON.parse(raw);
-      localStorage.setItem(cfg2.localKey, JSON.stringify(data));
-      setSyncStatus('✓ Loaded from Gist', '#4caf50');
-      setTimeout(() => setSyncStatus('', ''), 3000);
-      return data;
+      // Refusing a poisoned remote here means it falls through to the local copy below
+      // rather than overwriting it — the same contract loadJudgesFromGist honours.
+      if (rbIsFile(data)) {
+        localStorage.setItem(cfg2.localKey, JSON.stringify(data));
+        setSyncStatus('✓ Loaded from Gist', '#4caf50');
+        setTimeout(() => setSyncStatus('', ''), 3000);
+        return data;
+      }
     }
   } catch(e) {
     setSyncStatus('✗ Gist load failed — using local', '#c0392b');
