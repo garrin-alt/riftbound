@@ -1542,6 +1542,11 @@
             </p>
 
             <div class="card" style="margin-bottom:14px">
+              <div class="card-label">📖 Events in the ledger (<span id="rvHistListCount">0</span>)</div>
+              <div id="rvHistEventList" style="max-height:280px;overflow-y:auto"></div>
+            </div>
+
+            <div class="card" style="margin-bottom:14px">
               <div class="card-label">📚 Set</div>
               <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                 <select id="rvHistSet" style="background:#1f170c;border:1px solid rgba(201,146,42,0.3);color:rgba(245,237,214,0.8);font-family:inherit;font-size:0.78rem;padding:6px 10px"></select>
@@ -6851,6 +6856,52 @@ function swInitTab(){ swRenderSetup(); }
       .map(function(s){ return '<option value="'+s.id+'"'+(s.id===cur?' selected':'')+'>'+s.name+'</option>'; }).join('');
   }
 
+  // Local to this module — JUDGES has its own ddmmyy and the two IIFEs don't share scope.
+  function rvDdmmyy(s){ var p = String(s).split('-'); return p[2]+'/'+p[1]+'/'+p[0].slice(2); }
+
+  // Lists every event already in the ledger (not just the current upload batch, which is all
+  // rvHistGroups/rvHistRenderGroups shows) so a misfiled one can be found and removed. Plain
+  // confirm() dialog, same as removeEvent() elsewhere in this file — this is a rare corrective
+  // action, not something that needs a custom two-click UI.
+  function rvHistRenderEventList(){
+    var list = document.getElementById('rvHistEventList');
+    var count = document.getElementById('rvHistListCount');
+    if(!list || !count) return;
+    var hist = loadHist();
+    var events = (hist.events||[]).slice().sort(function(a,b){
+      return String(b.date).localeCompare(String(a.date)) || String(b.id).localeCompare(String(a.id));
+    });
+    count.textContent = events.length;
+    if(!events.length){
+      list.innerHTML = '<p style="font-size:0.76rem;color:rgba(245,237,214,0.25);font-style:italic;padding:6px 0">No events recorded yet.</p>';
+      return;
+    }
+    list.innerHTML = events.map(function(e){
+      var setName = ((hist.sets||[]).filter(function(s){ return s.id===e.set; })[0]||{}).name || e.set || '—';
+      return '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(201,146,42,0.08);font-size:0.78rem">'+
+        '<span class="td-mono" style="color:rgba(245,237,214,0.5);min-width:64px">'+rvDdmmyy(e.date)+'</span>'+
+        '<span style="color:rgba(245,237,214,0.4);min-width:100px">'+rvEsc(setName)+'</span>'+
+        '<span style="flex:1;color:rgba(245,237,214,0.6)">'+rvEsc(e.label||('Event '+e.id))+'</span>'+
+        '<span class="td-mono" style="color:rgba(245,237,214,0.28);font-size:0.7rem">'+(e.m||[]).length+' matches</span>'+
+        '<button data-rmhist="'+rvEsc(e.id)+'" style="background:none;border:none;color:rgba(245,237,214,0.3);cursor:pointer;font-size:0.8rem">✕</button>'+
+      '</div>';
+    }).join('');
+    list.querySelectorAll('[data-rmhist]').forEach(function(b){
+      b.addEventListener('click', function(){
+        if(!confirm('Remove this event from the League History ledger? This cannot be undone.')) return;
+        b.disabled = true; b.textContent = '⟳';
+        var freshHist = loadHist();
+        freshHist.events = (freshHist.events||[]).filter(function(e){ return e.id !== b.dataset.rmhist; });
+        var data = load();
+        // History is never PATCHed alone — save() sends both in one request.
+        save(data, freshHist).then(function(ok){
+          if(ok){ rvHistRenderEventList(); rvHistRenderCoverage(); }
+          else { b.disabled = false; b.textContent = '✗ retry'; }
+        });
+      });
+    });
+  }
+
   // Coverage: what the ledger knows versus what the lifetime aggregate knows.
   //
   // Compared PAIR BY PAIR, not on the totals. Totals can agree while the underlying
@@ -7163,7 +7214,7 @@ function swInitTab(){ swRenderSetup(); }
 
       var n = rvHistPending.length, mt = rvHistPending.reduce(function(s,e){ return s+e.matches; },0);
       rvHistPending = null; rvHistFiles = [];
-      rvHistRenderFileList(); rvHistRenderGroups(); rvHistSetOptions(); rvHistRenderCoverage();
+      rvHistRenderFileList(); rvHistRenderGroups(); rvHistSetOptions(); rvHistRenderCoverage(); rvHistRenderEventList();
       document.getElementById('rvHistSummary').innerHTML =
         '<p style="font-size:0.76rem;color:#4caf50">✓ Saved — '+n+' event'+(n===1?'':'s')+', '+mt+' matches added to the ledger. Standings unchanged.</p>';
       histSaveBtn.textContent = '✓ Saved';
@@ -7491,7 +7542,7 @@ function swInitTab(){ swRenderSetup(); }
   });
 
   document.querySelectorAll('.rv-tab[data-rvtab="history"]').forEach(function(tab){
-    tab.addEventListener('click', function(){ rvHistSetOptions(); rvHistRenderCoverage(); rvHistRenderGroups(); });
+    tab.addEventListener('click', function(){ rvHistSetOptions(); rvHistRenderCoverage(); rvHistRenderGroups(); rvHistRenderEventList(); });
   });
 
 })();
