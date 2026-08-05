@@ -1773,6 +1773,10 @@
       <div id="jdTotals" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:16px"></div>
       <div id="jdOrphanWarn" style="display:none;margin-bottom:14px;padding:12px 14px;border:1px dashed rgba(201,146,42,0.35);background:rgba(201,146,42,0.05)"></div>
       <div id="jdBoard"></div>
+      <div id="jdRetiredWrap" style="display:none;margin-top:20px;padding-top:16px;border-top:1px solid rgba(201,146,42,0.12)">
+        <button id="jdRetiredToggle" style="background:none;border:none;color:rgba(245,237,214,0.4);cursor:pointer;font-family:'IBM Plex Sans',serif;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;padding:0">▸ Retired (<span id="jdRetiredCount">0</span>)</button>
+        <div id="jdRetiredList" style="display:none;margin-top:12px"></div>
+      </div>
       <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
         <button class="btn ghost" id="jdExportImage" style="width:auto;flex:1;min-width:140px">📸 Export Scorecard</button>
         <button class="btn ghost" id="jdExportCSV" style="width:auto;flex:1;min-width:140px">⬇ Export CSV</button>
@@ -8101,16 +8105,37 @@ function swInitTab(){ swRenderSetup(); }
       } else { warn.style.display = 'none'; warn.innerHTML = ''; }
     }
 
+    var retiredRows = rows.filter(function(r){ return !r.active; });
+    rows = rows.filter(function(r){ return r.active; });
+
+    var retiredWrap = document.getElementById('jdRetiredWrap');
+    if(retiredWrap){
+      retiredWrap.style.display = retiredRows.length ? 'block' : 'none';
+      document.getElementById('jdRetiredCount').textContent = retiredRows.length;
+      var rlist = document.getElementById('jdRetiredList');
+      if(rlist) rlist.innerHTML = retiredRows.map(function(r){
+        return '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(201,146,42,0.08)">'+
+          '<span style="flex:1;font-family:\'IBM Plex Sans\',serif;font-size:0.86rem;color:rgba(245,237,214,0.5)">'+riot(r.riotName)+'</span>'+
+          '<span class="jd-tier" style="font-size:0.68rem;color:'+JD_TIER_COL[r.tier.id]+'">'+r.tier.name+' · '+r.served+'</span>'+
+          '<button data-unretire="'+esc(r.id)+'" class="btn ghost" style="width:auto;padding:4px 10px;font-size:0.68rem">↺ Un-retire</button>'+
+        '</div>';
+      }).join('');
+    }
+
     if(!rows.length){
       board.innerHTML = '<div class="rv-empty"><div class="rv-empty-icon">⚖️</div>'+
-        'No judges yet — they are created by working a night, over in <strong style="color:var(--gold-light)">Log a Shift</strong>.</div>';
+        (retiredRows.length
+          ? 'Every judge on the roster is retired. Un-retire someone above, or add one in <strong style="color:var(--gold-light)">Log a Shift</strong>.'
+          : 'No judges yet — they are created by working a night, over in <strong style="color:var(--gold-light)">Log a Shift</strong>.')+
+        '</div>';
       jdRenderLadder();
+      jdWireRetireButtons();
       return;
     }
 
     board.innerHTML =
       '<table><thead><tr><th>Riot Name</th><th class="c">Level</th><th>Rank</th>'+
-      '<th class="c">Served</th><th>Breakdown</th><th>Last served</th></tr></thead><tbody>'+
+      '<th class="c">Served</th><th>Breakdown</th><th>Last served</th><th></th></tr></thead><tbody>'+
       rows.map(function(r){
         var col = JD_TIER_COL[r.tier.id];
         var stale = r.last ? Math.round((Date.now() - new Date(r.last+'T00:00:00')) / 86400000) : null;
@@ -8136,9 +8161,47 @@ function swInitTab(){ swRenderSetup(); }
             ? '<span class="td-mono" style="font-size:0.76rem;opacity:0.6">'+ddmmyy(r.last)+'</span>'+
               (stale > 60 ? '<br><span style="color:#8b3a1a;font-style:italic;font-size:0.72rem">'+stale+' days ago</span>' : '')
             : '<span style="color:#8b3a1a;font-style:italic;font-size:0.74rem">never served</span>')+'</td>'+
+          '<td class="c"><button data-retire="'+esc(r.id)+'" style="background:none;border:none;color:rgba(245,237,214,0.25);cursor:pointer;font-size:0.72rem;padding:2px 6px">Retire</button></td>'+
         '</tr>';
       }).join('')+'</tbody></table>';
     jdRenderLadder();
+    jdWireRetireButtons();
+  }
+
+  var jdRetireArmed = {}; // key: judge id -> true while armed
+  function jdWireRetireButtons(){
+    document.querySelectorAll('#jdBoard [data-retire]').forEach(function(b){
+      b.addEventListener('click', function(){
+        var id = b.dataset.retire;
+        if(!jdRetireArmed[id]){
+          jdRetireArmed[id] = true;
+          b.textContent = 'confirm?';
+          b.style.color = '#e05060';
+          setTimeout(function(){ if(jdRetireArmed[id]){ delete jdRetireArmed[id]; b.textContent='Retire'; b.style.color='rgba(245,237,214,0.25)'; } }, 5000);
+          return;
+        }
+        delete jdRetireArmed[id];
+        b.disabled = true; b.textContent = '⟳';
+        jdSetActive(id, false).then(function(ok){
+          if(!ok){ b.disabled = false; b.textContent = '✗ retry'; }
+        });
+      });
+    });
+    document.querySelectorAll('#jdRetiredList [data-unretire]').forEach(function(b){
+      b.addEventListener('click', function(){
+        b.disabled = true; b.textContent = '⟳';
+        jdSetActive(b.dataset.unretire, true).then(function(ok){
+          if(!ok){ b.disabled = false; b.textContent = '✗ retry — un-retire'; }
+        });
+      });
+    });
+    var toggle = document.getElementById('jdRetiredToggle');
+    if(toggle) toggle.addEventListener('click', function(){
+      var list = document.getElementById('jdRetiredList');
+      var open = list.style.display !== 'none';
+      list.style.display = open ? 'none' : 'block';
+      toggle.textContent = (open ? '▸' : '▾') + ' Retired (' + document.getElementById('jdRetiredCount').textContent + ')';
+    });
   }
 
   function jdRenderLadder(){
@@ -8233,7 +8296,7 @@ function swInitTab(){ swRenderSetup(); }
     var computed = {};
     jdCompute(jdData || jdNew()).forEach(function(r){ computed[r.id] = r; });
 
-    var rows = ((jdData||{}).judges || []).slice().sort(function(a,b){
+    var rows = ((jdData||{}).judges || []).filter(function(j){ return j.active !== false; }).slice().sort(function(a,b){
       return jdNorm(a.riotName).localeCompare(jdNorm(b.riotName));
     }).map(function(j){
       // One event per night means one shift per judge on it — regardless of type.
@@ -8545,7 +8608,7 @@ function swInitTab(){ swRenderSetup(); }
   // two modules don't share scope, matching how jdExportCSV already duplicates its own
   // download logic instead of reaching into rv*.
   async function jdExportImage(){
-    var rows = jdCompute(jdData || jdNew());
+    var rows = jdCompute(jdData || jdNew()).filter(function(r){ return r.active; });
     if(!rows.length) return false;
     if(document.fonts && document.fonts.ready){ try { await document.fonts.ready; } catch(e){} }
 
@@ -8707,8 +8770,19 @@ function swInitTab(){ swRenderSetup(); }
     });
   }
   function jdCsvCell(v){ v = String(v==null?'':v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
+  // Retiring never deletes a judge or their shifts — see CLAUDE.md's save-honesty contract.
+  // A retired judge simply stops appearing on the active board and the Log-a-Shift roster;
+  // their history stays exactly where it was, and un-retiring is a single flip back.
+  async function jdSetActive(id, active){
+    var next = JSON.parse(JSON.stringify(jdData));
+    var j = (next.judges||[]).filter(function(x){ return x.id===id; })[0];
+    if(!j) return false;
+    j.active = active;
+    if(await saveJudges(next)){ jdData = next; jdRefresh(); return true; }
+    return false;
+  }
   function jdExportCSV(){
-    var rows = jdCompute(jdData || jdNew());
+    var rows = jdCompute(jdData || jdNew()).filter(function(r){ return r.active; });
     if(!rows.length) return false;
     var out = ['Riot Name,Level,Rank,Shifts Served,NN,PR,C,S,Last Served'].concat(rows.map(function(r){
       return [jdCsvCell(r.riotName), 'L'+r.level, r.tier.name, r.served,
@@ -8721,7 +8795,7 @@ function swInitTab(){ swRenderSetup(); }
     return true;
   }
   function jdCopyWhatsApp(){
-    var rows = jdCompute(jdData || jdNew()).filter(function(r){ return r.served > 0; });
+    var rows = jdCompute(jdData || jdNew()).filter(function(r){ return r.active && r.served > 0; });
     if(!rows.length) return false;
     var txt = '⚖️ *GNL JUDGE SCORECARD*\n\n' + rows.map(function(r){
       return r.tier.name.toUpperCase() + ' — ' + r.riotName + ' (L' + r.level + ')\n' +
