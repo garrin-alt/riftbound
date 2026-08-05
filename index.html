@@ -8161,7 +8161,7 @@ function swInitTab(){ swRenderSetup(); }
             ? '<span class="td-mono" style="font-size:0.76rem;opacity:0.6">'+ddmmyy(r.last)+'</span>'+
               (stale > 60 ? '<br><span style="color:#8b3a1a;font-style:italic;font-size:0.72rem">'+stale+' days ago</span>' : '')
             : '<span style="color:#8b3a1a;font-style:italic;font-size:0.74rem">never served</span>')+'</td>'+
-          '<td class="c"><button data-retire="'+esc(r.id)+'" style="background:none;border:none;color:rgba(245,237,214,0.25);cursor:pointer;font-size:0.72rem;padding:2px 6px">Retire</button></td>'+
+          '<td class="c"><button data-retire="'+esc(r.id)+'" style="background:none;border:none;color:'+(jdRetireArmed[r.id]?'#e05060':'rgba(245,237,214,0.25)')+';cursor:pointer;font-size:0.72rem;padding:2px 6px">'+(jdRetireArmed[r.id]?'confirm?':'Retire')+'</button></td>'+
         '</tr>';
       }).join('')+'</tbody></table>';
     jdRenderLadder();
@@ -8200,7 +8200,7 @@ function swInitTab(){ swRenderSetup(); }
       var list = document.getElementById('jdRetiredList');
       var open = list.style.display !== 'none';
       list.style.display = open ? 'none' : 'block';
-      toggle.textContent = (open ? '▸' : '▾') + ' Retired (' + document.getElementById('jdRetiredCount').textContent + ')';
+      toggle.innerHTML = (open ? '▸' : '▾') + ' Retired (<span id="jdRetiredCount">' + document.getElementById('jdRetiredCount').textContent + '</span>)';
     });
   }
 
