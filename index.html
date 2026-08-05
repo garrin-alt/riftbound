@@ -1778,6 +1778,10 @@
       <div id="jdTotals" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:16px"></div>
       <div id="jdOrphanWarn" style="display:none;margin-bottom:14px;padding:12px 14px;border:1px dashed rgba(201,146,42,0.35);background:rgba(201,146,42,0.05)"></div>
       <div id="jdBoard"></div>
+      <div id="jdRetiredWrap" style="display:none;margin-top:20px;padding-top:16px;border-top:1px solid rgba(201,146,42,0.12)">
+        <button id="jdRetiredToggle" style="background:none;border:none;color:rgba(245,237,214,0.4);cursor:pointer;font-family:'IBM Plex Sans',serif;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;padding:0">▸ Retired (<span id="jdRetiredCount">0</span>)</button>
+        <div id="jdRetiredList" style="display:none;margin-top:12px"></div>
+      </div>
       <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
         <button class="btn ghost" id="jdExportImage" style="width:auto;flex:1;min-width:140px">📸 Export Scorecard</button>
         <button class="btn ghost" id="jdExportCSV" style="width:auto;flex:1;min-width:140px">⬇ Export CSV</button>
@@ -2028,14 +2032,25 @@ function save(d, hist) {
   // city can be detected instead of silently overwriting it.
   if (cfg) d.city = cfg.label;
   const key = cfg?.localKey || 'rb_league_abudhabi';
+  const prevData = localStorage.getItem(key);
   localStorage.setItem(key, JSON.stringify(d));
+  let prevHist = null, histKey = null;
   if (hist) {
     if (cfg) hist.city = cfg.label;
-    localStorage.setItem(cfg?.histKey || 'rb_hist_abudhabi', JSON.stringify(hist));
+    histKey = cfg?.histKey || 'rb_hist_abudhabi';
+    prevHist = localStorage.getItem(histKey);
+    localStorage.setItem(histKey, JSON.stringify(hist));
+  }
+  // Restores exactly what was in localStorage before this call's eager write, so a
+  // rejected write can never silently outlive the failure message shown for it.
+  function rollback() {
+    if (prevData != null) localStorage.setItem(key, prevData); else localStorage.removeItem(key);
+    if (histKey) { if (prevHist != null) localStorage.setItem(histKey, prevHist); else localStorage.removeItem(histKey); }
   }
   // Returns a promise resolving to whether the gist write landed. Fire-and-forget callers
-  // are unaffected; callers that confirm success to the user should await it.
-  return syncToGist(d, hist);
+  // are unaffected — the eager write above still happens synchronously before this returns,
+  // exactly as before; only the rollback runs later, asynchronously, on rejection.
+  return syncToGist(d, hist, rollback);
 }
 
 function loadHist() {
@@ -2415,11 +2430,18 @@ async function loadJudgesFromGist() {
 // Its own gist, so its own write. Returns true only if the write landed — same contract as
 // syncToGist, for the same reason: a caller that says "saved" must have been told so.
 var jdLastSaveError = '';
+// Writes to localStorage eagerly, same as always — every existing caller (awaited or
+// fire-and-forget) already depends on that timing. The difference is what happens on
+// rejection: the previous value is snapshotted first and restored on either failure
+// branch, so a rejected write can never silently outlive the "not saved" message the
+// UI shows for it. See CLAUDE.md's Judges section for the full incident this fixes.
 async function saveJudges(d) {
   jdLastSaveError = '';
   d.updatedAt = new Date().toISOString();
+  var prevRaw = localStorage.getItem(JUDGES_KEY);
+  function rollback(){ if (prevRaw != null) localStorage.setItem(JUDGES_KEY, prevRaw); else localStorage.removeItem(JUDGES_KEY); }
   localStorage.setItem(JUDGES_KEY, JSON.stringify(d));
-  if (!getToken()) { setSyncStatus('⚠ No token set', '#c0392b'); return false; }
+  if (!getToken()) { rollback(); setSyncStatus('⚠ No token set', '#c0392b'); return false; }
   setSyncStatus('⟳ Saving judges…', 'rgba(201,146,42,0.7)');
   try {
     var files = {}; files[JUDGES_FILE] = { content: JSON.stringify(d) };
@@ -2433,6 +2455,7 @@ async function saveJudges(d) {
     setTimeout(function () { setSyncStatus('', ''); }, 3000);
     return true;
   } catch (e) {
+    rollback();
     jdLastSaveError = (e && e.message) || 'network error';
     setSyncStatus('✗ Judges sync failed (' + jdLastSaveError + ')', '#c0392b');
     return false;
@@ -2810,10 +2833,14 @@ function setSyncStatus(msg, color) {
 // while the local copy has already moved on. The two then diverge until the next
 // loadFromGist() silently overwrites local with the untouched remote, which reads to the
 // user as "my change didn't stick".
-async function syncToGist(data, hist) {
+// Rollback partner to save()'s eager writes — see saveJudges for why this is a rollback
+// and not a deferred write. save() already wrote data (and hist, if present) to
+// localStorage before calling this; this function's job is only to undo that specific
+// write if the remote PATCH doesn't land, using the snapshot save() hands it.
+async function syncToGist(data, hist, rollback) {
   const cfg = getCityConfig();
   if (!cfg) return false;
-  if (!getToken()) { setSyncStatus('⚠ No token set', '#c0392b'); return false; }
+  if (!getToken()) { if (rollback) rollback(); setSyncStatus('⚠ No token set', '#c0392b'); return false; }
   setSyncStatus('⟳ Saving…', 'rgba(201,146,42,0.7)');
   try {
     const files = { [cfg.gistFile]: { content: JSON.stringify(data) } };
@@ -2831,6 +2858,7 @@ async function syncToGist(data, hist) {
     setTimeout(() => setSyncStatus('', ''), 3000);
     return true;
   } catch(e) {
+    if (rollback) rollback();
     setSyncStatus('✗ Gist sync failed'+(e && e.message ? ' ('+e.message+')' : ''), '#c0392b');
     return false;
   }
@@ -8047,6 +8075,7 @@ function swInitTab(){ swRenderSetup(); }
     } catch(e){ return []; }
   })();
   function jdSaveQueue(){ localStorage.setItem(JD_QUEUE_KEY, JSON.stringify(jdQueue)); }
+  var jdShiftRemoveArmed = {}; // key: date|judge|city|type -> true while armed
   var jdView = new Date();    // calendar month on screen
   var jdSel = null;           // selected date, ISO
   var jdType = null, jdCity = 'abudhabi';
@@ -8127,16 +8156,37 @@ function swInitTab(){ swRenderSetup(); }
       } else { warn.style.display = 'none'; warn.innerHTML = ''; }
     }
 
+    var retiredRows = rows.filter(function(r){ return !r.active; });
+    rows = rows.filter(function(r){ return r.active; });
+
+    var retiredWrap = document.getElementById('jdRetiredWrap');
+    if(retiredWrap){
+      retiredWrap.style.display = retiredRows.length ? 'block' : 'none';
+      document.getElementById('jdRetiredCount').textContent = retiredRows.length;
+      var rlist = document.getElementById('jdRetiredList');
+      if(rlist) rlist.innerHTML = retiredRows.map(function(r){
+        return '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(201,146,42,0.08)">'+
+          '<span style="flex:1;font-family:\'IBM Plex Sans\',serif;font-size:0.86rem;color:rgba(245,237,214,0.5)">'+riot(r.riotName)+'</span>'+
+          '<span class="jd-tier" style="font-size:0.68rem;color:'+JD_TIER_COL[r.tier.id]+'">'+r.tier.name+' · '+r.served+'</span>'+
+          '<button data-unretire="'+esc(r.id)+'" class="btn ghost" style="width:auto;padding:4px 10px;font-size:0.68rem">↺ Un-retire</button>'+
+        '</div>';
+      }).join('');
+    }
+
     if(!rows.length){
       board.innerHTML = '<div class="rv-empty"><div class="rv-empty-icon">⚖️</div>'+
-        'No judges yet — they are created by working a night, over in <strong style="color:var(--gold-light)">Log a Shift</strong>.</div>';
+        (retiredRows.length
+          ? 'Every judge on the roster is retired. Un-retire someone above, or add one in <strong style="color:var(--gold-light)">Log a Shift</strong>.'
+          : 'No judges yet — they are created by working a night, over in <strong style="color:var(--gold-light)">Log a Shift</strong>.')+
+        '</div>';
       jdRenderLadder();
+      jdWireRetireButtons();
       return;
     }
 
     board.innerHTML =
       '<table><thead><tr><th>Riot Name</th><th class="c">Level</th><th>Rank</th>'+
-      '<th class="c">Served</th><th>Breakdown</th><th>Last served</th></tr></thead><tbody>'+
+      '<th class="c">Served</th><th>Breakdown</th><th>Last served</th><th></th></tr></thead><tbody>'+
       rows.map(function(r){
         var col = JD_TIER_COL[r.tier.id];
         var stale = r.last ? Math.round((Date.now() - new Date(r.last+'T00:00:00')) / 86400000) : null;
@@ -8162,9 +8212,47 @@ function swInitTab(){ swRenderSetup(); }
             ? '<span class="td-mono" style="font-size:0.76rem;opacity:0.6">'+ddmmyy(r.last)+'</span>'+
               (stale > 60 ? '<br><span style="color:#8b3a1a;font-style:italic;font-size:0.72rem">'+stale+' days ago</span>' : '')
             : '<span style="color:#8b3a1a;font-style:italic;font-size:0.74rem">never served</span>')+'</td>'+
+          '<td class="c"><button data-retire="'+esc(r.id)+'" style="background:none;border:none;color:'+(jdRetireArmed[r.id]?'#e05060':'rgba(245,237,214,0.25)')+';cursor:pointer;font-size:0.72rem;padding:2px 6px">'+(jdRetireArmed[r.id]?'confirm?':'Retire')+'</button></td>'+
         '</tr>';
       }).join('')+'</tbody></table>';
     jdRenderLadder();
+    jdWireRetireButtons();
+  }
+
+  var jdRetireArmed = {}; // key: judge id -> true while armed
+  function jdWireRetireButtons(){
+    document.querySelectorAll('#jdBoard [data-retire]').forEach(function(b){
+      b.addEventListener('click', function(){
+        var id = b.dataset.retire;
+        if(!jdRetireArmed[id]){
+          jdRetireArmed[id] = true;
+          b.textContent = 'confirm?';
+          b.style.color = '#e05060';
+          setTimeout(function(){ if(jdRetireArmed[id]){ delete jdRetireArmed[id]; b.textContent='Retire'; b.style.color='rgba(245,237,214,0.25)'; } }, 5000);
+          return;
+        }
+        delete jdRetireArmed[id];
+        b.disabled = true; b.textContent = '⟳';
+        jdSetActive(id, false).then(function(ok){
+          if(!ok){ b.disabled = false; b.textContent = '✗ retry'; }
+        });
+      });
+    });
+    document.querySelectorAll('#jdRetiredList [data-unretire]').forEach(function(b){
+      b.addEventListener('click', function(){
+        b.disabled = true; b.textContent = '⟳';
+        jdSetActive(b.dataset.unretire, true).then(function(ok){
+          if(!ok){ b.disabled = false; b.textContent = '✗ retry — un-retire'; }
+        });
+      });
+    });
+    var toggle = document.getElementById('jdRetiredToggle');
+    if(toggle) toggle.addEventListener('click', function(){
+      var list = document.getElementById('jdRetiredList');
+      var open = list.style.display !== 'none';
+      list.style.display = open ? 'none' : 'block';
+      toggle.innerHTML = (open ? '▸' : '▾') + ' Retired (<span id="jdRetiredCount">' + document.getElementById('jdRetiredCount').textContent + '</span>)';
+    });
   }
 
   function jdRenderLadder(){
@@ -8259,7 +8347,7 @@ function swInitTab(){ swRenderSetup(); }
     var computed = {};
     jdCompute(jdData || jdNew()).forEach(function(r){ computed[r.id] = r; });
 
-    var rows = ((jdData||{}).judges || []).slice().sort(function(a,b){
+    var rows = ((jdData||{}).judges || []).filter(function(j){ return j.active !== false; }).slice().sort(function(a,b){
       return jdNorm(a.riotName).localeCompare(jdNorm(b.riotName));
     }).map(function(j){
       // One event per night means one shift per judge on it — regardless of type.
@@ -8331,13 +8419,15 @@ function swInitTab(){ swRenderSetup(); }
         var pending = jdQueue.some(function(q){
           return q.date===s.date && q.judge===s.judge && q.city===s.city && q.type===s.type;
         });
+        var rmKey = s.date+'|'+s.judge+'|'+s.city+'|'+s.type;
+        var armed = !!jdShiftRemoveArmed[rmKey];
         return '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(201,146,42,0.08)">'+
           '<span class="jd-chip" style="color:'+JD_TYPE_COL[s.type]+';border-color:'+JD_TYPE_COL[s.type]+'55">'+s.type+'</span>'+
           '<span style="flex:1;font-family:\'IBM Plex Sans\',serif;font-size:0.86rem;font-weight:700">'+riot(j.riotName)+'</span>'+
           '<span class="td-mono" style="font-size:0.68rem;opacity:0.4">'+cityOf(s.city).abbr+'</span>'+
           (pending
             ? '<button data-unq="'+esc(s.judge)+'" style="background:none;border:none;color:rgba(245,237,214,0.3);cursor:pointer;font-size:0.8rem">✕</button>'
-            : '<span style="font-size:0.68rem;opacity:0.35">saved</span>')+
+            : '<button data-rmshift="'+esc(rmKey)+'" style="background:none;border:1px solid '+(armed?'rgba(192,57,43,0.5)':'transparent')+';color:'+(armed?'#e05060':'rgba(245,237,214,0.3)')+';cursor:pointer;font-size:0.68rem;padding:2px 8px;border-radius:3px">'+(armed?'⚠ confirm':'✕ remove')+'</button>')+
         '</div>';
       }).join('');
       document.querySelectorAll('#jdLoggedList [data-unq]').forEach(function(b){
@@ -8347,6 +8437,30 @@ function swInitTab(){ swRenderSetup(); }
           });
           jdSaveQueue();
           jdRefresh();
+        });
+      });
+      document.querySelectorAll('#jdLoggedList [data-rmshift]').forEach(function(b){
+        b.addEventListener('click', function(){
+          var key = b.dataset.rmshift;
+          if(!jdShiftRemoveArmed[key]){
+            jdShiftRemoveArmed[key] = true;
+            b.textContent = '⚠ confirm';
+            b.style.borderColor = 'rgba(192,57,43,0.5)';
+            b.style.color = '#e05060';
+            setTimeout(function(){ delete jdShiftRemoveArmed[key]; jdRenderForm(); }, 5000);
+            return;
+          }
+          var parts = key.split('|'); // date, judge, city, type
+          b.disabled = true; b.textContent = '⟳';
+          var next = JSON.parse(JSON.stringify(jdData));
+          next.shifts = (next.shifts||[]).filter(function(s){
+            return !(s.date===parts[0] && s.judge===parts[1] && s.city===parts[2] && s.type===parts[3]);
+          });
+          saveJudges(next).then(function(ok){
+            delete jdShiftRemoveArmed[key];
+            if(ok){ jdData = next; jdRefresh(); }
+            else { b.disabled = false; b.textContent = '✗ retry'; setTimeout(function(){ jdRenderForm(); }, 2000); }
+          });
         });
       });
     } else { wrap.style.display = 'none'; }
@@ -8545,7 +8659,7 @@ function swInitTab(){ swRenderSetup(); }
   // two modules don't share scope, matching how jdExportCSV already duplicates its own
   // download logic instead of reaching into rv*.
   async function jdExportImage(){
-    var rows = jdCompute(jdData || jdNew());
+    var rows = jdCompute(jdData || jdNew()).filter(function(r){ return r.active; });
     if(!rows.length) return false;
     if(document.fonts && document.fonts.ready){ try { await document.fonts.ready; } catch(e){} }
 
@@ -8707,8 +8821,19 @@ function swInitTab(){ swRenderSetup(); }
     });
   }
   function jdCsvCell(v){ v = String(v==null?'':v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
+  // Retiring never deletes a judge or their shifts — see CLAUDE.md's save-honesty contract.
+  // A retired judge simply stops appearing on the active board and the Log-a-Shift roster;
+  // their history stays exactly where it was, and un-retiring is a single flip back.
+  async function jdSetActive(id, active){
+    var next = JSON.parse(JSON.stringify(jdData));
+    var j = (next.judges||[]).filter(function(x){ return x.id===id; })[0];
+    if(!j) return false;
+    j.active = active;
+    if(await saveJudges(next)){ jdData = next; jdRefresh(); return true; }
+    return false;
+  }
   function jdExportCSV(){
-    var rows = jdCompute(jdData || jdNew());
+    var rows = jdCompute(jdData || jdNew()).filter(function(r){ return r.active; });
     if(!rows.length) return false;
     var out = ['Riot Name,Level,Rank,Shifts Served,NN,PR,C,S,Last Served'].concat(rows.map(function(r){
       return [jdCsvCell(r.riotName), 'L'+r.level, r.tier.name, r.served,
@@ -8721,7 +8846,7 @@ function swInitTab(){ swRenderSetup(); }
     return true;
   }
   function jdCopyWhatsApp(){
-    var rows = jdCompute(jdData || jdNew()).filter(function(r){ return r.served > 0; });
+    var rows = jdCompute(jdData || jdNew()).filter(function(r){ return r.active && r.served > 0; });
     if(!rows.length) return false;
     var txt = '⚖️ *GNL JUDGE SCORECARD*\n\n' + rows.map(function(r){
       return r.tier.name.toUpperCase() + ' — ' + r.riotName + ' (L' + r.level + ')\n' +
