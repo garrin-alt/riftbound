@@ -88,6 +88,12 @@ Each of these encodes a bug that already happened.
 
 7. **Write compact.** `JSON.stringify(data)` with no indent. Gists truncate at 1 MB.
 
+8. **PowerShell 5.1's `Get-Content -Raw` defaults to the system ANSI codepage**, which mojibakes
+   non-ASCII player names (`ØØ Lupus`). Left unfixed, a merge appends a *duplicate* player index for
+   the same person instead of reusing the existing one — and because indices are permanent ids, that
+   is not something you can quietly fix later. Always read and write ledger JSON as UTF-8:
+   `[IO.File]::ReadAllText($p)` / `[IO.File]::WriteAllText($p, $s, (New-Object Text.UTF8Encoding($false)))`.
+
 ## Sets
 
 Origins → Spiritforged → Unleashed → Vendetta, stored as **editable data in `hist.sets`**, not a

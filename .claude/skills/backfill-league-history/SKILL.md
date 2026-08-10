@@ -59,7 +59,16 @@ mandatory. Use `scripts/Harvest-Events.js` via the browser's `javascript_tool`.
 It loads each event in a **same-origin iframe** so many events can be processed without navigating
 the top-level page, and it **runs in the background** because the tool call itself times out at 30s.
 Launch it, then poll `window.__H` for progress. Do not navigate the top page while it runs — that
-destroys the accumulated results.
+destroys the accumulated results. Each finished event is persisted to `localStorage`, and the
+harvester resumes from it, so a closed pane costs at most the event in flight.
+
+**Pairings paginate at 10 cards per page — drain every page.** Reading only page 1 silently drops
+matches on every round of a large event, and the ledger then contradicts the platform's own
+standings, which is indistinguishable from "the platform didn't publish those rounds". This
+mis-diagnosis actually happened. See `references/locator.md`.
+
+Run serially. Concurrency causes enough CPU contention to trigger spurious timeouts and is barely
+faster.
 
 Budget roughly 30–120 seconds per event depending on player count and round count.
 
