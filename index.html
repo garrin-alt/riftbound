@@ -969,8 +969,91 @@
     <div style="width:60px"></div>
   </div>
 
-  <!-- LEAGUE (GNL: Vendetta Event Day — populated in a follow-up task) -->
+  <!-- LEAGUE: GNL: VENDETTA EVENT DAY -->
   <div class="panel active" id="tab-league">
+    <div class="panel-title">GNL: Vendetta — Event Day</div>
+    <p class="panel-desc">Declare Vendettas, record live results, or process a past event</p>
+    <div class="divider"></div>
+            <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic;margin-bottom:14px;line-height:1.6">
+              Upload today's check-in / pairings CSV. Each attending player gets declared a <strong style="color:var(--gold-light)">Vendetta</strong> — their best available rival from the saved season Gist — even if that exact rival isn't here today.
+            </p>
+
+            <div class="card" style="margin-bottom:14px">
+              <div class="card-label">☁ Season Rivalry Data</div>
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                <button class="btn ghost" id="rvLoadGistBtn" style="width:auto;padding:7px 14px;font-size:0.7rem">↻ Load Saved Rivalries from Gist</button>
+                <span id="rvEventGistStatus" style="font-size:0.72rem;color:rgba(245,237,214,0.3)"></span>
+              </div>
+            </div>
+
+            <div class="card" style="margin-bottom:14px">
+              <div class="card-label">⬆ Today's Attendance / Pairings File</div>
+              <div class="rv-drop-zone" id="rvEventDropZone">
+                <input type="file" id="rvEventFileInput" accept=".csv"/>
+                <div class="rv-drop-icon">📄</div>
+                <p>Drop today's CSV here or <span>browse</span></p>
+                <p style="font-size:0.73rem;margin-top:3px;opacity:0.6">Same export format as your tournament platform</p>
+              </div>
+              <div id="rvEventFileList"></div>
+            </div>
+
+            <button class="btn" id="rvGeneratePairingsBtn" disabled>⚔ Generate Vendettas</button>
+
+            <div id="rvEventResults" style="margin-top:18px"></div>
+
+            <div id="rvRecordResultsWrap" style="display:none;margin-top:22px">
+              <div class="card">
+                <div class="card-label">🏆 Record Results &amp; Award League Points</div>
+                <p style="font-size:0.74rem;color:rgba(245,237,214,0.4);margin-bottom:10px;line-height:1.5">
+                  Upload a round's results CSV. Every match scores on its own — <strong style="color:rgba(245,237,214,0.6)">win 3, draw 1, loss 0</strong>. Upload multiple rounds from the same event one at a time (e.g. Swiss round 3, then the Top 8 bracket); points stack each time.
+                  <br/>Your score depends only on your own results, never on who you were paired against. <strong style="color:rgba(245,237,214,0.6)">Vendettas are worth no points</strong> — grudge matches are still recorded for the stats and the story. <strong style="color:rgba(245,237,214,0.6)">Byes never earn points.</strong></p>
+                <div style="display:flex;gap:14px;margin-bottom:12px">
+                  <label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:rgba(245,237,214,0.6);cursor:pointer">
+                    <input type="radio" name="rvRoundType" id="rvRoundSwiss" value="swiss" checked style="accent-color:var(--gold)"/> Swiss Round
+                  </label>
+                  <label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:rgba(245,237,214,0.6);cursor:pointer">
+                    <input type="radio" name="rvRoundType" id="rvRoundPlayoff" value="playoff" style="accent-color:var(--gold)"/> Top Cut / Knockout
+                  </label>
+                </div>
+                <div class="rv-drop-zone" id="rvResultsDropZone">
+                  <input type="file" id="rvResultsFileInput" accept=".csv"/>
+                  <div class="rv-drop-icon">🏁</div>
+                  <p>Drop round results CSV here or <span>browse</span></p>
+                </div>
+                <div id="rvResultsFileList"></div>
+                <div style="display:flex;gap:8px;margin-top:10px">
+                  <button class="btn" id="rvProcessResultsBtn" style="flex:1" disabled>Process Results</button>
+                  <button class="btn" id="rvSaveResultsBtn" style="flex:1" disabled>☁ Save to Gist</button>
+                </div>
+                <div id="rvResultsSummary" style="margin-top:12px"></div>
+              </div>
+            </div>
+
+            <!-- POST-EVENT PROCESSING -->
+            <div class="divider" style="margin:28px 0 18px"></div>
+            <div class="card">
+              <div class="card-label">🌙 Post-Event Processing</div>
+              <p style="font-size:0.74rem;color:rgba(245,237,214,0.4);margin-bottom:12px;line-height:1.6">
+                Couldn't be at the event? Process the whole thing afterwards. Upload <strong style="color:rgba(245,237,214,0.6)">every round's results CSV at once</strong> (Swiss rounds and Top Cut together — tag each file below). Scoring uses the Vendetta list declared before the event; if none was declared, one is <strong style="color:rgba(245,237,214,0.6)">generated retroactively</strong> from attendance — including random New Blood pairs — so nobody misses out on points. Each round scores exactly like the live flow, and every match is merged into season head-to-head.
+              </p>
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+                <button class="btn ghost" id="rvPeLoadBtn" style="width:auto;padding:7px 14px;font-size:0.7rem">↻ Check Declared Vendetta</button>
+                <button class="btn ghost" id="rvPeClearBtn" style="width:auto;padding:7px 14px;font-size:0.7rem;border-color:rgba(192,57,43,0.3);color:#c0392b;display:none">🗑 Clear Declared Vendetta</button>
+                <span id="rvPeVendettaStatus" style="font-size:0.72rem;color:rgba(245,237,214,0.3)"></span>
+              </div>
+              <div class="rv-drop-zone" id="rvPeDropZone">
+                <input type="file" id="rvPeFileInput" accept=".csv" multiple/>
+                <div class="rv-drop-icon">🌙</div>
+                <p>Drop ALL round results CSVs here or <span>browse</span></p>
+                <p style="font-size:0.73rem;margin-top:3px;opacity:0.6">One file per round / bracket — same export format as your tournament platform</p>
+              </div>
+              <div id="rvPeFileList"></div>
+              <div style="display:flex;gap:8px;margin-top:10px">
+                <button class="btn" id="rvPeProcessBtn" style="flex:1" disabled>Process Event</button>
+                <button class="btn" id="rvPeSaveBtn" style="flex:1" disabled>☁ Save to Gist</button>
+              </div>
+              <div id="rvPeSummary" style="margin-top:12px"></div>
+            </div>
   </div>
 
   <!-- SETTINGS -->
@@ -1349,7 +1432,6 @@
             <div class="rv-tab active" data-rvtab="cards">Rivalry Rankings</div>
             <div class="rv-tab" data-rvtab="h2h">Head-to-Head</div>
             <div class="rv-tab" data-rvtab="pairings">Suggested Pairings</div>
-            <div class="rv-tab" data-rvtab="eventday">⚔ Event Day</div>
             <div class="rv-tab" data-rvtab="history">📜 League History</div>
             <div class="rv-tab" data-rvtab="awards">🏅 Awards</div>
             <div class="rv-tab" data-rvtab="leaderboard">⚔ GNL: Vendetta</div>
@@ -1471,90 +1553,6 @@
             <div style="display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap">
               <button class="btn" id="rvAwSaveBtn" style="width:auto;padding:8px 18px;font-size:0.72rem">☁ Save Awards</button>
               <span id="rvAwStatus" style="font-size:0.72rem;color:rgba(245,237,214,0.3)"></span>
-            </div>
-          </div>
-
-          <!-- EVENT DAY -->
-          <div class="rv-tab-panel" id="rvtab-eventday">
-            <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic;margin-bottom:14px;line-height:1.6">
-              Upload today's check-in / pairings CSV. Each attending player gets declared a <strong style="color:var(--gold-light)">Vendetta</strong> — their best available rival from the saved season Gist — even if that exact rival isn't here today.
-            </p>
-
-            <div class="card" style="margin-bottom:14px">
-              <div class="card-label">☁ Season Rivalry Data</div>
-              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-                <button class="btn ghost" id="rvLoadGistBtn" style="width:auto;padding:7px 14px;font-size:0.7rem">↻ Load Saved Rivalries from Gist</button>
-                <span id="rvEventGistStatus" style="font-size:0.72rem;color:rgba(245,237,214,0.3)"></span>
-              </div>
-            </div>
-
-            <div class="card" style="margin-bottom:14px">
-              <div class="card-label">⬆ Today's Attendance / Pairings File</div>
-              <div class="rv-drop-zone" id="rvEventDropZone">
-                <input type="file" id="rvEventFileInput" accept=".csv"/>
-                <div class="rv-drop-icon">📄</div>
-                <p>Drop today's CSV here or <span>browse</span></p>
-                <p style="font-size:0.73rem;margin-top:3px;opacity:0.6">Same export format as your tournament platform</p>
-              </div>
-              <div id="rvEventFileList"></div>
-            </div>
-
-            <button class="btn" id="rvGeneratePairingsBtn" disabled>⚔ Generate Vendettas</button>
-
-            <div id="rvEventResults" style="margin-top:18px"></div>
-
-            <div id="rvRecordResultsWrap" style="display:none;margin-top:22px">
-              <div class="card">
-                <div class="card-label">🏆 Record Results &amp; Award League Points</div>
-                <p style="font-size:0.74rem;color:rgba(245,237,214,0.4);margin-bottom:10px;line-height:1.5">
-                  Upload a round's results CSV. Every match scores on its own — <strong style="color:rgba(245,237,214,0.6)">win 3, draw 1, loss 0</strong>. Upload multiple rounds from the same event one at a time (e.g. Swiss round 3, then the Top 8 bracket); points stack each time.
-                  <br/>Your score depends only on your own results, never on who you were paired against. <strong style="color:rgba(245,237,214,0.6)">Vendettas are worth no points</strong> — grudge matches are still recorded for the stats and the story. <strong style="color:rgba(245,237,214,0.6)">Byes never earn points.</strong></p>
-                <div style="display:flex;gap:14px;margin-bottom:12px">
-                  <label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:rgba(245,237,214,0.6);cursor:pointer">
-                    <input type="radio" name="rvRoundType" id="rvRoundSwiss" value="swiss" checked style="accent-color:var(--gold)"/> Swiss Round
-                  </label>
-                  <label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:rgba(245,237,214,0.6);cursor:pointer">
-                    <input type="radio" name="rvRoundType" id="rvRoundPlayoff" value="playoff" style="accent-color:var(--gold)"/> Top Cut / Knockout
-                  </label>
-                </div>
-                <div class="rv-drop-zone" id="rvResultsDropZone">
-                  <input type="file" id="rvResultsFileInput" accept=".csv"/>
-                  <div class="rv-drop-icon">🏁</div>
-                  <p>Drop round results CSV here or <span>browse</span></p>
-                </div>
-                <div id="rvResultsFileList"></div>
-                <div style="display:flex;gap:8px;margin-top:10px">
-                  <button class="btn" id="rvProcessResultsBtn" style="flex:1" disabled>Process Results</button>
-                  <button class="btn" id="rvSaveResultsBtn" style="flex:1" disabled>☁ Save to Gist</button>
-                </div>
-                <div id="rvResultsSummary" style="margin-top:12px"></div>
-              </div>
-            </div>
-
-            <!-- POST-EVENT PROCESSING -->
-            <div class="divider" style="margin:28px 0 18px"></div>
-            <div class="card">
-              <div class="card-label">🌙 Post-Event Processing</div>
-              <p style="font-size:0.74rem;color:rgba(245,237,214,0.4);margin-bottom:12px;line-height:1.6">
-                Couldn't be at the event? Process the whole thing afterwards. Upload <strong style="color:rgba(245,237,214,0.6)">every round's results CSV at once</strong> (Swiss rounds and Top Cut together — tag each file below). Scoring uses the Vendetta list declared before the event; if none was declared, one is <strong style="color:rgba(245,237,214,0.6)">generated retroactively</strong> from attendance — including random New Blood pairs — so nobody misses out on points. Each round scores exactly like the live flow, and every match is merged into season head-to-head.
-              </p>
-              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
-                <button class="btn ghost" id="rvPeLoadBtn" style="width:auto;padding:7px 14px;font-size:0.7rem">↻ Check Declared Vendetta</button>
-                <button class="btn ghost" id="rvPeClearBtn" style="width:auto;padding:7px 14px;font-size:0.7rem;border-color:rgba(192,57,43,0.3);color:#c0392b;display:none">🗑 Clear Declared Vendetta</button>
-                <span id="rvPeVendettaStatus" style="font-size:0.72rem;color:rgba(245,237,214,0.3)"></span>
-              </div>
-              <div class="rv-drop-zone" id="rvPeDropZone">
-                <input type="file" id="rvPeFileInput" accept=".csv" multiple/>
-                <div class="rv-drop-icon">🌙</div>
-                <p>Drop ALL round results CSVs here or <span>browse</span></p>
-                <p style="font-size:0.73rem;margin-top:3px;opacity:0.6">One file per round / bracket — same export format as your tournament platform</p>
-              </div>
-              <div id="rvPeFileList"></div>
-              <div style="display:flex;gap:8px;margin-top:10px">
-                <button class="btn" id="rvPeProcessBtn" style="flex:1" disabled>Process Event</button>
-                <button class="btn" id="rvPeSaveBtn" style="flex:1" disabled>☁ Save to Gist</button>
-              </div>
-              <div id="rvPeSummary" style="margin-top:12px"></div>
             </div>
           </div>
 
