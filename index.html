@@ -2402,11 +2402,20 @@ function rvPctOf(w, l) { return (w + l) ? Math.round(w / (w + l) * 100) : null; 
 
 function rvComputeAwards(rivalry, hist) {
   rivalry = rivalry || {};
-  var h2h = rivalry.h2h || [];
-  var attendance = rivalry.attendance || {};
   var points = rivalry.rivalryPoints || {};
   var stored = rivalry.awards || {};
   var overrides = stored.overrides || {};
+
+  // Awards are scoped to the current Riftbound set only — a player's award-eligible
+  // stats reset in practice at each new set, with no manual migration step required.
+  // Where the ledger has data for the current set, every computed award below is built
+  // from that slice instead of the lifetime rivalry.h2h aggregate. Where no ledger data
+  // exists yet for the current set (or at all), fall back to the all-time aggregate —
+  // same as before this scoping existed — rather than showing nothing.
+  var curSetId = rvHistCurrentSet(hist || {});
+  var ledgerEvents = (hist && hist.events) || [];
+  var curSetLedger = ledgerEvents.length ? rvDeriveFromLedger(hist, { set: curSetId }) : null;
+  var h2h = (curSetLedger && curSetLedger.h2h.length ? curSetLedger.h2h : null) || rivalry.h2h || [];
 
   // ── Player table from the lifetime aggregate ──
   var P = {};
@@ -2432,9 +2441,9 @@ function rvComputeAwards(rivalry, hist) {
   var isGiant = {};
   giantList.forEach(function (g) { isGiant[g.name] = true; });
 
-  // ── Chronology, for the three awards the aggregate cannot answer ──
-  var ledgerEvents = (hist && hist.events) || [];
-  var led = ledgerEvents.length ? rvDeriveFromLedger(hist) : null;
+  // ── Chronology, for the three awards the aggregate cannot answer — scoped to the
+  // current set, same as h2h above.
+  var led = curSetLedger && curSetLedger.events.length ? curSetLedger : null;
 
   var out = [];
   function add(id, winner, runnerUp, blurb, extra) {
@@ -2571,12 +2580,29 @@ function rvComputeAwards(rivalry, hist) {
   });
   add('hound', ho[0], ho[1], 'The widest circle — most distinct opponents faced.');
 
-  var att = Object.keys(attendance).map(function (n) { return { name:n, n:(attendance[n]||[]).length }; });
+  // Attendance isn't tagged by set in rivalry.attendance (it's a lifetime dict), so
+  // Caretaker is re-derived here from the current-set ledger slice directly, rather than
+  // read from that dict, to honor the same set boundary as everything else above. If the
+  // ledger has no events for the current set yet, this is empty and `best([])` returns
+  // [null, null] — matching the existing "no data yet" pattern used elsewhere.
+  var curSetAttendance = {};
+  (led ? led.events : []).forEach(function (ev) {
+    (ev.m || []).forEach(function (row) {
+      var f = row.split(',');
+      [hist.players[+f[1]], hist.players[+f[2]]].forEach(function (p) {
+        if (p) (curSetAttendance[p] = curSetAttendance[p] || {})[ev.id] = 1;
+      });
+    });
+  });
+  var att = Object.keys(curSetAttendance).map(function (n) { return { name:n, n:Object.keys(curSetAttendance[n]).length }; });
   var ca = best(att, function (x) { return x.n || null; }, function (x) {
     return { name:x.name, detail: x.n + ' event' + (x.n===1?'':'s') + ' attended' };
   });
-  add('caretaker', ca[0], ca[1], 'Most events attended. Turning up is its own achievement.');
+  add('caretaker', ca[0], ca[1], 'Most events attended this set. Turning up is its own achievement.');
 
+  // Vendetta wins are not set-tagged in rivalry.rivalryPoints (lifetime counter) and the
+  // ledger's match rows carry no Vendetta/grudge-match marker to re-derive it from, so
+  // this award stays all-time rather than fabricating a set boundary that isn't there.
   var vd = best(Object.keys(points).map(function (n) { return { name:n, n:points[n].vendettaWins||0 }; }),
     function (x) { return x.n || null; },
     function (x) { return { name:x.name, detail: x.n + ' grudge' + (x.n===1?'':'s') + ' settled' }; });
@@ -2593,17 +2619,21 @@ function rvComputeAwards(rivalry, hist) {
     (hist.players || []).forEach(function (p) { names[p] = 1; });
 
     var risers = Object.keys(names).map(function (n) {
+      // rvDerivePlayer always returns a player's whole career, all sets — it has other
+      // callers (Player Stats) that need that, so it isn't scoped itself. Filter its
+      // events down to the current set here instead.
       var st = rvDerivePlayer(hist, n);
-      if (st.events.length < 4) return null;
-      var half = Math.floor(st.events.length / 2);
+      var setEvents = st.events.filter(function (e) { return e.set === curSetId; });
+      if (setEvents.length < 4) return null;
+      var half = Math.floor(setEvents.length / 2);
       var A = { w:0, l:0 }, B = { w:0, l:0 };
-      st.events.forEach(function (e, i) {
+      setEvents.forEach(function (e, i) {
         var t = i < half ? A : B;
         t.w += e.w; t.l += e.l;
       });
       if (A.w + A.l < 3 || B.w + B.l < 3) return null;
       var pa = rvPctOf(A.w, A.l), pb = rvPctOf(B.w, B.l);
-      return { name:n, delta: pb - pa, from:pa, to:pb, events: st.events.length };
+      return { name:n, delta: pb - pa, from:pa, to:pb, events: setEvents.length };
     }).filter(Boolean);
     var as = best(risers, function (x) { return x.delta > 0 ? x.delta : null; }, function (x) {
       return { name:x.name, detail: x.from + '% → ' + x.to + '% across ' + x.events +
@@ -2615,9 +2645,10 @@ function rvComputeAwards(rivalry, hist) {
 
     // Consecutive means consecutive LEAGUE events, not consecutive appearances — missing
     // a night has to break the run, or this would just re-elect the most active player.
-    var order = ledgerEvents.map(function (e) { return e.id; });
+    // Scoped to the current set's events (led.events), not the whole ledger.
+    var order = led.events.map(function (e) { return e.id; });
     var attended = {};
-    ledgerEvents.forEach(function (e) {
+    led.events.forEach(function (e) {
       (e.m || []).forEach(function (row) {
         var f = row.split(',');
         [hist.players[+f[1]], hist.players[+f[2]]].forEach(function (p) {
