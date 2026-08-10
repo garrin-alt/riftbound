@@ -1,214 +1,271 @@
 // Harvest pairings + standings for many Riftbound locator events.
 //
-// Paste into the browser via javascript_tool while a locator page is open.
+// Paste into the browser via javascript_tool with your own EVENT_IDS.
 // Returns immediately; work continues in the background under window.__H.
+// Poll:  ({done: __H.order.length, cur: __H.current, fin: __H.finished})
+// Drain: __H.order.slice(0,10).map(id => __H.done[id])
 //
-// WHY IT IS SHAPED LIKE THIS
+// ── WHY IT IS SHAPED LIKE THIS ────────────────────────────────────────────
 //
 // 1. javascript_tool calls time out at 30s and one large event takes longer,
-//    so the loop is fire-and-forget and you poll window.__H.
+//    so the loop is fire-and-forget and you poll. Each finished event is
+//    persisted to localStorage so a closed pane costs at most one event.
 //
-// 2. Events load into SAME-ORIGIN IFRAMES so the top-level page never
-//    navigates. Navigating the top page destroys all accumulated results.
+// 2. Events load into SAME-ORIGIN IFRAMES so the top page never navigates.
+//    Navigating the top page destroys all accumulated results.
 //
-// 3. NEVER use setTimeout to wait. When the browser pane is hidden
-//    (document.hidden === true) Chrome clamps timers to ~1/second, and after
-//    the page has been hidden 5+ minutes "intensive throttling" stretches them
-//    to ~1/minute. Measured on this site: setTimeout(200) took 855-1010ms, and
-//    a step budgeted at 7.5s took 75s.
+// 3. NEVER wait with setTimeout. On a hidden pane (document.hidden === true)
+//    Chrome clamps timers to ~1/sec, and after 5 minutes hidden to ~1/min:
+//    measured setTimeout(200) taking 855-1010ms, and a step budgeted at 7.5s
+//    taking 75s. MessageChannel is NOT throttled (measured 50,215 ticks/sec
+//    on the same page), so all waiting is MutationObserver + bounded
+//    MessageChannel bursts. An UNBOUNDED MessageChannel poll saturates the
+//    event loop and wedges the tab - keep bursts bounded.
 //
-//    MessageChannel ticks are NOT throttled - measured 50,215 ticks/second at
-//    ~0.1ms latency on the same hidden page. So all waiting here is
-//    condition-polling driven by MessageChannel, which runs at full speed
-//    whether or not the pane is visible. Network fetches and React renders
-//    proceed normally; we simply detect completion instead of sleeping.
+// 4. PAIRINGS PAGINATE AT 10 CARDS PER PAGE. This is the single most damaging
+//    thing to get wrong: reading only page 1 silently drops matches on every
+//    round of a large event, and the resulting ledger disagrees with the
+//    platform's own standings. Cards are ordered by table number with the bye
+//    ("TABLE / - / Name / Bye") LAST, so an 11-card round loses only the bye -
+//    but a 12+ card round loses REAL MATCHES. Always drain every page.
 //
-// 4. innerText forces layout. The parser locates the pairings grid by
-//    textContent (no reflow) and calls innerText only on its card children.
-//
-// Usage:
-//   1. paste with your own EVENT_IDS
-//   2. poll:  ({done: __H.order.length, cur: __H.current, fin: __H.finished})
-//   3. drain: __H.order.slice(0, 10).map(id => __H.done[id])
+// 5. Prefer data-testid hooks over text matching. Confirmed present:
+//      pairings-section, pairings-round-dropdown-trigger,
+//      pairings-round-dropdown-option-<N>   (the suffix IS the round number),
+//      pairings-skeleton-matchup            (present while still rendering),
+//      standings-section, standings-empty, round-banner
+//    Each appears TWICE - the page renders a desktop and a mobile copy. Use
+//    the one with a real bounding box; the hidden copy no-ops at (0,0) and its
+//    "No pairings available" text shows while the visible copy is still
+//    loading, which falsely reports real events as empty.
 
 (() => {
   const EVENT_IDS = ['REPLACE', 'WITH', 'EVENT', 'IDS'];
+  const STORE_KEY = 'gnlHarvest';
 
   document.querySelectorAll('iframe').forEach(f => f.remove());
 
-  // --- unthrottled scheduling primitives -----------------------------------
+  // ── unthrottled scheduling ──────────────────────────────────────────────
   const tick = () => new Promise(res => {
     const ch = new MessageChannel();
     ch.port1.onmessage = () => res();
     ch.port2.postMessage(0);
   });
-  // Yield ~10ms of real time without setTimeout (~500 ticks at measured rate).
-  const yieldBriefly = async (n = 500) => { for (let i = 0; i < n; i++) await tick(); };
-  // Poll a predicate until true or the deadline passes. Returns the value.
-  const waitUntil = async (fn, timeoutMs) => {
-    const end = performance.now() + timeoutMs;
-    for (;;) {
-      let v = null;
-      try { v = fn(); } catch (e) { v = null; }
-      if (v) return v;
-      if (performance.now() > end) return null;
-      await yieldBriefly();
+  const burst = async (n = 400) => { for (let i = 0; i < n; i++) await tick(); };
+  const waitFor = (d, pred, ms) => new Promise(resolve => {
+    let done = false, obs = null, timer = null;
+    const cleanup = () => { if (obs) obs.disconnect(); if (timer) clearTimeout(timer); };
+    const check = () => {
+      if (done) return;
+      let v = null; try { v = pred(); } catch (e) { v = null; }
+      if (v) { done = true; cleanup(); resolve(v); }
+    };
+    obs = new MutationObserver(check);
+    try { obs.observe(d.documentElement || d.body, { childList: true, subtree: true, characterData: true, attributes: true }); } catch (e) {}
+    timer = setTimeout(() => { if (!done) { done = true; cleanup(); resolve(null); } }, ms);
+    check();
+  });
+
+  const vis = e => { try { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; } catch (x) { return false; } };
+  const pick = (d, sel) => [...d.querySelectorAll(sel)].find(vis) || d.querySelector(sel);
+
+  // ── card parsing ────────────────────────────────────────────────────────
+  // Five shapes exist. Parse STRUCTURALLY - never by line count:
+  //   normal    TABLE / 3 / A / "TIE"   / B
+  //   feature   FEATURE MATCH / <judge note> / TABLE / 1 / A / "2 : 0" / B
+  //   bye       TABLE / - / Name / Bye
+  //   untabled  TABLE / - / A / "2 : 0" / B      (real, scored match)
+  //   deck      TABLE / 1 / A / <champion> / B / <champion> / "2 : 1"
+  //                                              ^ score moves to the END
+  // Champion lines are tagged data-testid="deck-defining-card-name"; strip
+  // those nodes first, then locate the score by PATTERN rather than position
+  // so both field orders parse identically.
+  const cardFields = (el) => {
+    let node = el;
+    if (el.querySelector('[data-testid="deck-defining-card-name"]')) {
+      node = el.cloneNode(true);
+      node.querySelectorAll('[data-testid="deck-defining-card-name"]').forEach(n => n.remove());
     }
+    return (node.innerText || '').split('\n').map(s => s.trim()).filter(Boolean);
   };
-
-  const S = window.__H = {
-    done: {}, order: [], current: null, errors: [],
-    startedAt: Date.now(), finished: false, hidden: document.hidden
-  };
-
-  const vis = e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
-
-  // Parse a pairing card STRUCTURALLY, never by line count. Three shapes exist
-  // and a rigid 5-line filter silently drops two of them:
-  //
-  //   normal    TABLE / 3 / Balenciaga / "TIE" / Monkey Island 2
-  //   feature   FEATURE MATCH / "Do not start playing..." / TABLE / 1 / A / "2 : 0" / B
-  //   bye       TABLE / - / ZeroWins / Bye
-  //
-  // The table label may also be "-" on a real, scored match (an untabled
-  // match). Anchor on the "TABLE" marker and read the fields after it.
-  //
-  // Returns: undefined = not a pairing card, null = mid-render (reject the
-  // WHOLE sample; a half-rendered grid produced wrong pairings in testing).
-  const parseCard = (lines) => {
+  const isScore = s => /^\d+\s*:\s*\d+$/.test(s) || /^TIE$/i.test(s);
+  const parseCard = (el) => {
+    const lines = cardFields(el);
     const i = lines.findIndex(t => /^TABLE$/i.test(t));
-    if (i === -1) return undefined;
-    const r = lines.slice(i + 1);
-    if (r.length === 3 && /^bye$/i.test(r[2])) return { k: 'b', p: r[1] };
-    if (r.length !== 4) return null;
-    const [tbl, a, score, b] = r;
-    let wa = null, wb = null, raw = null;
+    if (i === -1) return undefined;                       // not a pairing card
+    const rest = lines.slice(i + 1);
+    if (!rest.length) return null;                        // mid-render
+    const tbl = rest[0];
+    const body = rest.slice(1);
+    if (body.length === 2 && /^bye$/i.test(body[1])) return { k: 'b', p: body[0] };
+    const si = body.findIndex(isScore);
+    if (si === -1) return null;                           // mid-render
+    const players = body.filter((_, n) => n !== si);
+    if (players.length !== 2) return null;
+    const score = body[si];
+    let wa = null, wb = null;
     const m = score.match(/^(\d+)\s*:\s*(\d+)$/);
-    if (m) { wa = +m[1]; wb = +m[2]; }
-    else if (/^TIE$/i.test(score)) { wa = 1; wb = 1; }   // a drawn match: real data
-    else raw = score;
-    return { k: 'm', t: /^\d+$/.test(tbl) ? +tbl : null, a, b, wa, wb, raw };
+    if (m) { wa = +m[1]; wb = +m[2]; } else { wa = 1; wb = 1; }   // TIE = drawn match, real data
+    return { k: 'm', t: /^\d+$/.test(tbl) ? +tbl : null, a: players[0], b: players[1], wa, wb };
   };
 
-  // Pairing cards live in a div.grid whose text mentions TABLE. Take the
-  // innermost such grid so page-level wrappers don't match.
-  const parse = d => {
-    const grids = [...d.querySelectorAll('div.grid')].filter(g =>
-      /TABLE/.test(g.textContent || '') && g.children.length > 0 && g.children.length < 40);
+  const cardsIn = (sec) => {
+    const grids = [...sec.querySelectorAll('div.grid')].filter(g =>
+      /TABLE/.test(g.textContent || '') && g.children.length > 0 && g.children.length < 60);
     const g = grids[grids.length - 1];
-    if (!g) return null;
+    return g ? [...g.children] : [];
+  };
+  // Drain EVERY page of the current round (see note 4).
+  const readAllPages = async (d, sec) => {
     const matches = [], byes = [];
-    for (const c of g.children) {
-      const card = parseCard((c.innerText || '').split('\n').map(s => s.trim()).filter(Boolean));
-      if (card === undefined) continue;
-      if (card === null) return null;
-      if (card.k === 'b') byes.push(card.p);
-      else matches.push([card.t, card.a, card.b, card.wa, card.wb, card.raw]);
+    const seen = new Set();
+    let partial = false;
+    for (let page = 0; page < 12; page++) {
+      const els = cardsIn(sec);
+      for (const el of els) {
+        const c = parseCard(el);
+        if (c === undefined) continue;
+        if (c === null) { partial = true; continue; }
+        const key = JSON.stringify(c);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        if (c.k === 'b') byes.push(c.p); else matches.push([c.t, c.a, c.b, c.wa, c.wb, null]);
+      }
+      const nx = [...sec.querySelectorAll('button')]
+        .filter(b => /^NEXT$/i.test(b.innerText.trim()) && vis(b) && !b.disabled);
+      if (!nx.length) break;
+      const before = cardsIn(sec).map(e => e.textContent).join('|');
+      nx[0].click();
+      const moved = await waitFor(d, () => cardsIn(sec).map(e => e.textContent).join('|') !== before ? true : null, 10000);
+      if (!moved) break;
     }
-    if (!matches.length && !byes.length) return null;
     matches.sort((x, z) => (x[0] === null) - (z[0] === null) || x[0] - z[0]);
-    return { matches, byes: byes.sort() };
+    return { matches, byes: byes.sort(), partial };
   };
-  const sig = p => (p ? JSON.stringify(p) : '');
 
-  // A sample is only trusted once it (a) parses completely, (b) differs from
-  // the previous round, and (c) is STABLE across two consecutive reads.
-  // Accepting the first differing sample records half-rendered grids.
-  const waitStable = async (d, prev, ms) => {
-    const end = performance.now() + ms;
-    let last = null;
-    for (;;) {
-      const p = parse(d), s = sig(p);
-      if (p && s !== prev && s === last) return p;
-      last = s;
-      if (performance.now() > end) return (p && s !== prev) ? p : null;
-      await yieldBriefly();
-    }
-  };
+  // Settled = no skeletons left and at least one card present.
+  const settled = (sec) =>
+    sec.querySelectorAll('[data-testid="pairings-skeleton-matchup"]').length === 0 &&
+    cardsIn(sec).length > 0;
 
   const one = async (id) => {
-    const rec = { id, rounds: {}, standings: [], notes: [] };
+    const rec = { id, rounds: {}, byes: {}, standings: [], notes: [] };
     const f = document.createElement('iframe');
     f.style.cssText = 'position:fixed;left:0;top:0;width:1200px;height:1800px;opacity:0.01;z-index:-1';
     f.src = '/events/' + id;
     document.body.appendChild(f);
     try {
-      let loaded = false;
-      f.onload = () => { loaded = true; };
-      await waitUntil(() => loaded && f.contentDocument, 30000);
+      await new Promise(r => { let ok = false; f.onload = () => { ok = true; r(); }; setTimeout(() => { if (!ok) r(); }, 25000); });
       const d = f.contentDocument;
-      if (!d) { rec.notes.push('iframe never loaded'); f.remove(); return rec; }
+      if (!d) { rec.notes.push('no document'); f.remove(); return rec; }
 
-      const sel = () => [...d.querySelectorAll('button')]
-        .find(b => /^Round \d+$/.test(b.innerText.trim()) && vis(b));
+      const sec = () => pick(d, '[data-testid="pairings-section"]');
+      const trig = () => pick(d, '[data-testid="pairings-round-dropdown-trigger"]');
 
-      // Hydration: either a round selector appears, or the page says there is
-      // nothing to show. The latter is how no-match events are detected -
-      // NOT the title, and not maximum_number_of_players_in_match.
-      const ready = await waitUntil(
-        () => sel() || (/No pairings available/i.test(d.body.textContent) ? 'none' : null), 25000);
-
-      if (!ready || ready === 'none') {
-        rec.notes.push(ready === 'none' ? 'no pairings published' : 'hydration timeout');
+      // Wait the FULL window for a round trigger. "No pairings available" also
+      // renders transiently while loading AND permanently in the hidden mobile
+      // copy, so it must never be treated as terminal on its own.
+      const t0 = await waitFor(d, () => trig() || (d.querySelector('[data-testid="pairings-no-rounds"]') ? 'none' : null), 25000);
+      if (!t0 || t0 === 'none') {
+        rec.notes.push(t0 === 'none' ? 'no pairings published' : 'no round trigger');
       } else {
-        sel().click();
-        const labels = await waitUntil(() => {
-          const L = [...new Set([...d.querySelectorAll('[role="option"]')]
-            .map(o => o.innerText.trim()).filter(t => /^Round \d+$/.test(t)))];
-          return L.length ? L : null;
-        }, 15000) || [];
-        d.body.click();
-        rec.roundLabels = labels;
-        if (!labels.length) rec.notes.push('no round options');
+        // Radix Select: a failed attempt can leave it open, after which every
+        // later round reports "no option". Drive it via data-state and confirm
+        // the selection by reading the trigger label back.
+        const openMenu = async () => {
+          if (trig().getAttribute('data-state') !== 'open') trig().click();
+          return await waitFor(d, () => {
+            const o = [...d.querySelectorAll('[data-testid^="pairings-round-dropdown-option-"]')];
+            return o.length ? o : null;
+          }, 12000);
+        };
+        const closeMenu = async () => {
+          if (trig() && trig().getAttribute('data-state') === 'open') {
+            d.body.click();
+            await waitFor(d, () => trig().getAttribute('data-state') !== 'open' ? true : null, 5000);
+          }
+        };
 
-        let prev = sig(parse(d));
-        for (const lab of labels) {
-          const s2 = await waitUntil(() => sel(), 10000);
-          if (!s2) { rec.notes.push('selector lost @' + lab); break; }
-          s2.click();
-          const opt = await waitUntil(
-            () => [...d.querySelectorAll('[role="option"]')].find(o => o.innerText.trim() === lab), 10000);
-          if (!opt) { rec.notes.push('no option ' + lab); d.body.click(); continue; }
+        const opts = await openMenu() || [];
+        // The testid suffix IS the round number. Labels are not all "Round N" -
+        // top cut renders as "Top 8" / "Top 4" / "Top 2".
+        const rounds = opts.map(o => ({
+          n: o.getAttribute('data-testid').replace('pairings-round-dropdown-option-', ''),
+          label: o.innerText.trim()
+        }));
+        await closeMenu();
+        rec.roundLabels = rounds.map(r => r.label);
+        if (!rounds.length) rec.notes.push('no round options');
+
+        for (const r of rounds) {
+          const opened = await openMenu();
+          if (!opened) { rec.notes.push('menu stuck @' + r.label); break; }
+          const opt = d.querySelector('[data-testid="pairings-round-dropdown-option-' + r.n + '"]');
+          if (!opt) { rec.notes.push('no option ' + r.label); await closeMenu(); continue; }
           opt.click();
-          // Wait for the grid to actually change, not merely to be non-empty -
-          // otherwise the previous round's rows get recorded twice.
-          const rows = await waitUntil(() => {
-            const r = parse(d);
-            return (r.length && sig(r) !== prev) ? r : null;
-          }, 20000) || [];
-          if (!rows.length) rec.notes.push('empty ' + lab);
-          else prev = sig(rows);
-          rec.rounds[lab.replace('Round ', '')] = rows;
+          await waitFor(d, () => (trig() && trig().innerText.trim() === r.label) ? true : null, 10000);
+          await closeMenu();
+
+          const s = sec();
+          const ok = await waitFor(d, () => settled(s) ? true : null, 20000);
+          if (!ok) { rec.notes.push('empty ' + r.label); rec.rounds[r.n] = []; rec.byes[r.n] = []; continue; }
+          await burst(300);
+          const got = await readAllPages(d, s);
+          if (got.partial) rec.notes.push('partial cards ' + r.label);
+          rec.rounds[r.n] = got.matches;
+          rec.byes[r.n] = got.byes;
+          // top cut rounds are playoff rounds
+          if (/^Top /i.test(r.label)) (rec.playoff = rec.playoff || []).push(r.n);
         }
       }
 
-      // Standings, paginated 10/page. Record cell reads "3\n-\n1\n-\n1".
-      const seen = new Set();
-      for (let p = 0; p < 10; p++) {
-        const tbl = [...d.querySelectorAll('table')].find(t => /RANK|POINTS/i.test(t.textContent));
-        let added = 0;
-        if (tbl) [...tbl.querySelectorAll('tr')].forEach(tr => {
-          const c = [...tr.querySelectorAll('td,th')].map(x => x.innerText.trim());
-          if (c.length > 3 && /^\d+$/.test(c[0]) && !seen.has(c[1])) {
-            seen.add(c[1]); added++;
-            const rr = c[3].replace(/[\s\n]/g, '').split('-');
-            rec.standings.push([c[1], +c[2], +rr[0], +rr[1], +rr[2]]);
-          }
-        });
-        const nx = [...d.querySelectorAll('button')]
-          .filter(b => /^NEXT$/i.test(b.innerText.trim()) && vis(b) && !b.disabled);
-        if (!nx.length) break;
-        const before = seen.size;
-        nx[nx.length - 1].click();
-        await waitUntil(() => {
-          const t2 = [...d.querySelectorAll('table')].find(t => /RANK|POINTS/i.test(t.textContent));
-          if (!t2) return null;
-          return [...t2.querySelectorAll('tr')].some(tr => {
-            const c = [...tr.querySelectorAll('td,th')].map(x => x.innerText.trim());
-            return c.length > 3 && /^\d+$/.test(c[0]) && !seen.has(c[1]);
-          }) ? true : null;
-        }, 10000);
-        if (seen.size === before && added === 0) break;
+      // ── standings, paginated, scoped to the standings block ─────────────
+      // The page also has a roster pager; grabbing the last NEXT on the page
+      // clicks that one instead and caps standings at the first 10 rows.
+      const st = pick(d, '[data-testid="standings-section"]');
+      if (st && !d.querySelector('[data-testid="standings-empty"]')) {
+        const seen = new Set();
+        const grab = () => {
+          const tbl = [...st.querySelectorAll('table')].find(t => /RANK|POINTS/i.test(t.textContent));
+          if (!tbl) return 0;
+          let added = 0;
+          [...tbl.querySelectorAll('tr')].forEach(tr => {
+            const cells = [...tr.querySelectorAll('td,th')];
+            const c = cells.map(x => {
+              // the champion name pollutes the standings name cell too
+              if (x.querySelector('[data-testid="deck-defining-card-name"]')) {
+                const cl = x.cloneNode(true);
+                cl.querySelectorAll('[data-testid="deck-defining-card-name"]').forEach(n => n.remove());
+                return (cl.innerText || '').trim();
+              }
+              return x.innerText.trim();
+            });
+            if (c.length > 3 && /^\d+$/.test(c[0]) && !seen.has(c[1])) {
+              seen.add(c[1]); added++;
+              const rr = c[3].replace(/[\s\n]/g, '').split('-');
+              rec.standings.push([c[1], +c[2], +rr[0], +rr[1], +rr[2]]);
+            }
+          });
+          return added;
+        };
+        grab();
+        for (let p = 0; p < 15; p++) {
+          const nx = [...st.querySelectorAll('button')]
+            .filter(b => /^NEXT$/i.test(b.innerText.trim()) && vis(b) && !b.disabled);
+          if (!nx.length) break;
+          const before = seen.size;
+          nx[0].click();
+          await waitFor(d, () => {
+            const t2 = [...st.querySelectorAll('table')].find(t => /RANK|POINTS/i.test(t.textContent));
+            if (!t2) return null;
+            return [...t2.querySelectorAll('tr')].some(tr => {
+              const c = [...tr.querySelectorAll('td,th')].map(x => x.innerText.trim());
+              return c.length > 3 && /^\d+$/.test(c[0]) && !seen.has(c[1]);
+            }) ? true : null;
+          }, 8000);
+          grab();
+          if (seen.size === before) break;
+        }
       }
     } catch (e) {
       rec.notes.push('ERR ' + e.message);
@@ -217,19 +274,26 @@
     return rec;
   };
 
+  let store = {};
+  try { store = JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); } catch (e) { store = {}; }
+  const S = window.__H = { done: store, order: Object.keys(store), current: null, errors: [],
+                           startedAt: Date.now(), finished: false, hidden: document.hidden, key: STORE_KEY };
+
   (async () => {
     for (const id of EVENT_IDS) {
+      if (S.done[id]) continue;                      // resume
       S.current = id;
       try { S.done[id] = await one(id); }
       catch (e) {
         S.errors.push(id + ':' + e.message);
-        S.done[id] = { id, rounds: {}, standings: [], notes: ['FATAL ' + e.message] };
+        S.done[id] = { id, rounds: {}, byes: {}, standings: [], notes: ['FATAL ' + e.message] };
       }
-      S.order.push(id);
+      S.order = Object.keys(S.done);
+      try { localStorage.setItem(STORE_KEY, JSON.stringify(S.done)); } catch (e) { S.errors.push('persist'); }
     }
     S.current = null;
     S.finished = true;
   })();
 
-  return { launched: true, total: EVENT_IDS.length, pageHidden: document.hidden };
+  return { launched: true, total: EVENT_IDS.length, resumedFrom: Object.keys(store).length, pageHidden: document.hidden };
 })()

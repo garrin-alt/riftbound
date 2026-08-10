@@ -66,8 +66,48 @@ run is slow.
 `textContent` (no reflow) — it is a `div.grid` whose text matches `/TABLE\s*\d/` with fewer than 40
 children — then call `innerText` only on its card children.
 
+### Pairings paginate at 10 cards per page — drain every page
+
+This is the most damaging thing to get wrong, and it did go wrong: reading only page 1 silently
+drops matches on **every round** of a large event, and the resulting ledger then disagrees with the
+platform's own standings — which looks exactly like "the platform didn't publish those rounds".
+
+The pager lives *inside* `[data-testid="pairings-section"]` and reads `Page 1 of N`. Confirmed live
+on event `248720` round 6 and `337169` round 3.
+
+Cards are ordered by table number with the bye (`TABLE / - / Name / Bye`) **last**, so:
+
+- an **11-card** round loses only the bye — harmless, byes never enter the ledger
+- a **12+ card** round loses **real matches**
+
+Roughly, an event needs ≥21 *active* players (not registered — no-shows and drops matter) before a
+round exceeds one page.
+
+### Useful `data-testid` hooks
+
+Far more robust than text matching. Confirmed present:
+
+| testid | Use |
+|---|---|
+| `pairings-section` | Scope all pairing reads and the pairings pager |
+| `pairings-round-dropdown-trigger` | The round selector; has `data-state="open"/"closed"` |
+| `pairings-round-dropdown-option-<N>` | **The suffix IS the round number** |
+| `pairings-skeleton-matchup` | Present while still rendering — treat as "not settled" |
+| `standings-section` / `standings-empty` | Scope standings; skip when empty |
+| `deck-defining-card-name` | Champion name — strip before parsing cards *and* standings names |
+
+**Every one of these appears twice** — the page renders a desktop and a mobile copy. Use the one
+with a real bounding box.
+
+The round selector is a Radix Select: a failed attempt can leave it **open**, after which every
+later round reports "no option". Drive it via `data-state` and confirm the selection by reading the
+trigger label back.
+
+Round labels are **not all** `Round N` — top cut renders as `Top 8` / `Top 4` / `Top 2`. Those are
+playoff rounds and should be tagged `p`, not `s`.
+
 **Cards do not have a fixed line count.** Parsing by line count silently drops real matches —
-this actually happened and produced a ledger with wrong pairings. Four shapes exist:
+this actually happened and produced a ledger with wrong pairings. Five shapes exist:
 
 ```
 normal                    feature match                                    bye              untabled
@@ -79,10 +119,19 @@ TIE                       1                                                Bye  
 Monkey Island 2           KoktailOverDose                                                   KuroiSeraph
                           2 : 0
                           FIDO DIDO
+
+deck-registered event  ← the score moves to the END
+------------------------
+TABLE / 1 / PlayerA / <champion> / PlayerB / <champion> / 2 : 1
 ```
 
-Parse **structurally**: find the `TABLE` marker line, then read the fields after it.
-Four fields → a match (`tableLabel, playerA, score, playerB`); three ending in `Bye` → a bye.
+Parse **structurally**: find the `TABLE` marker, strip any
+`[data-testid="deck-defining-card-name"]` nodes, then locate the score by **pattern**
+(`\d+ : \d+` or `TIE`) rather than by position — that way `A / score / B` and `A / B / score` both
+parse identically. Whatever two fields remain are the players. Three fields ending in `Bye` → a bye.
+
+The champion name also pollutes the **standings** name cell; strip it there too, or the same player
+appears under two different names.
 
 - `TIE` is a drawn match — record `1 : 1`. It is real data, not a rendering failure.
 - The table label may be `-`. An untabled row is still a real, scored match; keep it with a null
