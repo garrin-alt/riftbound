@@ -39,6 +39,32 @@ Vendetta set, awards should only reflect matches played in that set.
    player's award-eligible stats reset in practice at each new set, without requiring a
    manual reset step each time the set rolls over.
 
+## Discovered dependency: the legacy store is shared, not isolated
+
+`load()`/`save()` ([index.html:2021](../../../index.html), [index.html:2029](../../../index.html))
+persist one JSON object (`data`) covering multiple features, not just League Standings.
+Investigation during planning found:
+
+- **`data.events` / `data.roster`** — populated only by the League Standings CSV-import
+  flow — also directly power the **Raffle tab** (ticket-per-event-attended) and supply
+  **Infractions'** player and event `<select>` dropdowns (`getAllPlayers(data)`,
+  `warnPopulateForm`).
+- **`save()`/`syncToGist()` themselves are core shared infrastructure** — used by GNL:
+  Vendetta's Event Day processing, Judges, Settings backup, and more. They are **not**
+  being deleted; only the `events`/`roster`-producing and -consuming code paths are.
+
+Given this, the user has confirmed the following final scope (superseding a narrower
+first draft of Part 1):
+
+- **Raffle tab is deleted too** — it has no purpose once the legacy event/roster store
+  it depends on is gone, and its ticket-pool mechanic isn't being replaced or ported.
+- **TCG Raffle tab is untouched** — confirmed independent (`tcgApp`, no `data.events`
+  dependency).
+- **Infractions tab is kept**, but its Player and Event fields change from
+  `data`-sourced `<select>` dropdowns to **plain manual text `<input>` fields** — the
+  organiser types the name/event directly instead of picking from a list. This removes
+  Infractions' last dependency on the legacy store, so the store can be deleted cleanly.
+
 ## Non-goals
 
 - No change to GNL: Vendetta's scoring rule (3/1/0), Vendetta-pairing algorithm, or the
@@ -49,23 +75,69 @@ Vendetta set, awards should only reflect matches played in that set.
   today, and this spec doesn't add one. Scoping is by **set** only.
 - Organiser overrides and custom awards are unaffected — they already bypass computed
   data entirely.
+- No change to TCG Raffle.
+- No change to `save()`/`syncToGist()`/`load()` themselves, or to any other feature that
+  happens to call them.
 
-## Part 1 — Remove the legacy League Standings system
+## Part 1 — Remove the legacy League Standings system AND the Raffle tab
 
 Delete:
-- The `#tab-league` markup's upload zone, Events card, Roster card, Export/Reset card
-  (roughly [index.html:975-1020](../../../index.html) and whatever the panel contains
-  below that).
-- `buildStandings`, `renderLB`, `renderEvents`, `renderRoster`, `renderTicketPool` (if
-  exclusively used here), `exportCSV`, `getWorstEvent`, `playerDrops`, and any other
-  function that exists solely to serve this feature.
-- The CSV-parsing path feeding `fileIn`/`adminGate('import'|'rosterAll'|'rosterNone'|'reset'|'remove')`
-  for this feature specifically — but only the parts private to League Standings.
-  `adminGate` itself is shared infrastructure and stays.
+- The `#tab-league` markup in full (panel title, upload zone, Events card, Roster card,
+  Scoring-ref card, Export/Reset card, the leaderboard table).
+- The `#tab-raffle` markup in full (Select Events, Ticket Pool, and whatever else the
+  panel contains).
+- The sidebar nav items for both (`#snav-raffle`; `#snav-league` is repurposed in Part 2,
+  not deleted — see below).
+- `buildStandings`, `renderLB`, `renderEvents`, `renderRoster`, `renderTicketPool`,
+  `renderRaffleEventToggles`, `exportCSV`, `getWorstEvent`, `playerDrops`, `importEvent`,
+  `removeEvent`, `rosterToggle`, `rosterSetAll`, `raffleReset`, the raffle draw/run
+  function(s), `doReset`, `openModal`/`closeModal` (the reset-confirmation modal used
+  only by League Standings — confirm no other feature reuses these generic-sounding
+  names before deleting), and any other function that exists solely to serve either
+  feature.
+- The `adminGate` cases and modal copy for `import`, `remove`, `reset`, `raffleReset`,
+  `rosterToggle`, `rosterAll`, `rosterNone` in `adminGate`/`submitAdminPw`
+  ([index.html:3207-3243](../../../index.html)) — but keep the `warnSubmit`/`warnDelete`
+  cases and the function itself, since Infractions still uses it.
+- `renderAll()` ([index.html:3073](../../../index.html)) currently calls
+  `renderEvents`, `renderLB`, `renderTicketPool`, `renderRoster` — all deleted. Replace
+  its body with whatever Part 2's relocated Event Day workflow needs initialized instead
+  (or remove `renderAll` and call the new init function directly from `initApp()` /
+  wherever `renderAll()` was invoked).
 
-Verify via `grep`/search that no other tab (Raffle, TCG Raffle, Player Stats, etc.)
-calls into any of the above before deleting — the implementer must confirm each function
-has no other caller, not assume it from this spec.
+Keep, unmodified:
+- `load()`, `save()`, `syncToGist()` — shared infrastructure, still used by every other
+  feature.
+- `data.events`/`data.roster` as dead/unused keys in the schema is acceptable; no
+  migration of existing Gist content is required.
+- TCG Raffle tab, entirely.
+
+Verify via `grep`/search that no other tab (TCG Raffle, Player Stats, Judges, Settings,
+etc.) calls into any function before deleting it — the implementer must confirm each
+function has no other caller, not assume it from this spec. In particular, re-check
+`getAllPlayers` (used by Infractions today) after Part 4 changes Infractions to manual
+entry — confirm nothing else still calls it before deleting it too.
+
+## Part 4 — Infractions: switch Player/Event to manual text entry
+
+In the Infractions form ([index.html:1213-1260](../../../index.html) markup,
+`warnPopulateForm`/`warnSubmit` JS around [index.html:4055-4100](../../../index.html)):
+
+- Replace the `#warnPlayer` `<select>` with a plain `<input type="text">` the organiser
+  types a name into directly. Same for `#warnEvent`.
+- Do the same for the filter selects (`#warnFilterPlayer`, `#warnFilterEvent`) used to
+  filter the infraction log, if they exist as selects today — confirm their current
+  markup before changing.
+- `warnPopulateForm` no longer needs to call `load()`/`getAllPlayers(data)` to populate
+  these fields — simplify or remove it accordingly, keeping only whatever it still does
+  for other fields (if anything).
+- `warnSubmit` and the infraction log rendering (`renderWarnLog`,
+  [index.html:4143](../../../index.html)) must keep working with a free-text player/event
+  name instead of a `uid`/event `id` — read the current record shape stored per
+  infraction and adjust storage/display to use the typed strings directly, preserving
+  existing stored infractions' display (old records keyed by uid should still render
+  sensibly, even if the uid no longer resolves to anything — display the raw stored
+  value as a fallback).
 
 ## Part 2 — Move Event Day into `#tab-league`
 
