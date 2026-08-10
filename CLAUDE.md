@@ -4,9 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-The Gulf Nexus League (GNL) Riftbound TCG league site: **one 8,900-line `index.html`** containing the
-whole application — markup, CSS and JavaScript. No build step, no package manager, no dependencies.
-Vanilla ES5-style JS (`var`, `function`, no modules) inside IIFEs.
+The Gulf Nexus League (GNL) Riftbound TCG league site: **one ~9,300-line `index.html`** containing
+the whole application — markup, CSS and JavaScript. No build step, no package manager, no
+dependencies. Vanilla ES5-style JS (`var`, `function`, no modules) inside IIFEs. Typography is a
+single family, IBM Plex Sans, loaded via the Google Fonts `<link>` in `<head>`.
 
 `main` deploys to `riftbound.eahmed.me` via GitHub Pages (`CNAME`). **Every merge to `main` is a
 production deploy**, and the file is served verbatim — after merging, a hard refresh is needed before
@@ -14,7 +15,8 @@ a change is visible.
 
 `Riftbound_Card_Database.txt` and `Riftbound_Official_Rules_Reference.txt` are game reference data,
 not used by the app. `vendetta-guide/` holds player-facing scoring explainer assets (see its README);
-regenerate them when the scoring rules change.
+regenerate them when the scoring rules change. `docs/league-and-awards.md` documents scoring, GNL:
+Vendetta, and the awards system for humans — not used by the app.
 
 ## Commands
 
@@ -74,8 +76,19 @@ one city ends up writing into the other's file.
 Key rules, each of which has caused a real bug:
 
 - **`save(data, hist)` and `saveJudges(d)` return whether the write actually landed.** Any caller
-  that shows "✓ Saved" must `await` it and report what it says. `localStorage` is written *before*
-  the PATCH, so a silent failure leaves local and remote diverged until the next load overwrites.
+  that shows "✓ Saved" must `await` it and report what it says. Both write to `localStorage`
+  optimistically (before the PATCH), but snapshot the previous value first and roll back to it if
+  the write is rejected — a `rollback()` closure threaded into `syncToGist` (and inlined in
+  `saveJudges`). This preserves the synchronous-write timing older fire-and-forget callers depend
+  on while guaranteeing a rejected write can never silently outlive the failure message shown for
+  it. Don't reintroduce an unconditional/deferred write to either function without re-deriving why
+  rollback was chosen over both alternatives.
+- **A loaded file must be a plain object, never assumed.** `rbIsFile`/`jdIsFile` (`!!d && typeof d
+  === 'object' && !Array.isArray(d)`) guard every load path (`load`, `loadHist`, `loadFromGist`,
+  `loadJudges`, `loadJudgesFromGist`). `[]` is valid JSON, isn't caught by an `!== '{}'` check, and
+  silently accepts named properties — so a poisoned file loads and renders fine, right up until
+  `JSON.stringify` drops everything non-index and the next save PATCHes two bytes. This has actually
+  happened (a hand-edited judges Gist held `[]`, and three saves in a row silently wrote nothing).
 - **The history file is never PATCHed alone** — `syncToGist` sends both keys in one body.
 - **All GitHub calls go through `rbFetch`**, which aborts after 20s. Without it a stalled request
   hangs the UI forever with the button disabled.
@@ -100,6 +113,12 @@ splits and rivalry arcs — every narrative surface reads from it, so they agree
 Riftbound sets are **Origins → Spiritforged → Unleashed → Vendetta**, stored as editable data in
 `hist.sets`, not a constant — new sets must not require a redeploy.
 
+Filling ledger gaps normally means uploading an organiser's pairing CSV in League History. When no
+CSV exists — the UVS locator has no export control for spectators — `.claude/skills/backfill-league-history/`
+recovers events by reading the locator's pages directly (a browser is required; pairings are not
+server-rendered) and replicates the same ledger invariants (append-only `players`, byes dropped,
+history never PATCHed alone) before writing. Read that skill before hand-rolling anything similar.
+
 ### Domain rules encoded in code
 
 - **Scoring is 3 per match win, 1 per draw, 0 per loss, and nothing else** (`rvScoreRound`).
@@ -111,16 +130,29 @@ Riftbound sets are **Origins → Spiritforged → Unleashed → Vendetta**, stor
 - **Judges**: Riot Name is the identity, matched case-insensitively, with an internal id underneath.
   A judge can only be created by being logged on a night. One event per night per city; any number
   of judges per night. Rank derives from shift count alone (1/5/10/20/40/80 → Bronze…Challenger) and
-  is independent of certification Level.
+  is independent of certification Level, and only falls if a mis-logged shift is later removed.
+  Retiring a judge sets `active:false` — it drops them from the active scorecard, the Log-a-Shift
+  roster and all three exports, but never deletes them or any shift; un-retiring is a single flip
+  back. `jdCompute` always computes `.active` per row (`j.active !== false`), so a judge record
+  saved before this field existed is still treated as active.
 
 ### Module boundaries
 
 Large features are IIFEs (`RIVALRY ANALYZER`, `PLAYER STATS`, `JUDGES`, `SWISS`, `GNL TOP 16`),
 delimited by `// ==================== NAME ====================` banners. Only `window.pdInit`,
-`window.jdInit` and `window.t16Init` are exported; everything else inside an IIFE is unreachable
-from `page.evaluate` in tests. Top-level functions — `load`, `save`, `loadHist`, `loadJudges`,
-`rvDeriveFromLedger`, `rvDerivePlayer`, `rvComputeAwards`, `jdCompute`, `jdTierOf` — are reachable,
-which is why the pure logic lives there.
+`window.jdInit` and `window.t16Init` are exported from inside those IIFEs; everything else declared
+*inside* one is unreachable from `page.evaluate` in tests or from the console.
+
+**Don't assume a function's physical location matches its scope.** `saveJudges`, `jdIsFile`,
+`getToken`, `rbFetch`, `save`, `syncToGist` and `rbIsFile` are all genuinely top-level — reachable
+from `window` — even though several of them (`saveJudges`, `jdIsFile`) sit textually beside
+Judges-only comments and read as if they belong to the `JUDGES` IIFE. They don't; that IIFE starts
+much later in the file. This has already cost real effort: two separate implementers assumed
+`saveJudges` was IIFE-scoped and built unnecessary indirection to work around it. If in doubt, check
+`typeof window.fnName` rather than inferring from surrounding comments. Other reachable top-level
+functions: `load`, `loadHist`, `loadJudges`, `loadJudgesFromGist`, `loadFromGist`,
+`rvDeriveFromLedger`, `rvDerivePlayer`, `rvComputeAwards`, `jdCompute`, `jdTierOf` — this is why the
+pure logic lives there.
 
 `showTab(id)` swaps panels and calls the relevant `init` — so **`pdInit`/`jdInit` run on every tab
 visit, not once**. They must merge remote state with unsaved local state, never replace it.
@@ -134,6 +166,13 @@ visit, not once**. They must merge remote state with unsaved local state, never 
 - Dates are stored **ISO** (`YYYY-MM-DD`, so they sort as strings) and displayed **DD/MM/YY**.
 - Access is a `sessionStorage` password gate (`unlock()`), plus a separate admin gate. It is
   obscurity, not security — the passwords are in the file.
+- **Two confirm patterns exist for destructive actions, chosen deliberately, not interchangeably.**
+  A native `confirm()` dialog (`removeEvent`, League History's event-ledger removal) suits a rare,
+  occasional action. An in-page two-click arm (click once → red "confirm?" state with a 5s
+  auto-revert `setTimeout`, click again to act — see `rvClearGist`, `jdPurgeBtn`,
+  `jdShiftRemoveArmed`, `jdRetireArmed`) suits an action a user might repeat several times in one
+  sitting, where a native dialog would be an interruption. Match the existing pattern for the
+  context rather than picking either by default.
 
 ## Conventions
 
