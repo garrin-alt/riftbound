@@ -5167,15 +5167,12 @@ function swInitTab(){ swRenderSetup(); }
       return rivalry.rivalryPoints[player];
     }
 
-    // Cumulative points, plus this round's W-D-L from each player's own results
-    Object.keys(outcome).forEach(function(k){
-      var o = outcome[k], e = rvEntry(o.name);
-      e.points += pointsAwarded[o.name] || 0;
-      e.matchWins += o.wins;
-      e.draws     += o.draws;
-      e.losses    += o.losses;
-    });
-    // Vendetta wins are the headline stat — track them separately
+    // points/matchWins/draws/losses are no longer read by anything — GNL: Vendetta now
+    // derives League Points fresh from rvDeriveFromLedger(hist, {counted:true}) each
+    // render (see rvLoadLeaderboard). The object shape is kept as-is (all five fields,
+    // zeroed) to avoid touching every other rvEntry() call site; only the dead
+    // accumulation is removed. vendettaWins keeps accumulating — it remains the
+    // Vendetta award's all-time data source (see rvComputeAwards).
     rivalMatchesFound.forEach(function(rm){ rvEntry(rm.winner).vendettaWins += 1; });
 
     // Merge this event's full match results into season h2h (same logic as rvAnalyze, applied directly)
@@ -5512,29 +5509,28 @@ function swInitTab(){ swRenderSetup(); }
     var body = document.getElementById('rvLeaderboardBody');
     var empty = document.getElementById('rvLeaderboardEmpty');
     try {
-      // Always read the active city's Gist rather than trusting the cache,
-      // which may still hold another city's season.
+      // Always read the active city's Gist rather than trusting the cache, which may
+      // still hold another city's season. loadFromGist() also syncs the history file
+      // into localStorage as a side effect, so loadHist() right after sees it fresh.
       var fresh = await loadFromGist();
-      var data = (fresh && fresh.rivalry) || null;
-      if(!data || !data.rivalryPoints || !Object.keys(data.rivalryPoints).length){
-        body.innerHTML = ''; empty.style.display = 'block';
-        rvLbCache.main = [];
-        return;
-      }
-      rvSavedSeasonData = data;
-      empty.style.display = 'none';
+      rvSavedSeasonData = (fresh && fresh.rivalry) || null;
+      var hist = loadHist();
 
-      // Events come from attendance, which counts distinct events correctly
-      var att = data.attendance || {};
+      // League Points are derived fresh from whichever events are flagged "counts
+      // toward League" in League History — never a stored running total, and never a
+      // fallback to unfiltered lifetime data when nothing is flagged.
+      var derived = rvDeriveFromLedger(hist, { counted: true });
+      var totals = derived.totals;
 
       // Rivalry is not a competitive input, so it appears nowhere on this board —
       // not as a column, and not as a tiebreak. Ties break on match results alone.
-      var rows = Object.entries(data.rivalryPoints).map(function(kv){
-        var e = kv[1];
+      var rows = Object.keys(totals).map(function(name){
+        var t = totals[name];
+        var points = (t.mw||0)*3 + (t.draws||0)*1;
         return {
-          player: kv[0], points: e.points||0,
-          w: e.matchWins||0, d: e.draws||0, l: e.losses||0,
-          ev: (att[kv[0]] || []).length
+          player: name, points: points,
+          w: t.mw||0, d: t.draws||0, l: t.ml||0,
+          ev: t.eventCount||0
         };
       }).filter(function(r){ return r.points > 0 || r.w > 0 || r.d > 0 || r.l > 0; })
         .sort(function(a,b){ return b.points - a.points || b.w - a.w || a.l - b.l; });
