@@ -2130,7 +2130,7 @@ function rvDerivePlayer(hist, name) {
     bySlot.forEach(function (rows) { (rows || []).forEach(function (m) { mine.push(m); }); });
     if (!mine.length) return;
 
-    var e = { id: ev.id, set: ev.set, date: ev.date, label: ev.label || '',
+    var e = { id: ev.id, set: ev.set, date: ev.date, label: ev.label || '', counts: ev.counts,
               w: 0, l: 0, d: 0, gw: 0, gl: 0, matches: mine };
     mine.forEach(function (m) {
       e.gw += m.gw; e.gl += m.gl;
@@ -2407,16 +2407,14 @@ function rvComputeAwards(rivalry, hist) {
   var stored = rivalry.awards || {};
   var overrides = stored.overrides || {};
 
-  // Awards are scoped to the current Riftbound set only — a player's award-eligible
-  // stats reset in practice at each new set, with no manual migration step required.
-  // Where the ledger has data for the current set, every computed award below is built
-  // from that slice instead of the lifetime rivalry.h2h aggregate. Where no ledger data
-  // exists yet for the current set (or at all), fall back to the all-time aggregate —
-  // same as before this scoping existed — rather than showing nothing.
-  var curSetId = rvHistCurrentSet(hist || {});
+  // Awards are scoped to whichever events the organiser has explicitly flagged as
+  // "counts toward League" in League History — never an automatic set filter, and never
+  // a fallback to the unfiltered lifetime aggregate. Nothing flagged means every
+  // aggregate-based award below computes over an empty table and renders as Unclaimed,
+  // exactly like the existing "no data yet" path already does for an empty h2h.
   var ledgerEvents = (hist && hist.events) || [];
-  var curSetLedger = ledgerEvents.length ? rvDeriveFromLedger(hist, { set: curSetId }) : null;
-  var h2h = (curSetLedger && curSetLedger.h2h.length ? curSetLedger.h2h : null) || rivalry.h2h || [];
+  var countedLedger = ledgerEvents.length ? rvDeriveFromLedger(hist, { counted: true }) : null;
+  var h2h = (countedLedger && countedLedger.h2h.length) ? countedLedger.h2h : [];
 
   // ── Player table from the lifetime aggregate ──
   var P = {};
@@ -2443,8 +2441,8 @@ function rvComputeAwards(rivalry, hist) {
   giantList.forEach(function (g) { isGiant[g.name] = true; });
 
   // ── Chronology, for the three awards the aggregate cannot answer — scoped to the
-  // current set, same as h2h above.
-  var led = curSetLedger && curSetLedger.events.length ? curSetLedger : null;
+  // same counted-events set as h2h above.
+  var led = countedLedger && countedLedger.events.length ? countedLedger : null;
 
   var out = [];
   function add(id, winner, runnerUp, blurb, extra) {
@@ -2581,10 +2579,10 @@ function rvComputeAwards(rivalry, hist) {
   });
   add('hound', ho[0], ho[1], 'The widest circle — most distinct opponents faced.');
 
-  // Attendance isn't tagged by set in rivalry.attendance (it's a lifetime dict), so
-  // Caretaker is re-derived here from the current-set ledger slice directly, rather than
-  // read from that dict, to honor the same set boundary as everything else above. If the
-  // ledger has no events for the current set yet, this is empty and `best([])` returns
+  // Attendance isn't tagged by counted-event in rivalry.attendance (it's a lifetime
+  // dict), so Caretaker is re-derived here from the counted-events ledger slice
+  // directly, rather than read from that dict, to honor the same boundary as everything
+  // else above. If nothing is flagged yet, this is empty and `best([])` returns
   // [null, null] — matching the existing "no data yet" pattern used elsewhere.
   var curSetAttendance = {};
   (led ? led.events : []).forEach(function (ev) {
@@ -2599,11 +2597,13 @@ function rvComputeAwards(rivalry, hist) {
   var ca = best(att, function (x) { return x.n || null; }, function (x) {
     return { name:x.name, detail: x.n + ' event' + (x.n===1?'':'s') + ' attended' };
   });
-  add('caretaker', ca[0], ca[1], 'Most events attended this set. Turning up is its own achievement.');
+  add('caretaker', ca[0], ca[1], 'Most events attended (of those flagged as counting). Turning up is its own achievement.');
 
   // Vendetta wins are not set-tagged in rivalry.rivalryPoints (lifetime counter) and the
-  // ledger's match rows carry no Vendetta/grudge-match marker to re-derive it from, so
-  // this award stays all-time rather than fabricating a set boundary that isn't there.
+  // ledger's match rows carry no grudge-match marker to re-derive it from, so this award
+  // stays all-time rather than fabricating a boundary that isn't there. This is now the
+  // ONE award inconsistent with the rest of Awards being counted-events-scoped — flagged
+  // here so a future reader doesn't take it for an oversight.
   var vd = best(Object.keys(points).map(function (n) { return { name:n, n:points[n].vendettaWins||0 }; }),
     function (x) { return x.n || null; },
     function (x) { return { name:x.name, detail: x.n + ' grudge' + (x.n===1?'':'s') + ' settled' }; });
@@ -2620,11 +2620,11 @@ function rvComputeAwards(rivalry, hist) {
     (hist.players || []).forEach(function (p) { names[p] = 1; });
 
     var risers = Object.keys(names).map(function (n) {
-      // rvDerivePlayer always returns a player's whole career, all sets — it has other
-      // callers (Player Stats) that need that, so it isn't scoped itself. Filter its
-      // events down to the current set here instead.
+      // rvDerivePlayer always returns a player's whole career, every event — it has
+      // other callers (Player Stats) that need that, so it isn't scoped itself. Filter
+      // down to counted events here instead.
       var st = rvDerivePlayer(hist, n);
-      var setEvents = st.events.filter(function (e) { return e.set === curSetId; });
+      var setEvents = st.events.filter(function (e) { return e.counts === true; });
       if (setEvents.length < 4) return null;
       var half = Math.floor(setEvents.length / 2);
       var A = { w:0, l:0 }, B = { w:0, l:0 };
@@ -2646,7 +2646,7 @@ function rvComputeAwards(rivalry, hist) {
 
     // Consecutive means consecutive LEAGUE events, not consecutive appearances — missing
     // a night has to break the run, or this would just re-elect the most active player.
-    // Scoped to the current set's events (led.events), not the whole ledger.
+    // Scoped to the counted events (led.events), not the whole ledger.
     var order = led.events.map(function (e) { return e.id; });
     var attended = {};
     led.events.forEach(function (e) {
