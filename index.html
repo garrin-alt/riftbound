@@ -2039,6 +2039,7 @@ function rvDeriveFromLedger(hist, opts) {
     if (opts.set && ev.set !== opts.set) return;
     if (opts.from && String(ev.date) < opts.from) return;
     if (opts.to   && String(ev.date) > opts.to) return;
+    if (opts.counted && !ev.counts) return;
     evs.push(ev);
 
     // Group rows by round slot so within-event order follows the round order, not file order
@@ -6195,6 +6196,7 @@ function swInitTab(){ swRenderSetup(); }
     list.innerHTML = events.map(function(e){
       var setName = ((hist.sets||[]).filter(function(s){ return s.id===e.set; })[0]||{}).name || e.set || '—';
       return '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(201,146,42,0.08);font-size:0.78rem">'+
+        '<input type="checkbox" data-counthist="'+rvEsc(e.id)+'" '+(e.counts?'checked':'')+' title="Counts toward Awards and GNL: Vendetta" style="accent-color:var(--gold);cursor:pointer;flex-shrink:0"/>'+
         '<span class="td-mono" style="color:rgba(245,237,214,0.5);min-width:64px">'+rvDdmmyy(e.date)+'</span>'+
         '<span style="color:rgba(245,237,214,0.4);min-width:100px">'+rvEsc(setName)+'</span>'+
         '<span style="flex:1;color:rgba(245,237,214,0.6)">'+rvEsc(e.label||('Event '+e.id))+'</span>'+
@@ -6213,6 +6215,26 @@ function swInitTab(){ swRenderSetup(); }
         save(data, freshHist).then(function(ok){
           if(ok){ rvHistRenderEventList(); rvHistRenderCoverage(); }
           else { b.disabled = false; b.textContent = '✗ retry'; }
+        });
+      });
+    });
+    list.querySelectorAll('[data-counthist]').forEach(function(cb){
+      cb.addEventListener('click', function(){
+        cb.disabled = true;
+        var freshHist = loadHist();
+        var ev = (freshHist.events||[]).find(function(e){ return e.id === cb.dataset.counthist; });
+        if(!ev){ cb.disabled = false; return; }
+        var turningOn = cb.checked;
+        if(turningOn) ev.counts = true; else delete ev.counts;
+        var data = load();
+        save(data, freshHist).then(function(ok){
+          cb.disabled = false;
+          if(!ok){
+            cb.checked = !turningOn; // revert the checkbox to reflect the failed write
+            return;
+          }
+          if(typeof rvLoadLeaderboard === 'function') rvLoadLeaderboard();
+          if(typeof rvAwRender === 'function') rvAwRender();
         });
       });
     });
