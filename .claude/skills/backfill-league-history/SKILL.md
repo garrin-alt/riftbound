@@ -67,6 +67,11 @@ matches on every round of a large event, and the ledger then contradicts the pla
 standings, which is indistinguishable from "the platform didn't publish those rounds". This
 mis-diagnosis actually happened. See `references/locator.md`.
 
+Draining is not just "click Next" — after the click the grid **empties while loading**, so a wait
+that only checks "content changed" accepts the empty state and the loop breaks at page 1 anyway.
+Require a settled grid (no skeletons, at least one card, text different from before). Tell-tale:
+every round returns exactly 10 matches regardless of attendance.
+
 Run serially. Concurrency causes enough CPU contention to trigger spurious timeouts and is barely
 faster.
 
@@ -75,14 +80,18 @@ Budget roughly 30–120 seconds per event depending on player count and round co
 ### 4. Corroborate — this gate is the point of the whole exercise
 
 For every event, recompute each player's W-L-D from the harvested pairings and compare against the
-locator's own standings. **A bye counts as a match win in standings but has no pairing row**, so the
-check is:
+locator's own standings. Two card shapes have **no opponent and therefore no pairing row**, yet both
+appear in standings: a **bye** (a win) and a **`Loss` card** (its exact mirror). So the check is:
 
 ```
-harvestedWins + byesThisPlayer  ==  standingsWins
-harvestedLosses == standingsLosses
-harvestedDraws  == standingsDraws
+harvestedWins   + byesThisPlayer  ==  standingsWins
+harvestedLosses + lossCards       ==  standingsLosses
+harvestedDraws                    ==  standingsDraws
 ```
+
+**If every event comes back with zero standings, you have the scoping bug, not a quiet platform** —
+the hidden mobile copy carries a permanent `standings-empty` element, so an unscoped
+`document.querySelector` for it disables this entire gate. See `references/locator.md`.
 
 An event that fails is **reported and excluded, never silently imported**. This is not theoretical:
 event `252948` (Dubai, 2025-11-06) publishes 4 rounds but its standings show 5 matches per player —

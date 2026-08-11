@@ -97,7 +97,15 @@
     if (!rest.length) return null;                        // mid-render
     const tbl = rest[0];
     const body = rest.slice(1);
-    if (body.length === 2 && /^bye$/i.test(body[1])) return { k: 'b', p: body[0] };
+    // A two-field body is a single-player card. "Bye" is a win with no opponent; "Loss" is
+    // its mirror. Testing only for bye lets a Loss fall through to the score search, return
+    // null, and get discarded as mid-render - the event then disagrees with its own standings
+    // by exactly one loss. Anything else two-field is surfaced rather than dropped.
+    if (body.length === 2 && !isScore(body[1])) {
+      if (/^bye$/i.test(body[1]))  return { k: 'b', p: body[0] };
+      if (/^loss$/i.test(body[1])) return { k: 'l', p: body[0] };
+      return { k: 'o', p: body[0], token: body[1] };      // unknown - report, never discard
+    }
     const si = body.findIndex(isScore);
     if (si === -1) return null;                           // mid-render
     const players = body.filter((_, n) => n !== si);
@@ -116,11 +124,15 @@
     return g ? [...g.children] : [];
   };
   // Drain EVERY page of the current round (see note 4).
-  const readAllPages = async (d, sec) => {
-    const matches = [], byes = [];
+  //
+  // Takes a GETTER, not the section node: React can replace the section, and a detached node
+  // reports zero-size for every button - indistinguishable from "no Next button".
+  const readAllPages = async (d, secGet) => {
+    const matches = [], byes = [], losses = [], other = [];
     const seen = new Set();
     let partial = false;
-    for (let page = 0; page < 12; page++) {
+    for (let page = 0; page < 14; page++) {
+      const sec = secGet(); if (!sec) break;
       const els = cardsIn(sec);
       for (const el of els) {
         const c = parseCard(el);
@@ -129,18 +141,32 @@
         const key = JSON.stringify(c);
         if (seen.has(key)) continue;
         seen.add(key);
-        if (c.k === 'b') byes.push(c.p); else matches.push([c.t, c.a, c.b, c.wa, c.wb, null]);
+        if (c.k === 'b') byes.push(c.p);
+        else if (c.k === 'l') losses.push(c.p);
+        else if (c.k === 'o') other.push(c.p + '|' + c.token);
+        else matches.push([c.t, c.a, c.b, c.wa, c.wb, null]);
       }
-      const nx = [...sec.querySelectorAll('button')]
+      const s2 = secGet(); if (!s2) break;
+      const nx = [...s2.querySelectorAll('button')]
         .filter(b => /^NEXT$/i.test(b.innerText.trim()) && vis(b) && !b.disabled);
       if (!nx.length) break;
-      const before = cardsIn(sec).map(e => e.textContent).join('|');
+      const before = els.map(e => e.textContent).join('|');
       nx[0].click();
-      const moved = await waitFor(d, () => cardsIn(sec).map(e => e.textContent).join('|') !== before ? true : null, 10000);
+      // Wait for a SETTLED grid, not merely a changed one. The grid empties while the next
+      // page loads; accepting that empty state makes the loop read zero cards and break, so
+      // every round of every large event silently stops at page 1 (symptom: exactly 10
+      // matches per round regardless of attendance).
+      const moved = await waitFor(d, () => {
+        const s3 = secGet(); if (!s3) return null;
+        if (s3.querySelectorAll('[data-testid="pairings-skeleton-matchup"]').length) return null;
+        const e2 = cardsIn(s3); if (!e2.length) return null;
+        return e2.map(e => e.textContent).join('|') !== before ? true : null;
+      }, 15000);
       if (!moved) break;
+      await burst(200);
     }
     matches.sort((x, z) => (x[0] === null) - (z[0] === null) || x[0] - z[0]);
-    return { matches, byes: byes.sort(), partial };
+    return { matches, byes: byes.sort(), losses: losses.sort(), other, partial };
   };
 
   // Settled = no skeletons left and at least one card present.
@@ -149,7 +175,7 @@
     cardsIn(sec).length > 0;
 
   const one = async (id) => {
-    const rec = { id, rounds: {}, byes: {}, standings: [], notes: [] };
+    const rec = { id, rounds: {}, byes: {}, losses: {}, standings: [], notes: [] };
     const f = document.createElement('iframe');
     f.style.cssText = 'position:fixed;left:0;top:0;width:1200px;height:1800px;opacity:0.01;z-index:-1';
     f.src = '/events/' + id;
@@ -206,14 +232,15 @@
           await waitFor(d, () => (trig() && trig().innerText.trim() === r.label) ? true : null, 10000);
           await closeMenu();
 
-          const s = sec();
-          const ok = await waitFor(d, () => settled(s) ? true : null, 20000);
-          if (!ok) { rec.notes.push('empty ' + r.label); rec.rounds[r.n] = []; rec.byes[r.n] = []; continue; }
+          const ok = await waitFor(d, () => { const s = sec(); return s && settled(s) ? true : null; }, 20000);
+          if (!ok) { rec.notes.push('empty ' + r.label); rec.rounds[r.n] = []; rec.byes[r.n] = []; rec.losses[r.n] = []; continue; }
           await burst(300);
-          const got = await readAllPages(d, s);
+          const got = await readAllPages(d, sec);
           if (got.partial) rec.notes.push('partial cards ' + r.label);
+          if (got.other.length) rec.notes.push('UNKNOWN card ' + r.label + ': ' + got.other.join(','));
           rec.rounds[r.n] = got.matches;
           rec.byes[r.n] = got.byes;
+          rec.losses[r.n] = got.losses;
           // top cut rounds are playoff rounds
           if (/^Top /i.test(r.label)) (rec.playoff = rec.playoff || []).push(r.n);
         }
@@ -222,11 +249,19 @@
       // ── standings, paginated, scoped to the standings block ─────────────
       // The page also has a roster pager; grabbing the last NEXT on the page
       // clicks that one instead and caps standings at the first 10 rows.
+      // The empty-check MUST be scoped to the visible section. The hidden mobile copy carries
+      // a permanent "No standings available" element, so an unscoped d.querySelector() is true
+      // on every event - standings get skipped every time and the corroboration gate silently
+      // does nothing. Symptom: standings.length === 0 across the whole run.
       const st = pick(d, '[data-testid="standings-section"]');
-      if (st && !d.querySelector('[data-testid="standings-empty"]')) {
+      const stEmpty = st ? st.querySelector('[data-testid="standings-empty"]') : null;
+      if (st && !stEmpty) {
+        const tblOf = () => [...st.querySelectorAll('table')].find(t => /RANK|POINTS/i.test(t.textContent));
+        await waitFor(d, () => tblOf() ? true : null, 20000);   // pairings settle first
+        await burst(200);
         const seen = new Set();
         const grab = () => {
-          const tbl = [...st.querySelectorAll('table')].find(t => /RANK|POINTS/i.test(t.textContent));
+          const tbl = tblOf();
           if (!tbl) return 0;
           let added = 0;
           [...tbl.querySelectorAll('tr')].forEach(tr => {
@@ -256,7 +291,7 @@
           const before = seen.size;
           nx[0].click();
           await waitFor(d, () => {
-            const t2 = [...st.querySelectorAll('table')].find(t => /RANK|POINTS/i.test(t.textContent));
+            const t2 = tblOf();
             if (!t2) return null;
             return [...t2.querySelectorAll('tr')].some(tr => {
               const c = [...tr.querySelectorAll('td,th')].map(x => x.innerText.trim());

@@ -73,7 +73,34 @@ drops matches on **every round** of a large event, and the resulting ledger then
 platform's own standings — which looks exactly like "the platform didn't publish those rounds".
 
 The pager lives *inside* `[data-testid="pairings-section"]` and reads `Page 1 of N`. Confirmed live
-on event `248720` round 6 and `337169` round 3.
+on event `248720` round 6 and `337169` round 3. The button label is `Next` (not `NEXT`), so match
+it case-insensitively.
+
+#### After clicking Next, wait for a SETTLED grid — not merely a changed one
+
+This is the same "stable, not merely different" rule the round switcher needs, and it is just as
+destructive here. On clicking Next the grid **empties while the next page loads**. A wait that only
+checks "content differs from before" is satisfied instantly by that empty state; the loop then reads
+zero cards, finds no Next button in the empty render, and breaks — so **every round of every large
+event silently stops at page 1**.
+
+Symptom: every round returns exactly 10 matches regardless of attendance. A 30-player event shows
+`10/10/10` where it should show `15/14/12`. It looks like a cap, not a bug.
+
+Require all three before accepting the new page: no `pairings-skeleton-matchup`, at least one card
+present, and text different from the previous page.
+
+```js
+const moved = await waitFor(d, () => {
+  const s = secGet(); if (!s) return null;
+  if (s.querySelectorAll('[data-testid="pairings-skeleton-matchup"]').length) return null;
+  const els = cardsIn(s); if (!els.length) return null;              // still loading
+  return els.map(e => e.textContent).join('|') !== before ? true : null;
+}, 15000);
+```
+
+Re-query the section each iteration rather than holding the node — React can replace it, and a
+detached node reports zero-size for every button, which looks exactly like "no Next".
 
 Cards are ordered by table number with the bye (`TABLE / - / Name / Bye`) **last**, so:
 
@@ -107,7 +134,7 @@ Round labels are **not all** `Round N` — top cut renders as `Top 8` / `Top 4` 
 playoff rounds and should be tagged `p`, not `s`.
 
 **Cards do not have a fixed line count.** Parsing by line count silently drops real matches —
-this actually happened and produced a ledger with wrong pairings. Five shapes exist:
+this actually happened and produced a ledger with wrong pairings. Six shapes exist:
 
 ```
 normal                    feature match                                    bye              untabled
@@ -120,10 +147,42 @@ Monkey Island 2           KoktailOverDose                                       
                           2 : 0
                           FIDO DIDO
 
-deck-registered event  ← the score moves to the END
-------------------------
+deck-registered event  ← the score moves to the END      loss (no opponent)
+------------------------                                 ------------------
 TABLE / 1 / PlayerA / <champion> / PlayerB / <champion> / 2 : 1
+                                                         TABLE
+                                                         -
+                                                         Optixus
+                                                         Loss
 ```
+
+### The `Loss` card — the mirror of a Bye
+
+A **two-field body whose second field is `Loss`** is a loss awarded with no opponent. It is
+structurally identical to a Bye but counts the other way, and it is easy to miss because the
+obvious guard only tests for `bye`:
+
+```js
+if (body.length === 2 && /^bye$/i.test(body[1])) return { k:'b', p:body[0] };  // NOT ENOUGH
+```
+
+Anything else with a two-field body then falls through to the score search, finds no score,
+returns `null`, and is counted as a mid-render card — so the loss is **silently dropped**. The
+event then disagrees with its own standings by exactly one loss per dropped card, which reads
+like a harvest bug rather than a parser gap.
+
+Confirmed live on Abu Dhabi `777661` (2ESC2, Optixus), `787390` (PokéBaller, Dani) and `834660`
+(JoSe, Links). Like a bye it produces **no match row** — there is nobody to have played — but it
+must be captured so corroboration can add it to standings losses:
+
+```
+harvestedWins   + byes       == standingsWins
+harvestedLosses + lossCards  == standingsLosses
+harvestedDraws               == standingsDraws
+```
+
+Treat any *other* two-field body as an unknown token and report it rather than discarding it —
+that is how this shape was found.
 
 Parse **structurally**: find the `TABLE` marker, strip any
 `[data-testid="deck-defining-card-name"]` nodes, then locate the score by **pattern**
@@ -134,6 +193,8 @@ The champion name also pollutes the **standings** name cell; strip it there too,
 appears under two different names.
 
 - `TIE` is a drawn match — record `1 : 1`. It is real data, not a rendering failure.
+- A `Loss` row is a real recorded loss with no opponent — capture it, drop it from the ledger,
+  and feed it to corroboration (see "The `Loss` card" above).
 - The table label may be `-`. An untabled row is still a real, scored match; keep it with a null
   table number. Event `252948` round 1 carries four of them in addition to tables 1–6.
 - **Bye rows are explicit**, so byes can be captured directly rather than inferred. This matters:
@@ -159,6 +220,39 @@ while the dropdown is open.
 
 A `<table>` containing `RANK`/`POINTS`, paginated 10 rows per page with a `NEXT` button. The record
 cell reads `3\n-\n1\n-\n1` — strip whitespace and split on `-`.
+
+**Scope the `standings-empty` check to the VISIBLE section.** The hidden mobile copy carries a
+permanent "No standings available for this round" element, so an unscoped document-wide query:
+
+```js
+if (st && !d.querySelector('[data-testid="standings-empty"]')) { … }   // WRONG
+```
+
+is true on *every* event, and standings are skipped every single time. That silently disables the
+whole corroboration gate — every event comes back `UNVERIFIED` and nothing is ever checked against
+the platform. Query within the visible section instead, and wait for the table to actually render
+before grabbing (the pairings finish first):
+
+```js
+const st = pick(d, '[data-testid="standings-section"]');
+const empty = st && st.querySelector('[data-testid="standings-empty"]');
+if (st && !empty) {
+  await waitFor(d, () => tblOf() ? true : null, 20000);
+  …
+}
+```
+
+Sanity check: a healthy event returns roughly as many standings rows as it has players. `stand=0`
+across the board means this bug, not a quiet platform.
+
+**Standings names can carry a ` (Guest)` suffix that the pairing cards omit** — Abu Dhabi `315067`
+lists `Vaccinated Monk (Guest)` in standings and `Vaccinated Monk` on the card. Strip it before
+corroborating or that player looks like they never played.
+
+**One display name can belong to two different registrations.** In Abu Dhabi `525835` "Guineabear"
+appears twice in the same round — impossible for one player, so the platform holds two entries under
+that name. Handle-space cannot separate them. Detect it (a name appearing twice in one round) and
+report it rather than letting the tally silently double.
 
 ## Enumerating events for a city
 

@@ -15,19 +15,29 @@
 #
 # CORROBORATION
 # The locator's own standings are the check. A bye is recorded by the platform
-# as a match WIN but has no opponent, so:
+# as a match WIN but has no opponent; a "Loss" card is its exact mirror - a
+# LOSS with no opponent. Both are real standings rows with no match to pair
+# them to, so:
 #
-#     harvestedWins + byeCount == standingsWins
-#     harvestedLosses          == standingsLosses
-#     harvestedDraws           == standingsDraws
+#     harvestedWins   + byeCount   == standingsWins
+#     harvestedLosses + lossCards  == standingsLosses
+#     harvestedDraws               == standingsDraws
 #
-# Byes are captured explicitly by the harvester (cards read "TABLE / - / Name /
-# Bye"), so this is an exact check, not an inference. Any event that fails is
-# reported and EXCLUDED rather than silently imported.
+# Both are captured explicitly by the harvester ("TABLE / - / Name / Bye" and
+# "TABLE / - / Name / Loss"), so this is an exact check, not an inference. Any
+# event that fails is reported and EXCLUDED rather than silently imported.
+#
+# Two name traps the standings table sets, both seen live:
+#   * a walk-in may appear as "Name (Guest)" in standings and bare "Name" on the
+#     pairing card - strip the suffix or they look like they never played
+#   * one display name can belong to two registrations (a name appearing twice
+#     in a single round) - handle-space cannot separate them; report, never merge
 #
 # Expected harvest record shape (one object per event):
 #   { id, rounds: { "1": [[table,a,b,wa,wb,raw], ...] },
 #     byes:   { "1": ["Name", ...] },
+#     losses: { "1": ["Name", ...] },      # Loss cards - no opponent
+#     playoff: ["6","7","8"],              # round numbers labelled "Top N"
 #     standings: [[name, points, w, l, d], ...],
 #     notes: [...] }
 
@@ -54,6 +64,9 @@ function Test-IsBye([string]$name) {
     # "BYE" in any dressing: "BYE", "*** Bye ***", "- bye -"
     ($name -replace '[^a-zA-Z]', '').ToLower() -eq 'bye'
 }
+# Standings can suffix a walk-in with " (Guest)" while the pairing card shows the
+# bare name. Match rows use the card name, so normalise before comparing.
+function Remove-GuestSuffix([string]$name) { $name -replace '\s*\(Guest\)\s*$', '' }
 function Get-Keys($obj) {
     if ($null -eq $obj) { return @() }
     @($obj.PSObject.Properties.Name | Sort-Object { [int]$_ })
@@ -114,11 +127,18 @@ foreach ($h in $harvest) {
             if (-not $tally.ContainsKey($n)) { $tally[$n] = @{ w = 0; l = 0; d = 0; byes = 0 } }
             $tally[$n].byes++
         }
+        # Loss cards: no opponent, so no match row - but they ARE standings losses.
+        foreach ($ln in @($h.losses.$k)) {
+            $n = [string]$ln
+            if (-not $n) { continue }
+            if (-not $tally.ContainsKey($n)) { $tally[$n] = @{ w = 0; l = 0; d = 0; byes = 0 } }
+            $tally[$n].l++
+        }
     }
 
     $mismatch = @()
     foreach ($s in @($h.standings)) {
-        $nm = [string]$s[0]; $sw = [int]$s[2]; $sl = [int]$s[3]; $sd = [int]$s[4]
+        $nm = Remove-GuestSuffix ([string]$s[0]); $sw = [int]$s[2]; $sl = [int]$s[3]; $sd = [int]$s[4]
         $t = if ($tally.ContainsKey($nm)) { $tally[$nm] } else { @{ w = 0; l = 0; d = 0; byes = 0 } }
         if (($t.w + $t.byes) -ne $sw -or $t.l -ne $sl -or $t.d -ne $sd) {
             $mismatch += ('{0}: got {1}-{2}-{3}+{4}bye vs {5}-{6}-{7}' -f $nm, $t.w, $t.l, $t.d, $t.byes, $sw, $sl, $sd)
@@ -164,7 +184,11 @@ foreach ($h in $usable) {
     foreach ($k in (Get-Keys $h.rounds)) {
         $list = @($h.rounds.$k)
         if ($list.Count -eq 0) { continue }
-        [void]$r.Add(@([int]$k, 's'))
+        # 'p' marks a playoff / top-cut round. The harvester flags these from the round
+        # LABEL ("Top 8" / "Top 4" / "Top 2"), not the number - tagging everything 's'
+        # silently discards the distinction that The Glorious Executioner award needs.
+        $type = if (@($h.playoff) -contains ([string]$k)) { 'p' } else { 's' }
+        [void]$r.Add(@([int]$k, $type))
         foreach ($mt in $list) {
             $a = [string]$mt[1]; $b = [string]$mt[2]; $wa = $mt[3]; $wb = $mt[4]
             if ((Test-IsBye $a) -or (Test-IsBye $b)) { continue }
