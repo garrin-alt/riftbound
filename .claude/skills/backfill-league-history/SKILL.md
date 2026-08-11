@@ -93,6 +93,12 @@ harvestedDraws                    ==  standingsDraws
 the hidden mobile copy carries a permanent `standings-empty` element, so an unscoped
 `document.querySelector` for it disables this entire gate. See `references/locator.md`.
 
+**Count the standings rows against the roster before believing an `OK`.** Standings pagination can
+stop at 10 rows, and the check then only ever covers those 10 players — an event with dropped
+matches still passes if the loss falls on someone further down. Ten rows for a 28-player event is
+not corroboration; report it as PARTIAL/UNVERIFIED and say how many players were actually checked.
+Dubai `662679` passed this way while missing four real matches.
+
 An event that fails is **reported and excluded, never silently imported**. This is not theoretical:
 event `252948` (Dubai, 2025-11-06) publishes 4 rounds but its standings show 5 matches per player —
 a whole round of pairings the platform never published.

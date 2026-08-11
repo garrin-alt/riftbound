@@ -249,6 +249,32 @@ across the board means this bug, not a quiet platform.
 lists `Vaccinated Monk (Guest)` in standings and `Vaccinated Monk` on the card. Strip it before
 corroborating or that player looks like they never played.
 
+#### Partial standings make corroboration pass VACUOUSLY — count the rows
+
+Standings pagination can stop after the first 10 rows. Corroboration then only ever checks those 10
+players, so an event with dropped matches still reports `OK` as long as the loss falls on someone
+outside the top 10. **A green result on 10 standings rows for a 28-player event proves almost
+nothing.**
+
+This is not hypothetical: Dubai `662679` round 3 has 14 matches, a re-harvest captured only 10 (a
+page-1 cap), and the event still passed corroboration because standings had also stopped at 10 rows
+— the 4 dropped matches belonged to players further down. It was caught only by diffing against a
+ledger already known to be good.
+
+So always carry the roster size (`starting_player_count` from `Get-EventMeta.ps1`) alongside the
+standings count, and treat a large shortfall as **UNVERIFIED, not OK**:
+
+```
+standingsRows >= playerCount            -> fully corroborated
+standingsRows <  playerCount            -> PARTIAL: say how many were actually checked
+standingsRows <= 10 && playerCount > 12 -> treat as UNVERIFIED; the gate proved nothing
+```
+
+Two independent signals should agree before trusting an event: the standings check, and the match
+count per round being consistent with attendance (roughly `players / 2`, minus byes and drops). A
+round that lands on exactly 10 when attendance implies more is a page-1 cap regardless of what
+corroboration says.
+
 **One display name can belong to two different registrations.** In Abu Dhabi `525835` "Guineabear"
 appears twice in the same round — impossible for one player, so the platform holds two entries under
 that name. Handle-space cannot separate them. Detect it (a name appearing twice in one round) and

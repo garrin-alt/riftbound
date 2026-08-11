@@ -145,9 +145,17 @@ foreach ($h in $harvest) {
         }
     }
 
-    if (@($h.standings).Count -eq 0) {
+    # Standings pagination can stop at 10 rows, and the check then only covers those 10
+    # players - an event with dropped matches still passes if the loss falls further down.
+    # Ten rows for a large event proves nothing, so refuse to call it corroborated.
+    $stCount = @($h.standings).Count
+    $roster  = if ($m) { [int]$m.playerCount } else { 0 }
+    if ($stCount -eq 0) {
         $row.status = 'UNVERIFIED'
         $row.detail = 'no standings captured - cannot corroborate'
+    } elseif ($stCount -le 10 -and $roster -gt 12) {
+        $row.status = 'UNVERIFIED'
+        $row.detail = ('only {0} of {1} players in standings - gate proves nothing' -f $stCount, $roster)
     } elseif ($mismatch.Count -gt 0) {
         $row.status = 'MISMATCH'
         $row.detail = ('{0}/{1} disagree; {2}' -f $mismatch.Count, @($h.standings).Count, $mismatch[0])
