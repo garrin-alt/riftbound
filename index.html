@@ -1048,6 +1048,9 @@
                 <p style="font-size:0.73rem;margin-top:3px;opacity:0.6">One file per round / bracket — same export format as your tournament platform</p>
               </div>
               <div id="rvPeFileList"></div>
+              <label style="display:flex;align-items:center;gap:8px;font-size:0.78rem;color:rgba(245,237,214,0.6);cursor:pointer;margin-top:10px">
+                <input type="checkbox" id="rvPeCountsCheckbox" checked style="accent-color:var(--gold);cursor:pointer"/> Counts toward Awards &amp; GNL: Vendetta
+              </label>
               <div style="display:flex;gap:8px;margin-top:10px">
                 <button class="btn" id="rvPeProcessBtn" style="flex:1" disabled>Process Event</button>
                 <button class="btn" id="rvPeSaveBtn" style="flex:1" disabled>☁ Save to Gist</button>
@@ -1976,6 +1979,7 @@ function rvHistRecordEvent(hist, ev) {
   });
   var row = { id: String(ev.id), set: ev.set, date: ev.date, src: ev.src || 'history', r: r, m: m };
   if (ev.label) row.label = ev.label;
+  if (ev.counts) row.counts = true;
 
   var at = hist.events.findIndex(function (e) { return e.id === row.id; });
   if (at === -1) hist.events.push(row); else hist.events[at] = row;
@@ -5935,11 +5939,13 @@ function swInitTab(){ swRenderSetup(); }
         });
       });
       var wroteHist = false;
+      var peCountsChecked = !!(document.getElementById('rvPeCountsCheckbox') && document.getElementById('rvPeCountsCheckbox').checked);
       Object.keys(byEvent).forEach(function(id){
         rvHistRecordEvent(hist, {
           id: id, set: rvHistCurrentSet(hist),
           date: new Date().toISOString().slice(0,10),
-          src: 'postevent', rounds: byEvent[id]
+          src: 'postevent', rounds: byEvent[id],
+          counts: peCountsChecked
         });
         wroteHist = true;
       });
