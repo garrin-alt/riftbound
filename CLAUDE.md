@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-The Gulf Nexus League (GNL) Riftbound TCG league site: **one ~9,300-line `index.html`** containing
+The Gulf Nexus League (GNL) Riftbound TCG league site: **one ~8,500-line `index.html`** containing
 the whole application — markup, CSS and JavaScript. No build step, no package manager, no
 dependencies. Vanilla ES5-style JS (`var`, `function`, no modules) inside IIFEs. Typography is a
 single family, IBM Plex Sans, loaded via the Google Fonts `<link>` in `<head>`.
@@ -16,7 +16,10 @@ a change is visible.
 `Riftbound_Card_Database.txt` and `Riftbound_Official_Rules_Reference.txt` are game reference data,
 not used by the app. `vendetta-guide/` holds player-facing scoring explainer assets (see its README);
 regenerate them when the scoring rules change. `docs/league-and-awards.md` documents scoring, GNL:
-Vendetta, and the awards system for humans — not used by the app.
+Vendetta, and the awards system for humans — not used by the app, and may lag behind the per-event
+counted-events model described below; check it against the code before trusting it on that point.
+`docs/superpowers/specs/` and `docs/superpowers/plans/` hold design docs and implementation plans
+for past features — useful history for *why* something is shaped the way it is, not live docs.
 
 ## Commands
 
@@ -105,10 +108,12 @@ This is the central design decision and it is deliberate:
   Answers *"when did that change"*. Counter-intuitively ~8× smaller than the aggregate.
 
 **One owner per question.** An aggregate cannot be decomposed by subtraction, so partial
-supersession would double-count. `rvDeriveFromLedger(hist, {set, from, to})` returns rows
-byte-identical in shape to `rivalry.h2h`, so every existing consumer accepts a per-set slice
+supersession would double-count. `rvDeriveFromLedger(hist, {set, from, to, counted})` returns rows
+byte-identical in shape to `rivalry.h2h`, so every existing consumer accepts a filtered slice
 unchanged. `rvDerivePlayer(hist, name)` does one chronological pass producing timelines, per-set
-splits and rivalry arcs — every narrative surface reads from it, so they agree by construction.
+splits and rivalry arcs — every narrative surface reads from it, so they agree by construction; its
+per-event objects also carry `counts` (copied straight from the ledger event) so callers that need
+counted-events-only filtering (e.g. the Ascension award) don't have to re-join back to `hist.events`.
 
 Riftbound sets are **Origins → Spiritforged → Unleashed → Vendetta**, stored as editable data in
 `hist.sets`, not a constant — new sets must not require a redeploy.
@@ -124,6 +129,19 @@ history never PATCHed alone) before writing. Read that skill before hand-rolling
 - **Scoring is 3 per match win, 1 per draw, 0 per loss, and nothing else** (`rvScoreRound`).
   Rivalries/Vendettas are narrative only and score zero; byes never score. The ladder sorts on
   points → match wins → fewer losses. Do not reintroduce a rivalry term into any tiebreak.
+- **GNL: Vendetta and Awards only count events the organiser has explicitly flagged.** Every
+  ledger event has an optional `counts: true` (omitted, not `false`, when off — treat absence as
+  off everywhere, never assume the key exists). The flag is set per-event from a checkbox in
+  League History and is the *only* scoping mechanism for these two features — there is no
+  automatic "current set" filter and no fallback to unfiltered lifetime data when nothing is
+  flagged (both correctly show empty/Unclaimed in that case). `rvDeriveFromLedger(hist, {set,
+  from, to, counted})` is the shared filter; pass `{counted: true}` to get only flagged events.
+  **GNL: Vendetta League Points are derived fresh from this filter on every render**
+  (`rvLoadLeaderboard`, via `rvDeriveFromLedger(...).totals`) — `rivalry.rivalryPoints` is no
+  longer read for points/W/D/L (those fields are still zero-initialized by `rvEntry()` but never
+  incremented); the one field still live in that object is `vendettaWins`, kept as an all-time
+  counter because the ledger has no per-match "was this a declared Vendetta" marker to scope by —
+  the Vendetta award is therefore the one award that stays all-time regardless of what's flagged.
 - **Awards** (`rvComputeAwards`) are recomputed every render and never stored as truth; only
   organiser overrides and custom awards persist. Ties are named ("shared with X"), never broken by
   object-key order.
@@ -167,12 +185,17 @@ visit, not once**. They must merge remote state with unsaved local state, never 
 - Access is a `sessionStorage` password gate (`unlock()`), plus a separate admin gate. It is
   obscurity, not security — the passwords are in the file.
 - **Two confirm patterns exist for destructive actions, chosen deliberately, not interchangeably.**
-  A native `confirm()` dialog (`removeEvent`, League History's event-ledger removal) suits a rare,
-  occasional action. An in-page two-click arm (click once → red "confirm?" state with a 5s
-  auto-revert `setTimeout`, click again to act — see `rvClearGist`, `jdPurgeBtn`,
-  `jdShiftRemoveArmed`, `jdRetireArmed`) suits an action a user might repeat several times in one
-  sitting, where a native dialog would be an interruption. Match the existing pattern for the
-  context rather than picking either by default.
+  A native `confirm()` dialog (League History's event-ledger removal) suits a rare, occasional
+  action. An in-page two-click arm (click once → red "confirm?" state with a 5s auto-revert
+  `setTimeout`, click again to act — see `rvClearGist`, `jdPurgeBtn`, `jdShiftRemoveArmed`,
+  `jdRetireArmed`) suits an action a user might repeat several times in one sitting, where a native
+  dialog would be an interruption. Match the existing pattern for the context rather than picking
+  either by default. A plain, un-confirmed click that writes immediately (League History's
+  per-event "counts toward League" checkbox, and its twin on Event Day's Post-Event Processing
+  card, which sets the same `counts` flag on save so an organiser who only ever uses Post-Event
+  Processing never has to visit League History) is a third, deliberate category for a toggle a
+  user will click repeatedly and that's trivially reversible — don't add a confirm step to
+  something like it just because nearby destructive actions have one.
 
 ## Conventions
 
