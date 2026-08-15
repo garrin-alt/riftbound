@@ -80,13 +80,47 @@
   // Champion lines are tagged data-testid="deck-defining-card-name"; strip
   // those nodes first, then locate the score by PATTERN rather than position
   // so both field orders parse identically.
+  // `el.innerText` is NOT reliable here. Every card renders a responsive mobile/desktop
+  // pair (class "flex lg:hidden" + a "hidden lg:flex" counterpart), and innerText's
+  // automatic exclusion of the hidden copy is unreliable immediately after a round
+  // freshly mounts - both copies can report as visible text with NO separating
+  // newline between them, producing an unparseable concatenated blob, e.g.
+  // "TABLE1QibbyxFKOTABLE1Qibby1 : 2xFKO" for what is really one match. Confirmed
+  // live on Abu Dhabi 408513/408514. Walking LEAF elements and checking each one's
+  // OWN live bounding box sidesteps the innerText heuristic entirely - it doesn't
+  // matter which copy is "supposed" to be hidden, only which one actually has a
+  // non-zero rendered box right now.
   const cardFields = (el) => {
-    let node = el;
-    if (el.querySelector('[data-testid="deck-defining-card-name"]')) {
-      node = el.cloneNode(true);
-      node.querySelectorAll('[data-testid="deck-defining-card-name"]').forEach(n => n.remove());
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_ELEMENT, {
+      acceptNode: (n) => {
+        // Do this check live on the ATTACHED node, never on a detached clone - a
+        // clone (as the old strip-then-innerText approach used) has no layout at
+        // all, so every bounding rect on it reads zero and every leaf gets rejected.
+        if (n.closest('[data-testid="deck-defining-card-name"]')) return NodeFilter.FILTER_REJECT;
+        if (n.children.length > 0) return NodeFilter.FILTER_SKIP;
+        const r = n.getBoundingClientRect();
+        return (r.width > 0 && r.height > 0) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+      }
+    });
+    const raw = [];
+    let n;
+    while (n = walker.nextNode()) {
+      const t = (n.textContent || '').trim();
+      if (t) raw.push(t);
     }
-    return (node.innerText || '').split('\n').map(s => s.trim()).filter(Boolean);
+    // The score is sometimes rendered as three separate leaf nodes ("1", ":", "2")
+    // rather than one "1 : 2" string. Merge a digit/":"/digit run back into a single
+    // field so isScore() below still matches it.
+    const merged = [];
+    for (let i = 0; i < raw.length; i++) {
+      if (/^\d+$/.test(raw[i]) && raw[i + 1] === ':' && /^\d+$/.test(raw[i + 2])) {
+        merged.push(raw[i] + ' : ' + raw[i + 2]);
+        i += 2;
+      } else {
+        merged.push(raw[i]);
+      }
+    }
+    return merged;
   };
   const isScore = s => /^\d+\s*:\s*\d+$/.test(s) || /^TIE$/i.test(s);
   const parseCard = (el) => {
@@ -163,6 +197,19 @@
         return e2.map(e => e.textContent).join('|') !== before ? true : null;
       }, 15000);
       if (!moved) break;
+      // Same real-elapsed-time confirmation as round-switching: skeletons can clear
+      // after only part of a page's cards have rendered, with the rest arriving in a
+      // silent second wave that burst()'s near-instant ticks cannot wait out.
+      const realDelay = (ms) => new Promise(res => setTimeout(res, ms));
+      let stablePage = moved;
+      for (let recheck = 0; recheck < 4; recheck++) {
+        await realDelay(1200);
+        const s4 = secGet();
+        const now = s4 && s4.querySelectorAll('[data-testid="pairings-skeleton-matchup"]').length === 0
+          ? cardsIn(s4).map(e => e.textContent).join('|') : null;
+        if (now === stablePage) break;
+        if (now) stablePage = now;
+      }
       await burst(200);
     }
     matches.sort((x, z) => (x[0] === null) - (z[0] === null) || x[0] - z[0]);
@@ -228,12 +275,52 @@
           if (!opened) { rec.notes.push('menu stuck @' + r.label); break; }
           const opt = d.querySelector('[data-testid="pairings-round-dropdown-option-' + r.n + '"]');
           if (!opt) { rec.notes.push('no option ' + r.label); await closeMenu(); continue; }
+
+          // Snapshot what's on screen BEFORE switching. On some events (confirmed on
+          // events using the deck-registered single-card layout, e.g. AD 408513/408514)
+          // React keeps the previous round's card visible - no skeleton overlay in
+          // between - while the new round fetches. "settled" (skeletons gone + cards
+          // present) is then satisfied IMMEDIATELY by the STALE previous-round content,
+          // and every round after the first ends up re-reading round 1's (or the
+          // default view's) cards. This produces exactly what was observed: a "Round 1"
+          // read that's actually still showing the pre-switch default, and later
+          // rounds that silently duplicate an earlier round instead of erroring.
+          const sampleOf = (s) => s ? cardsIn(s).map(e => e.textContent).join('|') : '';
+          const prevSample = sampleOf(sec());
+
           opt.click();
           await waitFor(d, () => (trig() && trig().innerText.trim() === r.label) ? true : null, 10000);
           await closeMenu();
 
-          const ok = await waitFor(d, () => { const s = sec(); return s && settled(s) ? true : null; }, 20000);
-          if (!ok) { rec.notes.push('empty ' + r.label); rec.rounds[r.n] = []; rec.byes[r.n] = []; rec.losses[r.n] = []; continue; }
+          // Require settled AND changed from the pre-switch snapshot - mirrors the
+          // "wait for a STABLE sample, not merely a changed one" rule already used for
+          // pagination and round-switching elsewhere (see references/locator.md).
+          const changed = await waitFor(d, () => {
+            const s = sec();
+            if (!s || !settled(s)) return null;
+            const sample = sampleOf(s);
+            return sample !== prevSample ? sample : null;
+          }, 20000);
+          if (!changed) { rec.notes.push('empty ' + r.label); rec.rounds[r.n] = []; rec.byes[r.n] = []; rec.losses[r.n] = []; continue; }
+
+          // Confirm the sample is IDENTICAL after a REAL elapsed delay - catches a grid
+          // that looked settled (skeletons gone, some cards present) but was still
+          // populating a second wave of cards. burst() ticks are near-instant
+          // MessageChannel microtasks, not wall-clock time, so they cannot catch this;
+          // only an actual setTimeout-based delay lets the second wave arrive. Confirmed
+          // live on AD 408513: skeletons cleared with 7 of 10 page-1 cards rendered, and
+          // a genuine ~1.2s real wait was what it took for the remaining 3 to appear.
+          const realDelay = (ms) => new Promise(res => setTimeout(res, ms));
+          let stableSample = changed;
+          for (let recheck = 0; recheck < 4; recheck++) {
+            await realDelay(1200);
+            const s = sec();
+            const now = s && settled(s) ? sampleOf(s) : null;
+            if (now === stableSample) break;               // unchanged after a real wait - trust it
+            if (now) stableSample = now;                    // grew/changed again - keep watching
+            if (recheck === 3) rec.notes.push('unstable render ' + r.label);
+          }
+
           await burst(300);
           const got = await readAllPages(d, sec);
           if (got.partial) rec.notes.push('partial cards ' + r.label);
@@ -267,11 +354,17 @@
           [...tbl.querySelectorAll('tr')].forEach(tr => {
             const cells = [...tr.querySelectorAll('td,th')];
             const c = cells.map(x => {
-              // the champion name pollutes the standings name cell too
+              // the champion name pollutes the standings name cell too. Same live
+              // (non-cloned) leaf walk as cardFields - a detached clone has no layout,
+              // so innerText on it is unreliable in exactly the way that broke pairings.
               if (x.querySelector('[data-testid="deck-defining-card-name"]')) {
-                const cl = x.cloneNode(true);
-                cl.querySelectorAll('[data-testid="deck-defining-card-name"]').forEach(n => n.remove());
-                return (cl.innerText || '').trim();
+                const w = document.createTreeWalker(x, NodeFilter.SHOW_TEXT, {
+                  acceptNode: (t) => t.parentElement && t.parentElement.closest('[data-testid="deck-defining-card-name"]')
+                    ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT
+                });
+                let out = '', tn;
+                while (tn = w.nextNode()) out += tn.textContent;
+                return out.trim();
               }
               return x.innerText.trim();
             });
@@ -284,6 +377,7 @@
           return added;
         };
         grab();
+        const realDelay = (ms) => new Promise(res => setTimeout(res, ms));
         for (let p = 0; p < 15; p++) {
           const nx = [...st.querySelectorAll('button')]
             .filter(b => /^NEXT$/i.test(b.innerText.trim()) && vis(b) && !b.disabled);
@@ -298,6 +392,19 @@
               return c.length > 3 && /^\d+$/.test(c[0]) && !seen.has(c[1]);
             }) ? true : null;
           }, 8000);
+          // Same silent-second-wave risk as pairings: the new page can render its first
+          // few rows, satisfy the "new row present" check above, and keep populating
+          // the rest afterward. A real-time recheck (not burst() ticks) catches it -
+          // this is very likely why standings capped at exactly 10 rows on every
+          // affected large event (408513, 408514) regardless of true roster size.
+          let stableCount = -1;
+          for (let recheck = 0; recheck < 4; recheck++) {
+            await realDelay(1000);
+            const t3 = tblOf();
+            const rowCount = t3 ? t3.querySelectorAll('tr').length : 0;
+            if (rowCount === stableCount) break;
+            stableCount = rowCount;
+          }
           grab();
           if (seen.size === before) break;
         }
