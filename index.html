@@ -1765,6 +1765,13 @@ const CITIES = {
   },
 };
 
+// A separate, dedicated Gist for an external reader to fetch computed League Points from,
+// without needing the full riftbound.json data or any app JS. One file, one object keyed by
+// city id ({abudhabi:[...], dubai:[...]}) — never derive this id from CITIES' gistIds, for the
+// same reason CITIES itself names everything explicitly rather than string-munging.
+const LEAGUE_POINTS_GIST_ID = '2fd18017c1cc871ebbffd9a49082f145';
+const LEAGUE_POINTS_GIST_FILE = 'gnl_league_points.json';
+
 let activeCity = null; // set on unlock
 
 function getCityConfig()    { return CITIES[activeCity]; }
@@ -2096,6 +2103,26 @@ function rvDeriveFromLedger(hist, opts) {
     delete totals[p].events;
   });
   return { h2h: Object.values(h2h), totals: totals, events: evs };
+}
+
+// The GNL: Vendetta leaderboard's totals-to-ranked-rows step, factored out so the render
+// (rvLoadLeaderboard) and the persisted snapshot (save(), for the external League Points Gist)
+// compute byte-identical results from a single pass — never two copies that can drift.
+// Rivalry is not a competitive input, so it appears nowhere here — not as a column, not as a
+// tiebreak. Ties break on match results alone.
+function rvComputeLeaguePoints(hist) {
+  var totals = rvDeriveFromLedger(hist, { counted: true }).totals;
+  return Object.keys(totals).map(function (name) {
+    var t = totals[name];
+    var points = (t.mw || 0) * 3 + (t.draws || 0) * 1;
+    return {
+      player: name, points: points,
+      w: t.mw || 0, d: t.draws || 0, l: t.ml || 0,
+      eventCount: t.eventCount || 0
+    };
+  }).filter(function (r) { return r.points > 0 || r.w > 0 || r.d > 0 || r.l > 0; })
+    .sort(function (a, b) { return b.points - a.points || b.w - a.w || a.l - b.l; })
+    .map(function (r, i) { r.rank = i + 1; return r; });
 }
 
 // One player's story, read out of the ledger in order. Everything narrative — the
@@ -2740,11 +2767,53 @@ async function syncToGist(data, hist, rollback) {
     if (!res.ok) throw new Error(res.status);
     setSyncStatus('✓ Saved to Gist', '#4caf50');
     setTimeout(() => setSyncStatus('', ''), 3000);
+    // Fire-and-forget: mirrors computed League Points into a separate external-facing Gist
+    // whenever the ledger changed this call. Never awaited, never affects this save's result
+    // or rollback — that Gist is a read-only mirror for outside consumers, not part of the
+    // app's own source of truth.
+    if (hist) rvSyncLeaguePoints(hist);
     return true;
   } catch(e) {
     if (rollback) rollback();
     setSyncStatus('✗ Gist sync failed'+(e && e.message ? ' ('+e.message+')' : ''), '#c0392b');
     return false;
+  }
+}
+
+// Best-effort mirror of computed League Points into LEAGUE_POINTS_GIST_ID for an external
+// reader — never touches the app's own save/rollback path. A GET-then-merge-then-PATCH
+// because a Gist file write replaces the WHOLE file, and this one file holds both cities'
+// arrays keyed by city id; writing blindly would wipe out whatever the other city last wrote.
+async function rvSyncLeaguePoints(hist) {
+  try {
+    if (!activeCity) return;
+    const token = getToken();
+    if (!token) return;
+    const rows = rvComputeLeaguePoints(hist);
+
+    const getRes = await rbFetch(`https://api.github.com/gists/${LEAGUE_POINTS_GIST_ID}?_=${Date.now()}`);
+    let current = {};
+    if (getRes.ok) {
+      const g = await getRes.json();
+      const raw = g.files && g.files[LEAGUE_POINTS_GIST_FILE] && g.files[LEAGUE_POINTS_GIST_FILE].content;
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          // Same guard as rbIsFile — a poisoned/array file must never be built on.
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) current = parsed;
+        } catch (e) { /* fall through with current = {} rather than block the mirror write */ }
+      }
+    }
+    current[activeCity] = rows;
+    current.updatedAt = new Date().toISOString();
+
+    await rbFetch(`https://api.github.com/gists/${LEAGUE_POINTS_GIST_ID}`, {
+      method: 'PATCH',
+      headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ files: { [LEAGUE_POINTS_GIST_FILE]: { content: JSON.stringify(current) } } })
+    });
+  } catch (e) {
+    console.warn('League Points Gist mirror sync failed (non-fatal, external mirror only):', e);
   }
 }
 
@@ -5348,8 +5417,8 @@ function swInitTab(){ swRenderSetup(); }
     var rows = rvLbCache.main;
     if(!rows.length) return false;
     var out = ['Rank,Player,League Pts (LP),Match Wins,Draws,Losses,Events'].concat(
-      rows.map(function(r,i){
-        return [i+1, rvCsvCell(r.player), r.points, r.w, r.d, r.l, r.ev].join(',');
+      rows.map(function(r){
+        return [r.rank, rvCsvCell(r.player), r.points, r.w, r.d, r.l, r.eventCount].join(',');
       }));
     rvDownloadFile(URL.createObjectURL(new Blob([out.join('\n')],{type:'text/csv'})), 'gnl-vendetta.csv');
     return true;
@@ -5476,31 +5545,19 @@ function swInitTab(){ swRenderSetup(); }
 
       // League Points are derived fresh from whichever events are flagged "counts
       // toward League" in League History — never a stored running total, and never a
-      // fallback to unfiltered lifetime data when nothing is flagged.
-      var derived = rvDeriveFromLedger(hist, { counted: true });
-      var totals = derived.totals;
-
-      // Rivalry is not a competitive input, so it appears nowhere on this board —
-      // not as a column, and not as a tiebreak. Ties break on match results alone.
-      var rows = Object.keys(totals).map(function(name){
-        var t = totals[name];
-        var points = (t.mw||0)*3 + (t.draws||0)*1;
-        return {
-          player: name, points: points,
-          w: t.mw||0, d: t.draws||0, l: t.ml||0,
-          ev: t.eventCount||0
-        };
-      }).filter(function(r){ return r.points > 0 || r.w > 0 || r.d > 0 || r.l > 0; })
-        .sort(function(a,b){ return b.points - a.points || b.w - a.w || a.l - b.l; });
+      // fallback to unfiltered lifetime data when nothing is flagged. Same function
+      // save() uses to persist the external League Points Gist snapshot, so the two
+      // never disagree.
+      var rows = rvComputeLeaguePoints(hist);
 
       empty.style.display = rows.length ? 'none' : 'block';
-      body.innerHTML = rows.map(function(r, i){
+      body.innerHTML = rows.map(function(r){
         return '<tr>'+
-          '<td class="c td-mono">'+(i+1)+'</td>'+
+          '<td class="c td-mono">'+r.rank+'</td>'+
           '<td>'+r.player+'</td>'+
           '<td class="c"><span class="rv-score-gold">'+r.points+'</span></td>'+
           '<td class="c"><span class="rv-rec-w">'+r.w+'W</span> – '+r.d+'D – <span class="rv-rec-l">'+r.l+'L</span></td>'+
-          '<td class="c td-mono">'+r.ev+'</td>'+
+          '<td class="c td-mono">'+r.eventCount+'</td>'+
         '</tr>';
       }).join('');
       rvLbCache.main = rows;
