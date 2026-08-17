@@ -36,9 +36,25 @@ Two sources, use both:
   (`?latitude=`, `?location=`, `?search=`) are ignored, and an anonymous `curl` returns
   IP-geolocated results. See `references/locator.md` for the exact click sequence.
 
-Diff the two: anything in the locator but not in the ledger is a gap.
+**Don't redo this by hand.** `scripts/Enumerate-Events.js` (paste into `javascript_tool`) drives
+the location/distance/date-range filters and drains every results page, returning `{ids, count}`.
+`scripts/Check-Unharvested.ps1` then diffs those ids against the live ledger and calls
+`Get-EventMeta.ps1` on the gap to build a ready-to-harvest table in one call:
+
+```powershell
+# after pasting Enumerate-Events.js and running e.g.
+#   await rbEnumerate('Dubai', 50, 2026, 2, 1, 2026, 8, 16)
+# save the returned .ids array to a JSON file, then:
+scripts/Check-Unharvested.ps1 -City dubai -EventIdsFile <path-to-ids.json>
+```
+
+This is the whole "enumerate, diff, fetch metadata, filter to multi-round completed events"
+sequence that otherwise gets reconstructed ad hoc every time — it previously took upward of a
+dozen separate tool calls per city to do by hand.
 
 ### 2. Fetch metadata
+
+`Check-Unharvested.ps1` already calls this per gap event, but for a single one-off lookup:
 
 ```
 scripts/Get-EventMeta.ps1 -EventId <id>
@@ -49,12 +65,25 @@ standings sample. Fast, no browser.
 
 **`maxPlayersPerMatch` is 2 even for events titled "Multiplayer"** — it does not identify them.
 What actually identifies a no-data event is that it publishes **no pairings at all** (see step 3);
-those contribute zero matches and drop out naturally.
+those contribute zero matches and drop out naturally. `Check-Unharvested.ps1` can only see round
+*status* (COMPLETE/IN_PROGRESS/UPCOMING) from metadata — a round reporting 0 rounds total, or an
+event that looks COMPLETE but is actually empty, still needs a live-page check (load `/events/<id>`
+in the browser and look for "No pairings available for this round") before you trust either verdict.
 
 ### 3. Harvest pairings
 
 Pairings are **not** in the page HTML — they are fetched client-side after hydration. A browser is
 mandatory. Use `scripts/Harvest-Events.js` via the browser's `javascript_tool`.
+
+**Read the file and paste its actual current content — never retype or improvise the internals
+from memory.** This script has already been bug-fixed twice in ways that were not obvious in
+advance (a round-switch stale-read race, and `innerText`'s hidden-content exclusion being
+unreliable on freshly-mounted cards — see the file's own comments for both). A hand-copied version
+that drifts from the real file silently reintroduces bugs already fixed once. Read the file, take
+its full content, replace the `EVENT_IDS` placeholder array near the top with your actual ids, and
+paste the *whole* modified content into `javascript_exec` as one call. If you find yourself fixing
+a bug in this script, fix it in the file via Edit, not only in the pasted copy — otherwise the fix
+is lost the next time the file gets loaded fresh.
 
 It loads each event in a **same-origin iframe** so many events can be processed without navigating
 the top-level page, and it **runs in the background** because the tool call itself times out at 30s.
