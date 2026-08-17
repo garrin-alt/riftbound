@@ -2412,20 +2412,19 @@ function jdCompute(d) {
 // staleness — only the organiser's overrides and hand-written customs are ever stored.
 //
 // Each award carries its OWN threshold rather than a global gate, so a newcomer can hold
-// one. Three of them need chronology (Ascension, Unstoppable, The Glorious Executioner)
-// and read the ledger; the rest read the lifetime aggregate.
+// one. Two of them need chronology (Ascension, The Glorious Executioner) and read the
+// ledger; the rest read the lifetime aggregate.
 
 var RV_AWARDS_META = [
   { id:'giantslayer', icon:'🗡', title:'Giant Slayer',   kind:'giant' },
   { id:'mortal',      icon:'💀', title:'Mortal Reminder', kind:'giant' },
-  { id:'mirror',      icon:'⚖', title:'Mirror Match',    kind:'rivalry' },
-  { id:'godlike',     icon:'🩸', title:'Godlike',         kind:'rivalry' },
-  { id:'ebbflow',     icon:'🌊', title:'Ebb and Flow',    kind:'rivalry' },
+  { id:'mirror',      icon:'⚖', title:'Mirror Image',    kind:'rivalry' },
+  { id:'godlike',     icon:'🩸', title:'Dominus',         kind:'rivalry' },
+  { id:'ebbflow',     icon:'🌊', title:'Rebuttal',        kind:'rivalry' },
   { id:'hound',       icon:'🐺', title:'The Hound of a Hundred Bites', kind:'achievement' },
   { id:'caretaker',   icon:'🎖', title:'The Wandering Caretaker',      kind:'achievement' },
   { id:'vendetta',    icon:'⛓', title:'Vendetta',        kind:'achievement' },
   { id:'ascension',   icon:'⛈', title:'Ascension',       kind:'achievement' },
-  { id:'unstoppable', icon:'🛡', title:'Unstoppable',     kind:'achievement' },
   { id:'executioner', icon:'☠', title:'The Glorious Executioner',     kind:'achievement' }
 ];
 
@@ -2639,10 +2638,9 @@ function rvComputeAwards(rivalry, hist) {
     function (x) { return { name:x.name, detail: x.n + ' grudge' + (x.n===1?'':'s') + ' settled' }; });
   add('vendetta', vd[0], vd[1], 'Most declared Vendettas won. Worth no League Points — only the story.');
 
-  // ── The three that need chronology ──
+  // ── The two that need chronology ──
   if (!led) {
     add('ascension',   null, null, 'The biggest rise in win rate from the first half of a career to the second.', { blocked:true });
-    add('unstoppable', null, null, 'The longest run of consecutive league events attended — not most events, but never missing one.', { blocked:true });
     add('executioner', null, null, 'The best record when the Top Cut starts.', { blocked:true });
   } else {
     var names = {};
@@ -2672,34 +2670,6 @@ function rvComputeAwards(rivalry, hist) {
     });
     add('ascension', as[0], as[1],
         'The biggest rise in win rate from the first half of a career to the second. 4+ events, 3+ decisive matches in each half.',
-        { source:'ledger' });
-
-    // Consecutive means consecutive LEAGUE events, not consecutive appearances — missing
-    // a night has to break the run, or this would just re-elect the most active player.
-    // Scoped to the counted events (led.events), not the whole ledger.
-    var order = led.events.map(function (e) { return e.id; });
-    var attended = {};
-    led.events.forEach(function (e) {
-      (e.m || []).forEach(function (row) {
-        var f = row.split(',');
-        [hist.players[+f[1]], hist.players[+f[2]]].forEach(function (p) {
-          if (p) (attended[p] = attended[p] || {})[e.id] = 1;
-        });
-      });
-    });
-    var streaks = Object.keys(attended).map(function (n) {
-      var run = 0, bestRun = 0;
-      order.forEach(function (id) {
-        if (attended[n][id]) { run++; if (run > bestRun) bestRun = run; } else run = 0;
-      });
-      return { name:n, run:bestRun, total:Object.keys(attended[n]).length };
-    });
-    var un = best(streaks, function (x) { return x.run > 1 ? x.run : null; }, function (x) {
-      return { name:x.name, detail: x.run + ' events in a row' +
-               (x.total > x.run ? ' (of ' + x.total + ' attended)' : '') };
-    });
-    add('unstoppable', un[0], un[1],
-        'The longest run of consecutive league events attended — not most events, but never missing one. Counted against every event in the ledger, so a missed night breaks the run.',
         { source:'ledger' });
 
     var cut = Object.keys(led.totals).map(function (n) {

@@ -101,9 +101,9 @@ Awards are a **season-long recognition layer**, separate from the ladder:
   overrides and hand-written "custom" awards are persisted. This means an award's holder can change
   automatically as new results come in, and there's no staleness to fix.
 
-Most awards are computed from the lifetime aggregate (`rivalry.h2h`). **Three** — Ascension,
-Unstoppable, and The Glorious Executioner — need actual chronology and can only be computed once
-history has been uploaded to the ledger; until then they show as locked/pending.
+Most awards are computed from the lifetime aggregate (`rivalry.h2h`). **Two** — Ascension and
+The Glorious Executioner — need actual chronology and can only be computed once history has been
+uploaded to the ledger; until then they show as locked/pending.
 
 ### Giants — the tier every "Giant Slayer" style award measures against
 
@@ -117,17 +117,14 @@ rather than a fixed win-rate number frozen in code, so it rises as the league ge
 |---|---|---|---|---|
 | **Giant Slayer** | 🗡 | Giant-related | Most match wins over Giants, by a non-Giant. Tiebreak: most *different* Giants beaten, then the slayer's own win rate. | — |
 | **Mortal Reminder** | 💀 | Giant-related | Biggest win-rate gap in a head-to-head where the *lower-rated* player still owns the series. | Both players 10+ decisive matches, 3+ meetings between them |
-| **Mirror Match** | ⚖ | Rivalry | The rivalry that's dead level. Tiebreak: most meetings, then most close matches. | 4+ meetings, match wins tied on both sides, not 0–0 |
-| **Godlike** | 🩸 | Rivalry | Never dropped a single *game* to this opponent — perfect game record in the series. | 5+ total games played in the rivalry |
-| **Ebb and Flow** | 🌊 | Rivalry | The rivalry whose series lead has changed hands the most times. Counted exactly from the ledger where available; otherwise counted in upload order (still shown, flagged as approximate). | — |
+| **Mirror Image** | ⚖ | Rivalry | The rivalry that's dead level. Tiebreak: most meetings, then most close matches. | 4+ meetings, match wins tied on both sides, not 0–0 |
+| **Dominus** | 🩸 | Rivalry | Never dropped a single *game* to this opponent — perfect game record in the series. | 5+ total games played in the rivalry |
+| **Rebuttal** | 🌊 | Rivalry | The rivalry whose series lead has changed hands the most times. Counted exactly from the ledger where available; otherwise counted in upload order (still shown, flagged as approximate). | — |
 | **The Hound of a Hundred Bites** | 🐺 | Achievement | Widest circle — most distinct opponents ever faced. | — |
 | **The Wandering Caretaker** | 🎖 | Achievement | Most events attended, full stop. "Turning up is its own achievement." | — |
 | **Vendetta** | ⛓ | Achievement | Most declared Vendetta grudge matches *won*. | — |
-| **Ascension** 🔒 | ⛈ | Achievement (ledger-only) | Biggest rise in win rate from the first half of a career to the second half. | 4+ events attended; 3+ decisive matches in each half |
-| **Unstoppable** 🔒 | 🛡 | Achievement (ledger-only) | Longest run of *consecutive* league events attended — missing one night resets the streak to zero, so this rewards never missing a night, not just attending a lot. | Counted against every event in the ledger |
-| **The Glorious Executioner** 🔒 | ☠ | Achievement (ledger-only) | Best win rate once Top Cut (playoffs) begins. | 3+ Top Cut matches played |
-
-🔒 = requires the history ledger to be populated; shows as locked until then.
+| **Ascension** | ⛈ | Achievement (ledger-only) | Biggest rise in win rate from the first half of a career to the second half. | 4+ events attended; 3+ decisive matches in each half |
+| **The Glorious Executioner** | ☠ | Achievement (ledger-only) | Best win rate once Top Cut (playoffs) begins. | 3+ Top Cut matches played |
 
 ### Ties
 
