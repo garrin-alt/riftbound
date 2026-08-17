@@ -2767,11 +2767,11 @@ async function syncToGist(data, hist, rollback) {
     if (!res.ok) throw new Error(res.status);
     setSyncStatus('✓ Saved to Gist', '#4caf50');
     setTimeout(() => setSyncStatus('', ''), 3000);
-    // Fire-and-forget: mirrors computed League Points into a separate external-facing Gist
-    // whenever the ledger changed this call. Never awaited, never affects this save's result
-    // or rollback — that Gist is a read-only mirror for outside consumers, not part of the
-    // app's own source of truth.
-    if (hist) rvSyncLeaguePoints(hist);
+    // Fire-and-forget: mirrors computed League Points and Awards into a separate external-
+    // facing Gist whenever the ledger changed this call. Never awaited, never affects this
+    // save's result or rollback — that Gist is a read-only mirror for outside consumers, not
+    // part of the app's own source of truth.
+    if (hist) rvSyncLeagueMirror(data, hist);
     return true;
   } catch(e) {
     if (rollback) rollback();
@@ -2780,16 +2780,24 @@ async function syncToGist(data, hist, rollback) {
   }
 }
 
-// Best-effort mirror of computed League Points into LEAGUE_POINTS_GIST_ID for an external
-// reader — never touches the app's own save/rollback path. A GET-then-merge-then-PATCH
-// because a Gist file write replaces the WHOLE file, and this one file holds both cities'
-// arrays keyed by city id; writing blindly would wipe out whatever the other city last wrote.
-async function rvSyncLeaguePoints(hist) {
+// Best-effort mirror of computed League Points AND Awards into LEAGUE_POINTS_GIST_ID for an
+// external reader — never touches the app's own save/rollback path. A GET-then-merge-then-PATCH
+// because a Gist file write replaces the WHOLE file, and this one file holds both cities' data
+// keyed by city id; writing blindly would wipe out whatever the other city last wrote.
+//
+// Each city's value is {points, awards} rather than a bare points array — awards need `data`
+// (organiser overrides live in rivalry.awards) alongside `hist`, so once points needed a sibling
+// field it made more sense to nest both under the city key than to bolt on parallel
+// `<city>Awards` keys next to the existing flat arrays.
+async function rvSyncLeagueMirror(data, hist) {
   try {
     if (!activeCity) return;
     const token = getToken();
     if (!token) return;
-    const rows = rvComputeLeaguePoints(hist);
+    const points = rvComputeLeaguePoints(hist);
+    // Organiser-hidden award cards are left out of the external mirror entirely — it should
+    // only ever reflect what's actually visible in the app, same as the Awards tab itself.
+    const awards = rvComputeAwards((data && data.rivalry) || {}, hist).filter(function (a) { return !a.hidden; });
 
     const getRes = await rbFetch(`https://api.github.com/gists/${LEAGUE_POINTS_GIST_ID}?_=${Date.now()}`);
     let current = {};
@@ -2804,7 +2812,7 @@ async function rvSyncLeaguePoints(hist) {
         } catch (e) { /* fall through with current = {} rather than block the mirror write */ }
       }
     }
-    current[activeCity] = rows;
+    current[activeCity] = { points: points, awards: awards };
     current.updatedAt = new Date().toISOString();
 
     await rbFetch(`https://api.github.com/gists/${LEAGUE_POINTS_GIST_ID}`, {
@@ -2813,7 +2821,7 @@ async function rvSyncLeaguePoints(hist) {
       body: JSON.stringify({ files: { [LEAGUE_POINTS_GIST_FILE]: { content: JSON.stringify(current) } } })
     });
   } catch (e) {
-    console.warn('League Points Gist mirror sync failed (non-fatal, external mirror only):', e);
+    console.warn('League Points/Awards Gist mirror sync failed (non-fatal, external mirror only):', e);
   }
 }
 
