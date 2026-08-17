@@ -2795,9 +2795,12 @@ async function rvSyncLeagueMirror(data, hist) {
     const token = getToken();
     if (!token) return;
     const points = rvComputeLeaguePoints(hist);
+    // rvComputeAwards returns {awards, giants, ...}, not a bare array — .awards here, not a
+    // direct .filter(), which threw and silently killed this whole write (points included,
+    // since both are in the same try block) from when this line was first added until now.
     // Organiser-hidden award cards are left out of the external mirror entirely — it should
     // only ever reflect what's actually visible in the app, same as the Awards tab itself.
-    const awards = rvComputeAwards((data && data.rivalry) || {}, hist).filter(function (a) { return !a.hidden; });
+    const awards = rvComputeAwards((data && data.rivalry) || {}, hist).awards.filter(function (a) { return !a.hidden; });
 
     const getRes = await rbFetch(`https://api.github.com/gists/${LEAGUE_POINTS_GIST_ID}?_=${Date.now()}`);
     let current = {};
