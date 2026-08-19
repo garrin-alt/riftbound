@@ -2228,15 +2228,18 @@ function rbFetch(url, opts, ms) {
 
 // ── JUDGES ────────────────────────────────────────────
 // The judge roster and their service record live in their OWN gist, separate from either
-// city. Judges cross cities — the same person works Abu Dhabi and Dubai — so a shared file
-// keeps one roster and one rank per judge, with each shift stamped with the city it was
-// worked in. It also lets a public scorecard read judges without pulling the whole match
-// archive, and a bad write to one file can never damage the other.
+// city's data file. Judges are fully partitioned by city — a judge in Abu Dhabi and a
+// same-named judge in Dubai share no identity or rank — but both cities' buckets still live
+// in this one shared Gist/file, keyed internally. This also lets a public scorecard read
+// judges without pulling the whole match archive, and a bad write to one file can never
+// damage either city's main data.
 //
-// Shape: { v:1,
-//          judges: [ { id, riotName, level, active } ],
-//          shifts: [ { date:'YYYY-MM-DD', type:'NN'|'PR'|'C'|'S', judge:id, city, note } ],
+// Shape: { v:2,
+//          abudhabi: { judges: [ { id, riotName, level, active } ],
+//                      shifts: [ { date:'YYYY-MM-DD', type:'NN'|'PR'|'C'|'S', judge:id, city, note } ] },
+//          dubai:    { judges: [...], shifts: [...] },
 //          updatedAt }
+// jdNew() returns one city's bucket shape: { judges: [], shifts: [] }.
 //
 // Dates are stored ISO so they sort as strings, and rendered DD/MM/YY.
 var JUDGES_GIST_DEFAULT = '725744926cb75755f73c9bf2ad88a99f';
