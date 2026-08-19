@@ -70,7 +70,7 @@ All persistence is GitHub Gists, read unauthenticated and written with a PAT hel
 |---|---|---|
 | `CITIES.abudhabi.gistId` | `riftbound.json` + `riftbound_history.json` | Abu Dhabi league |
 | `CITIES.dubai.gistId` | `riftbound_dubai.json` + `riftbound_dubai_history.json` | Dubai league |
-| `JUDGES_GIST_DEFAULT` | `gnl_judges.json` | Judges — **shared across both cities** |
+| `JUDGES_GIST_DEFAULT` | `gnl_judges.json` | Judges — one Gist/file, **city-keyed internally** (`{v:2, abudhabi:{judges,shifts}, dubai:{judges,shifts}, updatedAt}`) — see Judges below |
 
 `CITIES` (near the top of the script) is the single source of city truth: gist id, filenames and
 `localStorage` keys are all named explicitly, never derived by string-munging, because that is how
@@ -149,6 +149,18 @@ history never PATCHed alone) before writing. Read that skill before hand-rolling
   A judge can only be created by being logged on a night. One event per night per city; any number
   of judges per night. Rank derives from shift count alone (1/5/10/20/40/80 → Bronze…Challenger) and
   is independent of certification Level, and only falls if a mis-logged shift is later removed.
+  **Judges are fully partitioned by city** — a judge in Abu Dhabi and a same-named judge in Dubai
+  share no identity, rank, or shift history; there is no cross-city lookup or name suggestion
+  anywhere in the UI. Both cities' rosters still live in the one shared `JUDGES_GIST_DEFAULT`
+  file, but city-keyed (`whole[activeCity]`, via `jdLocalKey()`): `loadJudges`/`loadJudgesFromGist`
+  return one city's bucket, and `saveJudges(d)` — where `d` is one city's bucket, not the whole
+  file — does GET-then-merge-then-PATCH (fetch the whole file, replace only `whole[activeCity]`,
+  PATCH the merged object back) so a write from one city can never clobber the other's bucket.
+  This mirrors, and is stricter than, `rvSyncLeagueMirror`'s merge pattern (aborts + rolls back
+  on a failed GET or unparseable existing content, since this is a primary store, not a mirror).
+  `jdCity` (Log-a-Shift's per-shift city stamp) always tracks `activeCity` — it is not
+  independently pickable, and the shift-queue's localStorage key is likewise city-scoped, to
+  close the same cross-city-leak class of bug the roster partition exists to prevent.
   Retiring a judge sets `active:false` — it drops them from the active scorecard, the Log-a-Shift
   roster and all three exports, but never deletes them or any shift; un-retiring is a single flip
   back. `jdCompute` always computes `.active` per row (`j.active !== false`), so a judge record
