@@ -2357,6 +2357,7 @@ async function saveJudges(d) {
       whole = parsed;
     }
     whole[activeCity] = d;
+    whole.v = whole.v || 2;
     whole.updatedAt = d.updatedAt;
     var files = {}; files[JUDGES_FILE] = { content: JSON.stringify(whole) };
     var res = await rbFetch('https://api.github.com/gists/' + jdGistId(), {
@@ -7396,14 +7397,24 @@ function swInitTab(){ swRenderSetup(); }
   var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   var DAYNAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 
-  var JD_QUEUE_KEY = 'rb_judges_queue';
+  // City-scoped like jdLocalKey() — an unsaved Abu Dhabi queue must never surface (and be
+  // saveable) in a Dubai session, or vice versa.
+  function jdQueueKey() { return 'rb_judges_queue_' + (activeCity || 'abudhabi'); }
   var jdData = null;          // the judges file, as loaded
   // Staged but not yet written. Persisted, because it is the ONLY record of that work —
   // a refresh or a stray tab switch must not silently discard a night's logging.
   var jdStranded = 0;
   var jdQueue = (function(){
     try {
-      var q = JSON.parse(localStorage.getItem(JD_QUEUE_KEY) || '[]');
+      var raw = localStorage.getItem(jdQueueKey());
+      // One-time migration: a shift queued before this city-scoped key existed lived under
+      // the old flat 'rb_judges_queue'. Every judge that has ever used this tool is Abu
+      // Dhabi, so it only ever needs adopting there — never invented for Dubai.
+      if(raw == null && activeCity === 'abudhabi'){
+        var legacy = localStorage.getItem('rb_judges_queue');
+        if(legacy != null){ raw = legacy; localStorage.setItem(jdQueueKey(), legacy); localStorage.removeItem('rb_judges_queue'); }
+      }
+      var q = JSON.parse(raw || '[]');
       // Rows saved before the queue carried Riot Names hold only an id. If that judge is
       // gone there is nothing left to identify them by, so they are dropped rather than
       // left on screen as "(unknown)" with no way forward.
@@ -7412,11 +7423,15 @@ function swInitTab(){ swRenderSetup(); }
       return keep;
     } catch(e){ return []; }
   })();
-  function jdSaveQueue(){ localStorage.setItem(JD_QUEUE_KEY, JSON.stringify(jdQueue)); }
+  function jdSaveQueue(){ localStorage.setItem(jdQueueKey(), JSON.stringify(jdQueue)); }
   var jdShiftRemoveArmed = {}; // key: date|judge|city|type -> true while armed
   var jdView = new Date();    // calendar month on screen
   var jdSel = null;           // selected date, ISO
-  var jdType = null, jdCity = 'abudhabi';
+  // Judges are now fully partitioned by city (each city has its own Gist bucket, see
+  // jdLocalKey/loadJudgesFromGist) — jdCity always tracks the app's activeCity rather than
+  // being independently pickable. A separate picker here would let a shift get stamped with
+  // one city's name while landing in the other city's bucket.
+  var jdType = null, jdCity = activeCity || 'abudhabi';
   var jdAdding = false, jdNewLevel = 1;
   // Ticked judges live here, not in the DOM. renderForm rebuilds the list whenever the add
   // form opens or the city changes, and reading checkboxes back would silently drop the
@@ -7658,17 +7673,10 @@ function swInitTab(){ swRenderSetup(); }
       b.addEventListener('click', function(){ jdType = b.dataset.t; jdRenderSegs(); jdRenderForm(); });
     });
 
-    document.getElementById('jdCitySeg').innerHTML = JD_CITIES.map(function(c){
-      return '<button data-c="'+c.id+'" aria-pressed="'+(jdCity===c.id)+'" style="--sel:var(--gold-light)">'+c.name+'</button>';
-    }).join('');
-    document.querySelectorAll('#jdCitySeg button').forEach(function(b){
-      b.addEventListener('click', function(){
-        jdCity = b.dataset.c;
-        var lk = jdSel ? jdNightType(withQueue(), jdSel, jdCity) : null;
-        if(lk) jdType = lk;
-        jdRenderSegs(); jdRenderForm();
-      });
-    });
+    // No city picker here any more — Judges is fully partitioned by city (jdCity always
+    // equals activeCity, see jdInit), so there is nothing to pick.
+    var citySegEl = document.getElementById('jdCitySeg');
+    if(citySegEl) citySegEl.style.display = 'none';
   }
 
   function jdRenderForm(){
@@ -7824,7 +7832,7 @@ function swInitTab(){ swRenderSetup(); }
     jdData.judges.push({ id:id, riotName:name, level:jdNewLevel, active:true });
     // Written locally at once: until the queue is saved this browser is the only place
     // this judge exists.
-    localStorage.setItem(JUDGES_KEY, JSON.stringify(jdData));
+    localStorage.setItem(jdLocalKey(), JSON.stringify(jdData));
     jdAdding = false; jdNewLevel = 1;
     jdTicked[id] = true;   // adding a judge IS logging them
     jdRenderForm();
@@ -8235,6 +8243,9 @@ function swInitTab(){ swRenderSetup(); }
   async function jdInit(){
     if(jdLoading) return;
     jdLoading = true;
+    // Judges tabs are city-partitioned — always resync to the app's current city rather than
+    // trusting a jdCity left over from a previous tab visit.
+    jdCity = activeCity || 'abudhabi';
     if(!jdData) jdData = loadJudges();
     try {
       var remote = await loadJudgesFromGist();
@@ -8244,7 +8255,7 @@ function swInitTab(){ swRenderSetup(); }
         jdQueue.forEach(function(s){ if(jdData.aliasOf[s.judge]) s.judge = jdData.aliasOf[s.judge]; });
         delete jdData.aliasOf;
       }
-      localStorage.setItem(JUDGES_KEY, JSON.stringify(jdData));
+      localStorage.setItem(jdLocalKey(), JSON.stringify(jdData));
     } catch(e){ /* keep the local copy */ }
 
     // A queue row with no Riot Name and no matching judge cannot be identified by anything.
