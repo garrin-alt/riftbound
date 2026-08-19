@@ -2242,6 +2242,10 @@ function rbFetch(url, opts, ms) {
 var JUDGES_GIST_DEFAULT = '725744926cb75755f73c9bf2ad88a99f';
 var JUDGES_FILE = 'gnl_judges.json';
 var JUDGES_KEY  = 'rb_judges';
+// One shared judges Gist, but the cache must be per-city or switching cities shows stale/wrong
+// data until the next Gist fetch — the same class of bug CITIES.localKey/histKey already exist
+// to prevent for the main data files.
+function jdLocalKey() { return JUDGES_KEY + '_' + (activeCity || 'abudhabi'); }
 
 // Overridable from Settings so the gist can be repointed without a redeploy.
 function jdGistId() { return localStorage.getItem('rb_judges_gist') || JUDGES_GIST_DEFAULT; }
@@ -2264,7 +2268,10 @@ var JD_TIERS = [
   { id: 'challenger', name: 'Challenger', min: 80, note: 'Apex — no cap above' }
 ];
 
-function jdNew() { return { v: 1, judges: [], shifts: [], updatedAt: null }; }
+// One city's bucket shape, not the whole shared file - see jdLocalKey above and the file-level
+// {v, abudhabi:{judges,shifts}, dubai:{judges,shifts}, updatedAt} shape saveJudges/
+// loadJudgesFromGist read and write.
+function jdNew() { return { judges: [], shifts: [] }; }
 
 // The judges file MUST be a plain object, and this is checked rather than assumed because
 // `[]` survives every other guard. It is valid JSON, it is not '' and not '{}', and an array
@@ -2279,7 +2286,7 @@ function jdIsFile(d) { return !!d && typeof d === 'object' && !Array.isArray(d);
 
 function loadJudges() {
   try {
-    var raw = localStorage.getItem(JUDGES_KEY);
+    var raw = localStorage.getItem(jdLocalKey());
     var d = raw ? JSON.parse(raw) : jdNew();
     if (!jdIsFile(d)) return jdNew();
     d.judges = d.judges || []; d.shifts = d.shifts || [];
@@ -2294,12 +2301,15 @@ async function loadJudgesFromGist() {
     var gist = await res.json();
     var raw = gist.files && gist.files[JUDGES_FILE] && gist.files[JUDGES_FILE].content;
     if (raw && raw.trim() !== '' && raw.trim() !== '{}') {
-      var d = JSON.parse(raw);
-      // Refusing a non-object here means a poisoned gist falls through to the local copy
-      // rather than overwriting it — see jdIsFile.
-      if (jdIsFile(d)) {
+      var whole = JSON.parse(raw);
+      // Same jdIsFile guard as before, applied one level deeper: a poisoned file OR a
+      // pre-migration flat file (no per-city bucket key yet) must fall through to the local
+      // copy rather than being built on — see jdIsFile's own comment for the incident this
+      // class of guard prevents.
+      if (jdIsFile(whole) && jdIsFile(whole[activeCity])) {
+        var d = whole[activeCity];
         d.judges = d.judges || []; d.shifts = d.shifts || [];
-        localStorage.setItem(JUDGES_KEY, JSON.stringify(d));
+        localStorage.setItem(jdLocalKey(), JSON.stringify(d));
         return d;
       }
     }
@@ -2318,13 +2328,34 @@ var jdLastSaveError = '';
 async function saveJudges(d) {
   jdLastSaveError = '';
   d.updatedAt = new Date().toISOString();
-  var prevRaw = localStorage.getItem(JUDGES_KEY);
-  function rollback(){ if (prevRaw != null) localStorage.setItem(JUDGES_KEY, prevRaw); else localStorage.removeItem(JUDGES_KEY); }
-  localStorage.setItem(JUDGES_KEY, JSON.stringify(d));
+  var prevRaw = localStorage.getItem(jdLocalKey());
+  function rollback(){ if (prevRaw != null) localStorage.setItem(jdLocalKey(), prevRaw); else localStorage.removeItem(jdLocalKey()); }
+  localStorage.setItem(jdLocalKey(), JSON.stringify(d));
   if (!getToken()) { rollback(); setSyncStatus('⚠ No token set', '#c0392b'); return false; }
   setSyncStatus('⟳ Saving judges…', 'rgba(201,146,42,0.7)');
   try {
-    var files = {}; files[JUDGES_FILE] = { content: JSON.stringify(d) };
+    // The Gist file holds BOTH cities' buckets. A blind PATCH of just this city's bucket would
+    // wipe out whatever the other city last saved, so fetch the current whole file first and
+    // merge this city's bucket in — same GET-then-merge-then-PATCH shape as the external League
+    // Points mirror (rvSyncLeagueMirror), but stricter here since this is the primary data
+    // store, not a read-only mirror: a failed GET or a non-empty-but-unparseable file aborts the
+    // save entirely (throws, triggers rollback) rather than risking an overwrite built on
+    // nothing.
+    var getRes = await rbFetch('https://api.github.com/gists/' + jdGistId() + '?_=' + Date.now());
+    if (!getRes.ok) throw new Error('GET ' + getRes.status);
+    var gist = await getRes.json();
+    var raw = gist.files && gist.files[JUDGES_FILE] && gist.files[JUDGES_FILE].content;
+    var whole;
+    if (!raw || raw.trim() === '' || raw.trim() === '{}') {
+      whole = {}; // genuinely empty/uninitialized file — nothing to lose by starting fresh
+    } else {
+      var parsed = JSON.parse(raw); // a real parse error here throws -> abort save, rollback
+      if (!jdIsFile(parsed)) throw new Error('judges gist content is not a plain object');
+      whole = parsed;
+    }
+    whole[activeCity] = d;
+    whole.updatedAt = d.updatedAt;
+    var files = {}; files[JUDGES_FILE] = { content: JSON.stringify(whole) };
     var res = await rbFetch('https://api.github.com/gists/' + jdGistId(), {
       method: 'PATCH',
       headers: { 'Authorization': 'token ' + getToken(), 'Content-Type': 'application/json' },
