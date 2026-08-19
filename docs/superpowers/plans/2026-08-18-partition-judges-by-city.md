@@ -285,7 +285,12 @@ this exercises the actual functions, not a reimplementation of them:
 
 ```js
 // Fake enough state to exercise jdNew/loadJudges/jdLocalKey without a real city config.
-window.activeCity = 'abudhabi';
+// NOTE: activeCity is declared `let activeCity = null;` at the page's top level (index.html:1775),
+// NOT `var` — a `let` at script top level does not become a `window` property, so
+// `window.activeCity = ...` would silently no-op against the real binding jdLocalKey() reads.
+// Assign the bare name (no `window.` prefix, no redeclaration) so normal scope lookup finds and
+// mutates the actual page-level binding.
+activeCity = 'abudhabi';
 localStorage.removeItem('rb_judges_abudhabi');
 localStorage.removeItem('rb_judges_dubai');
 
@@ -296,9 +301,9 @@ var check1 = JSON.stringify(fresh) === JSON.stringify({judges:[],shifts:[]});
 localStorage.setItem('rb_judges_abudhabi', JSON.stringify({judges:[{id:'x',riotName:'Test AD'}],shifts:[]}));
 localStorage.setItem('rb_judges_dubai', JSON.stringify({judges:[{id:'y',riotName:'Test DX'}],shifts:[]}));
 
-window.activeCity = 'abudhabi';
+activeCity = 'abudhabi';
 var adLoaded = loadJudges();
-window.activeCity = 'dubai';
+activeCity = 'dubai';
 var dxLoaded = loadJudges();
 
 ({
