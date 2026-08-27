@@ -23,56 +23,83 @@ Winners/Losers/Decider, top 2 advance) is untouched. `GROUPS` becomes `['A','B',
 `groupCount:4` or `['A'..'H']` for `groupCount:8`, generated from `groupCount` rather than a fixed
 literal.
 
-### Playoff bracket seeding — the pod rule, applied one level deeper
+### Playoff bracket seeding — two independent streams, corrected from initial design
 
-The existing scheme pairs groups into **pods of 2**. For pod (A,B): first-round matches are
-`1A v 2B` and `1B v 2A`; their winners meet in that pod's next round. This delays a group's own
-1st/2nd rematching by (at least) one round, without hard-forbidding it later. For `groupCount:4`
-(today's shape) there are exactly 2 pods (AB, CD), each pod's mini-bracket winner goes straight to
-a Semifinal, and the two Semifinal winners meet in the Final — this is exactly today's `qf1..qf4,
-sf1, sf2, f` structure, unchanged, with unchanged match keys for backward compatibility with saved
-tournaments.
+**Correction from the version approved in chat:** the first pass at this section described a
+"pod" model (a group-pair's two qualifiers reconverge one round later). Deriving the exact
+generalized algorithm and checking it against the real hardcoded `PLAYOFFS` array line-by-line
+showed that isn't what the existing code does. The real invariant is stronger: every group's two
+qualifiers are placed in two entirely separate halves of the bracket from round one, so they can
+only ever meet in the Grand Final, never earlier. This section replaces the pod description with
+the correct one. It changes nothing about outcomes already agreed — 16-player mode stays exactly
+today's tool, 32-player mode still guards against early same-group rematches (more strongly, not
+less).
 
-For `groupCount:8` (32 players), the same pod rule is applied one level deeper: **4 pods of 2
-groups each** (AB, CD, EF, GH). Each pod runs its own mini-bracket:
+Two independent "streams" run through the whole bracket — **primary** and **mirror**. For each
+group pair `(X,Y)` (groups taken two at a time: A&B, C&D, …): the primary stream's first-round
+match is `1st(X) v 2nd(Y)`; the mirror stream's is `1st(Y) v 2nd(X)`. Each stream is then
+single-eliminated entirely on its own, independent of the other stream, down to one stream
+champion. The two stream champions meet **only in the Grand Final**. Since a group's 1st always
+lands in the primary stream and its 2nd always lands in the mirror stream (or vice versa,
+depending on the pair), the two can never face each other before the Final.
+
+For `groupCount:4` (today's shape, 2 group pairs → 2 matches per stream): this reproduces
+`qf1`..`qf4`, `sf1`, `sf2`, `f` exactly as they exist today, key-for-key and label-for-label —
+confirmed by direct comparison against the current hardcoded `PLAYOFFS` array:
 
 ```
-R16-1: 1A v 2B   ┐
-R16-2: 1B v 2A   ┴─ QF1 (pod AB final)
-R16-3: 1C v 2D   ┐
-R16-4: 1D v 2C   ┴─ QF2 (pod CD final)
-R16-5: 1E v 2F   ┐
-R16-6: 1F v 2E   ┴─ QF3 (pod EF final)
-R16-7: 1G v 2H   ┐
-R16-8: 1H v 2G   ┴─ QF4 (pod GH final)
+primary stream:  qf1 = 1A v 2B  ┐
+                  qf2 = 1C v 2D  ┴─ sf1 = winner qf1 v winner qf2
+mirror stream:   qf3 = 1B v 2A  ┐
+                  qf4 = 1D v 2C  ┴─ sf2 = winner qf3 v winner qf4
 
-SF1: winner QF1 v winner QF2   (pod AB/CD side)
-SF2: winner QF3 v winner QF4   (pod EF/GH side)
-F:   winner SF1 v winner SF2
+f = winner sf1 v winner sf2
 ```
 
-Match keys: `r16-1`..`r16-8` are new; `qf1`..`qf4`, `sf1`, `sf2`, `f` are reused with the same
-meaning they already have today (a pod-final rather than a group-final, but the same *role* in the
-bracket — this keeps the WhatsApp-export and edit-invalidation code able to treat "the playoff
-round after group stage" generically without a groupCount-specific branch for label text).
+For `groupCount:8` (32 players, 4 group pairs → 4 matches per stream, one extra round):
+
+```
+primary stream:  r16-1 = 1A v 2B  ┐                    ┐
+                  r16-2 = 1C v 2D  ┴─ qf1                │
+                  r16-3 = 1E v 2F  ┐                    ┴─ sf1
+                  r16-4 = 1G v 2H  ┴─ qf2                │
+mirror stream:   r16-5 = 1B v 2A  ┐                    ┐
+                  r16-6 = 1D v 2C  ┴─ qf3                │
+                  r16-7 = 1F v 2E  ┐                    ┴─ sf2
+                  r16-8 = 1H v 2G  ┴─ qf4                │
+
+f = winner sf1 v winner sf2
+```
+
+(each `qfN`/`sfN` here is "winner of the two matches directly above it," same halving pattern as
+the 4-group case, just with one more round beneath it.)
+
+Match keys: `r16-1`..`r16-8` are new (32-player mode only); `qf1`..`qf4`, `sf1`, `sf2`, `f` mean
+the same thing in both modes — "N-th match of this round" — which is what keeps the
+WhatsApp-export and edit-invalidation code able to walk "the playoff round after group stage"
+generically without a groupCount-specific branch.
 
 ### Bracket generation is programmatic, not hardcoded per size
 
 `GROUPS` and `PLAYOFFS` (today: two hardcoded arrays) become the output of one function,
-`t16BuildBracket(groupCount)`, which:
+`t16BuildBracket(groupCount)`, built from the primary/mirror-stream model above:
 
-1. Builds `groupCount` pods of 2 adjacent groups each (`groupCount/2` pods).
-2. Builds the first playoff round: for each pod `(X,Y)`, two matches `1X v 2Y` and `1Y v 2X`.
-3. Builds every subsequent round as the standard single-elimination halving of the previous
-   round's winners (winner of match `2k` v winner of match `2k+1`), continuing until 1 match (the
-   Final) remains.
+1. Group letters two at a time into pairs (`groupCount/2` pairs: for `groupCount:4`, (A,B) and
+   (C,D); for `groupCount:8`, (A,B), (C,D), (E,F), (G,H)).
+2. Build the primary stream's first-round matches: one `1st(X) v 2nd(Y)` per pair.
+3. Build the mirror stream's first-round matches: one `1st(Y) v 2nd(X)` per pair.
+4. Each stream is single-eliminated independently (winner of stream match `2k` v winner of
+   stream match `2k+1`, repeating until each stream has one champion match).
+5. The two streams' champion matches feed one final match: `winner(primary champion) v
+   winner(mirror champion)`.
 
-For `groupCount:4` (2 pods), round 1 has 2×2=4 matches — this is exactly today's `qf1..qf4`, with
-round 2 (2 matches) as `sf1,sf2` and round 3 (1 match) as `f`: today's shape, produced rather than
-hand-written. For `groupCount:8` (4 pods), round 1 has 8 matches (`r16-1..r16-8`), round 2 has 4
-(`qf1..qf4`), round 3 has 2 (`sf1,sf2`), round 4 has 1 (`f`). Round *labels* (`R16`, `QF`, `SF`, `Grand Final`) are assigned
-by how many matches are in each round (8→"R16", 4→"QF", 2→"SF", 1→"Grand Final"), not hardcoded per
-groupCount, so the same labeling function serves both sizes without a branch.
+Because there are only ever two supported sizes, the function branches once on `podCount`
+(`groupCount/2`, either 2 or 4) rather than being written as an arbitrary-depth recursive
+structure — for `podCount:2` this directly produces `qf1..qf4, sf1, sf2, f` (verified
+key-for-key and label-for-label against today's hardcoded `PLAYOFFS`); for `podCount:4` it
+produces `r16-1..r16-8` ahead of the same `qf1..qf4, sf1, sf2, f` shape. Every match's key,
+display label (e.g. `"QF1"`, `"Semifinal 1"`, `"Grand Final"`), and "waiting on" hint text (e.g.
+`"1st Group A"`, `"Winner QF1"`) are computed together so nothing is hand-duplicated per size.
 
 ### Edit-invalidation (`t16Downstream`)
 
@@ -116,8 +143,9 @@ No committed automated suite (per CLAUDE.md). Manual verification after implemen
 1. Start a 16-player tournament — confirm setup, group play, and Top-8 playoffs render and behave
    identically to the current deployed tool (same labels, same seeding, same edit/reset behavior).
 2. Start a 32-player tournament — confirm 8 group cards render, group play works for all 8, and the
-   Top-16 playoff bracket (R16 → QF → SF → Final) both seeds and plays correctly per the pod rule
-   above. Run one full synthetic tournament to a champion.
+   Top-16 playoff bracket (R16 → QF → SF → Final) both seeds and plays correctly per the
+   primary/mirror-stream model above (a group's two qualifiers never face each other before the
+   Final). Run one full synthetic tournament to a champion.
 3. Confirm editing an early result (a group match, and an `r16-` match) correctly clears every
    downstream result and only those.
 4. Confirm the WhatsApp export text is well-formed for both sizes.
