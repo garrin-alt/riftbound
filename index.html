@@ -8522,14 +8522,21 @@ function swInitTab(){ swRenderSetup(); }
     return t16MatchDef(k, t16ActiveBracket());
   }
 
+  var t16SetupSize = 16; // 16 or 32 — which format the setup screen is currently building
+
   function t16RenderSetup(body){
-    var groupCount = 4; // Task 2 adds a 16/32 toggle that varies this; fixed here for now.
+    var groupCount = t16SetupSize === 32 ? 8 : 4;
     var groups = t16GroupLetters(groupCount);
     var saved = (t16State && t16State.groups) || {};
     var html = '<div class="card" style="margin-bottom:14px">'+
-      '<div class="card-label">⚙ Setup — Enter the Top 16</div>'+
+      '<div class="card-label">⚙ Setup — Enter the Top '+t16SetupSize+'</div>'+
+      '<div class="jd-seg" style="margin-bottom:14px">'+
+        [16,32].map(function(n){
+          return '<button data-size="'+n+'" aria-pressed="'+(t16SetupSize===n)+'" style="--sel:var(--gold-light)">'+n+' players</button>';
+        }).join('')+
+      '</div>'+
       '<p style="font-size:0.76rem;color:rgba(245,237,214,0.4);margin-bottom:14px;line-height:1.6">'+
-        'Type the 16 qualified players into their groups. Order matters: within each group, '+
+        'Type the '+t16SetupSize+' qualified players into their groups. Order matters: within each group, '+
         '<strong style="color:rgba(245,237,214,0.6)">Match 1 = Seed 1 vs Seed 4</strong> and '+
         '<strong style="color:rgba(245,237,214,0.6)">Match 2 = Seed 2 vs Seed 3</strong>, so put the higher league finisher in the higher seed.'+
       '</p>'+
@@ -8548,6 +8555,12 @@ function swInitTab(){ swRenderSetup(); }
       '<div id="t16SetupErr" style="font-size:0.74rem;color:#c0392b;margin-top:8px"></div>'+
     '</div>';
     body.innerHTML = html;
+    body.querySelectorAll('.jd-seg button').forEach(function(b){
+      b.addEventListener('click', function(){
+        t16SetupSize = Number(b.dataset.size);
+        t16RenderSetup(body);
+      });
+    });
     document.getElementById('t16StartBtn').addEventListener('click', function(){
       var playerGroups = {}, all = [], err = '';
       groups.forEach(function(g){
