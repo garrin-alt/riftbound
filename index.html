@@ -1596,7 +1596,7 @@
 
   <div class="panel" id="tab-top16">
     <div class="panel-title">GNL Top 16</div>
-    <p class="panel-desc">GSL group stage into Top 8 single-elimination playoffs — the season's championship bracket</p>
+    <p class="panel-desc">GSL group stage into single-elimination playoffs — the season's championship bracket</p>
     <div class="divider"></div>
     <div id="t16Body"></div>
   </div>
@@ -8274,9 +8274,10 @@ function swInitTab(){ swRenderSetup(); }
 // ==================== END JUDGES ====================
 
 // ==================== GNL TOP 16 ====================
-// GSL group stage (4 groups of 4, double-elim within group) feeding a fixed
-// cross-group Top 8 single-elimination bracket. Seeded pairings: within a
-// group, Match 1 = Seed 1 vs Seed 4, Match 2 = Seed 2 vs Seed 3.
+// GSL group stage (4 or 8 groups of 4, double-elim within group) feeding a
+// Top 8 or Top 16 single-elimination cross-group bracket (selectable at
+// setup). Seeded pairings: within a group, Match 1 = Seed 1 vs Seed 4,
+// Match 2 = Seed 2 vs Seed 3.
 // State lives in data.top16 and syncs to the Gist like everything else.
 (function(){
   var GROUP_MATCHES = [
@@ -8296,7 +8297,7 @@ function swInitTab(){ swRenderSetup(); }
   // Groups for the ACTIVE tournament — falls back to 4 before a tournament exists, or for any
   // tournament saved before groupCount existed, matching the tool's original only-ever-4 behavior.
   function t16ActiveGroups(){
-    return t16GroupLetters((t16State && t16State.groupCount) || 4);
+    return t16GroupLetters((t16State && t16State.groupCount) === 8 ? 8 : 4);
   }
 
   // Assigns key/label/srcLabel to every match in one already-built round. keyPrefix is 'qf',
@@ -8368,7 +8369,7 @@ function swInitTab(){ swRenderSetup(); }
   }
   // Bracket for the ACTIVE tournament (same fallback rule as t16ActiveGroups).
   function t16ActiveBracket(){
-    return t16BuildBracket((t16State && t16State.groupCount) || 4);
+    return t16BuildBracket((t16State && t16State.groupCount) === 8 ? 8 : 4);
   }
   // Find one match's def anywhere in a bracket, by key.
   function t16MatchDef(key, bracket){
@@ -8516,10 +8517,6 @@ function swInitTab(){ swRenderSetup(); }
 
     body.innerHTML = html;
     t16Wire(body);
-  }
-
-  function t16PlayoffDef(k){
-    return t16MatchDef(k, t16ActiveBracket());
   }
 
   var t16SetupSize = 16; // 16 or 32 — which format the setup screen is currently building
