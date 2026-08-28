@@ -8769,7 +8769,7 @@ function swInitTab(){ swRenderSetup(); }
 // independent of GNL Top 16 - separate data.knockout state, no shared bracket code - the two
 // tools' shapes don't overlap enough to make sharing worthwhile.
 (function(){
-  var knState = null; // { bracketSize, slots, seResults, de8, startedAt, updatedAt }
+  var knState = null; // { players, seRounds, seResults, de8, startedAt, updatedAt }
   var knArmed = {};   // two-click confirms, keyed by action
 
   function knEsc(s){
@@ -8786,87 +8786,87 @@ function swInitTab(){ swRenderSetup(); }
     return a;
   }
 
-  // Bracket size is the next power of two >= names.length, floored at 8 (the minimum player
-  // count this tool accepts). byeCount is ALWAYS strictly less than the match count (bracketSize
-  // is the SMALLEST power of two >= names.length, so bracketSize/2 < names.length, i.e.
-  // matches < names.length, i.e. byeCount = bracketSize - names.length < matches) - so there is
-  // always a way to give every match at most one bye. A naive full-shuffle-then-pair approach
-  // does NOT guarantee this - it can randomly place two BYE placeholders in the same match by
-  // chance, which nothing downstream can resolve correctly. Instead: randomly choose which
-  // match-slots get a bye (byeCount of them, out of matches), guaranteeing no match ever pairs
-  // BYE against BYE, then randomize each pair's left/right order separately so byes aren't
-  // always in the same position.
-  function knBuildSlots(names){
-    var bracketSize = 8;
-    while(bracketSize < names.length) bracketSize *= 2;
-    var matches = bracketSize / 2;
-    var byeCount = bracketSize - names.length;
-    var shuffledNames = knShuffle(names);
-    var matchIdxsList = [];
-    for(var i=0;i<matches;i++) matchIdxsList.push(i);
-    var byeMatchIdxs = {};
-    var shuffledMatchIdxs = knShuffle(matchIdxsList);
-    for(var b=0;b<byeCount;b++) byeMatchIdxs[shuffledMatchIdxs[b]] = true;
-
-    var slots = new Array(bracketSize);
-    var cursor = 0;
-    for(var m=0;m<matches;m++){
-      if(byeMatchIdxs[m]){
-        slots[2*m] = shuffledNames[cursor++];
-        slots[2*m+1] = 'BYE';
-      } else {
-        slots[2*m] = shuffledNames[cursor++];
-        slots[2*m+1] = shuffledNames[cursor++];
-      }
-      if(Math.random() < 0.5){
-        var t = slots[2*m]; slots[2*m] = slots[2*m+1]; slots[2*m+1] = t;
-      }
-    }
-    return { bracketSize: bracketSize, slots: slots };
-  }
-
   // ── SINGLE-ELIMINATION BRACKET ────────────────────────────────────────────
-  // Rounds continue only while MORE than 8 players remain - the last round pushed always
-  // produces exactly 8 winners. bracketSize:8 pushes zero rounds (already at the target).
-  function knSERounds(bracketSize){
+  // Rounds continue only while MORE than 8 players remain. Each round plays as many REAL
+  // matches as possible (floor(M/2)) - i.e. minimizes byes - except the round that would drop
+  // below 8 survivors, which plays only exactly enough matches to land on precisely 8 (M-8),
+  // holding the rest back as byes for that round only. This is provably the minimum possible
+  // total byes for any player count: total eliminations needed is always playerCount-8 regardless
+  // of scheme, and this greedy "play the max every round, capped at the target" approach spends
+  // every one of those eliminations as early and as densely as possible, so nothing is held back
+  // that didn't have to be. Compare to padding straight up to the next power of two (the tool's
+  // first version): for e.g. 24 players that meant 8 byes, all dumped into a single "Round of
+  // 32". This scheme gives 24 players a Round 1 with ZERO byes (24 -> 12, evenly) and only 4
+  // byes in Round 2 (12 -> 8) - half as many, and none in the round that matters most to players.
+  // playerCount:8 pushes zero rounds (already at the target).
+  function knSERounds(playerCount){
     var rounds = [];
-    var players = bracketSize;
-    while(players > 8){
-      rounds.push({ players: players, matches: players/2 });
-      players = players/2;
+    var m = playerCount;
+    while(m > 8){
+      var matches = Math.floor(m/2);
+      var next = m - matches;
+      if(next < 8){ matches = m - 8; next = 8; }
+      rounds.push({ entering: m, matches: matches, byes: m - 2*matches });
+      m = next;
     }
     return rounds;
   }
-  function knSEMatchKey(players, idx){ return 'se-'+players+'-'+(idx+1); }
+  function knSEMatchKey(r, idx){ return 'se-r'+r+'-'+(idx+1); }
 
-  // Who plays in an SE match. Round 1 pulls straight from knState.slots; every later round
-  // pulls from the previous round's winners. null = not yet determined (upstream unresolved).
+  // Builds (and persists) round r's actual pairing - which specific players get this round's
+  // byes, and who plays whom - the first time it's queried, once the round becomes buildable
+  // (round 0 always is; round r>0 only once round r-1's pool is fully known, i.e. every one of
+  // its matches has a recorded winner). This can't be precomputed at draw time the way round 0
+  // can, because who's IN round r depends on who wins round r-1 - so each round's bye/pairing
+  // draw happens lazily, in order, and is cached in knState.seRounds so re-rendering never
+  // re-randomizes an already-drawn round. Returns null if this round isn't buildable yet.
+  function knSERoundData(r){
+    if(!knState) return null;
+    if(!knState.seRounds) knState.seRounds = {};
+    if(knState.seRounds[r]) return knState.seRounds[r];
+    var rounds = knSERounds(knState.players.length);
+    if(r < 0 || r >= rounds.length) return null;
+    var pool;
+    if(r === 0){
+      pool = knState.players.slice();
+    } else {
+      var prev = knSERoundData(r-1);
+      if(!prev) return null;
+      for(var i=0;i<prev.pairs.length;i++){
+        if(!knSEWinner(knSEMatchKey(r-1, i))) return null; // previous round not fully resolved
+      }
+      var advancing = prev.byes.slice();
+      for(var j=0;j<prev.pairs.length;j++) advancing.push(knSEWinner(knSEMatchKey(r-1, j)));
+      pool = advancing;
+    }
+    var def = rounds[r];
+    var shuffled = knShuffle(pool);
+    var byes = shuffled.slice(0, def.byes);
+    var playing = shuffled.slice(def.byes);
+    var pairs = [];
+    for(var p=0;p<playing.length;p+=2) pairs.push([playing[p], playing[p+1]]);
+    var data = { entering: def.entering, byes: byes, pairs: pairs };
+    knState.seRounds[r] = data;
+    knSaveState();
+    return data;
+  }
+
+  // Who plays in an SE match. null = not yet determined (round not built, or index out of range).
   function knSEPlayers(key){
     if(!knState) return null;
-    var m = key.match(/^se-(\d+)-(\d+)$/);
+    var m = key.match(/^se-r(\d+)-(\d+)$/);
     if(!m) return null;
-    var players = +m[1], idx = +m[2] - 1;
-    var rounds = knSERounds(knState.bracketSize);
-    var roundIdx = -1;
-    for(var i=0;i<rounds.length;i++) if(rounds[i].players === players) roundIdx = i;
-    if(roundIdx === -1) return null;
-    if(roundIdx === 0){
-      return knPair(knState.slots[2*idx], knState.slots[2*idx+1]);
-    }
-    var prev = rounds[roundIdx-1];
-    return knPair(
-      knSEWinner(knSEMatchKey(prev.players, 2*idx)),
-      knSEWinner(knSEMatchKey(prev.players, 2*idx+1))
-    );
+    var r = +m[1], idx = +m[2] - 1;
+    var data = knSERoundData(r);
+    if(!data || !data.pairs[idx]) return null;
+    return knPair(data.pairs[idx][0], data.pairs[idx][1]);
   }
   function knSERes(key){ return knState && knState.seResults && knState.seResults[key]; }
-  // A bye ("one side is literally BYE") resolves the instant the bracket is built - no result
-  // needs to be stored for it. Everything else needs a real recorded result.
+  // Every SE match is now a real pairing (byes are tracked separately per round, never as a
+  // sentinel opponent), so this needs no bye special-casing - just a recorded result.
   function knSEWinnerLoser(key){
     var p = knSEPlayers(key);
     if(!p) return null;
-    if(p.a === 'BYE') return { winner:p.b, loser:null };
-    if(p.b === 'BYE') return { winner:p.a, loser:null };
     var r = knSERes(key);
     if(!r) return null;
     return r.a > r.b ? { winner:p.a, loser:p.b } : { winner:p.b, loser:p.a };
@@ -8875,40 +8875,43 @@ function swInitTab(){ swRenderSetup(); }
 
   function knSEComplete(){
     if(!knState) return false;
-    var rounds = knSERounds(knState.bracketSize);
-    if(!rounds.length) return true; // bracketSize:8, no SE rounds needed at all
-    var last = rounds[rounds.length-1];
-    for(var i=0;i<last.matches;i++){
-      if(!knSEWinner(knSEMatchKey(last.players, i))) return false;
+    var rounds = knSERounds(knState.players.length);
+    if(!rounds.length) return true; // 8 players, no SE rounds needed at all
+    var lastIdx = rounds.length - 1;
+    var data = knSERoundData(lastIdx);
+    if(!data) return false;
+    for(var i=0;i<data.pairs.length;i++){
+      if(!knSEWinner(knSEMatchKey(lastIdx, i))) return false;
     }
     return true;
   }
   function knSESurvivors(){
     if(!knState) return [];
-    var rounds = knSERounds(knState.bracketSize);
-    if(!rounds.length) return knState.slots.slice(); // bracketSize:8 -> the 8 slots are the survivors
-    var last = rounds[rounds.length-1];
-    var out = [];
-    for(var i=0;i<last.matches;i++) out.push(knSEWinner(knSEMatchKey(last.players, i)));
+    var rounds = knSERounds(knState.players.length);
+    if(!rounds.length) return knState.players.slice(); // 8 players -> they ARE the survivors
+    var lastIdx = rounds.length - 1;
+    var data = knSERoundData(lastIdx);
+    if(!data) return [];
+    var out = data.byes.slice();
+    for(var i=0;i<data.pairs.length;i++) out.push(knSEWinner(knSEMatchKey(lastIdx, i)));
     return out;
   }
 
-  // Editing an SE match invalidates its own result plus every later-round match that depends on
-  // it (walked forward through the halving structure - match idx k in one round feeds match
-  // floor(k/2) in the next round).
+  // Editing an SE match invalidates its own result plus every later round's ALREADY-BUILT
+  // results (the caller also discards those later rounds' entire drawn pairing, not just their
+  // results - see knWire - since the pool a later round was randomly drawn from depended on this
+  // now-changed winner, so keeping its old pairing around would be wrong, not just stale).
   function knSEDownstream(key){
     if(!knState) return [];
-    var m = key.match(/^se-(\d+)-(\d+)$/);
+    var m = key.match(/^se-r(\d+)-(\d+)$/);
     if(!m) return [];
-    var players = +m[1], idx = +m[2] - 1;
-    var rounds = knSERounds(knState.bracketSize);
-    var roundIdx = -1;
-    for(var i=0;i<rounds.length;i++) if(rounds[i].players === players) roundIdx = i;
-    if(roundIdx === -1) return [];
-    var downstream = [], curIdx = idx;
-    for(var r=roundIdx+1; r<rounds.length; r++){
-      curIdx = Math.floor(curIdx/2);
-      downstream.push(knSEMatchKey(rounds[r].players, curIdx));
+    var r = +m[1];
+    var rounds = knSERounds(knState.players.length);
+    var downstream = [];
+    for(var nr=r+1; nr<rounds.length; nr++){
+      var data = knState.seRounds && knState.seRounds[nr];
+      if(!data) break; // nothing later was ever built, so nothing later to invalidate
+      for(var i=0;i<data.pairs.length;i++) downstream.push(knSEMatchKey(nr, i));
     }
     return downstream;
   }
@@ -9043,8 +9046,10 @@ function swInitTab(){ swRenderSetup(); }
       '<div class="card-label">⚙ Setup — Enter Players</div>'+
       '<p style="font-size:0.76rem;color:rgba(245,237,214,0.4);margin-bottom:14px;line-height:1.6">'+
         'Type each player\'s name on its own line — 8 to 32 players, no seeding, just a blind '+
-        'random draw. If the count isn\'t a power of two, extra bracket slots are filled with '+
-        'byes (a bye auto-advances, no match played), randomly placed.'+
+        'random draw. Byes are kept to the minimum possible: each round plays as many real '+
+        'matches as it can, holding back only as many players as needed to land exactly on a '+
+        'Top 8 — so byes may show up in any round, not just the first, and are usually fewer '+
+        'and later than a fixed-bracket-size tool would give you.'+
       '</p>'+
       '<textarea id="knNamesInput" rows="10" placeholder="One player name per line" '+
         'style="width:100%;background:rgba(201,146,42,0.05);border:1px solid rgba(201,146,42,0.25);'+
@@ -9070,8 +9075,7 @@ function swInitTab(){ swRenderSetup(); }
       if(names.length > 32){ errEl.textContent = '⚠ 32 players maximum.'; return; }
       if(new Set(lower).size !== names.length){ errEl.textContent = '⚠ Duplicate player names — all must be unique.'; return; }
       if(lower.indexOf('bye') !== -1){ errEl.textContent = '⚠ "BYE" is reserved and can\'t be used as a player name.'; return; }
-      var built = knBuildSlots(names);
-      knState = { bracketSize: built.bracketSize, slots: built.slots, seResults: {}, de8: null, startedAt: new Date().toISOString() };
+      knState = { players: knShuffle(names), seRounds: {}, seResults: {}, de8: null, startedAt: new Date().toISOString() };
       knSaveState();
       knRender();
     });
@@ -9082,13 +9086,6 @@ function swInitTab(){ swRenderSetup(); }
     var html = '<div style="padding:8px 0;border-bottom:1px solid rgba(201,146,42,0.08)">';
     if(!p){
       html += '<div style="font-size:0.78rem;color:rgba(245,237,214,0.25);font-style:italic">waiting on earlier results</div>';
-      html += '</div>';
-      return html;
-    }
-    if(p.a === 'BYE' || p.b === 'BYE'){
-      var real = p.a === 'BYE' ? p.b : p.a;
-      html += '<div style="font-size:0.82rem;color:rgba(245,237,214,0.55)">'+knEsc(real)+
-        ' <span style="color:#5ec88a;font-size:0.7rem">— bye, advances automatically</span></div>';
       html += '</div>';
       return html;
     }
@@ -9117,13 +9114,23 @@ function swInitTab(){ swRenderSetup(); }
   }
 
   function knRenderSEBracket(){
-    var rounds = knSERounds(knState.bracketSize);
+    var rounds = knSERounds(knState.players.length);
     var html = '';
-    rounds.forEach(function(round){
+    rounds.forEach(function(roundDef, r){
       html += '<div class="card" style="margin-bottom:14px">';
-      html += '<div class="card-label">Round of '+round.players+'</div>';
-      for(var i=0;i<round.matches;i++){
-        html += knRenderSEMatch(knSEMatchKey(round.players, i));
+      html += '<div class="card-label">Round of '+roundDef.entering+'</div>';
+      var data = knSERoundData(r);
+      if(!data){
+        html += '<div style="font-size:0.78rem;color:rgba(245,237,214,0.25);font-style:italic">waiting on earlier results</div>';
+      } else {
+        for(var i=0;i<data.pairs.length;i++){
+          html += knRenderSEMatch(knSEMatchKey(r, i));
+        }
+        if(data.byes.length){
+          html += '<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(201,146,42,0.15);font-size:0.78rem;color:rgba(245,237,214,0.55)">'+
+            (data.byes.length===1 ? 'Bye: ' : 'Byes: ')+data.byes.map(knEsc).join(', ')+
+          '</div>';
+        }
       }
       html += '</div>';
     });
@@ -9185,7 +9192,7 @@ function swInitTab(){ swRenderSetup(); }
     var body = document.getElementById('knBody');
     if(!body) return;
     knArmed = {};
-    if(!knState || !knState.slots) return knRenderSetup(body);
+    if(!knState || !knState.players) return knRenderSetup(body);
 
     var html = '';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px">'+
@@ -9252,6 +9259,16 @@ function swInitTab(){ swRenderSetup(); }
         knArmed[key] = false;
         delete knState.seResults[key];
         downstream.forEach(function(k){ delete knState.seResults[k]; });
+        // The later rounds' entire drawn pairing (not just their results) must also go: each
+        // was randomly built from a pool that included this match's now-cleared winner, so
+        // keeping the old draw around would silently misrepresent who actually earned a spot
+        // in it. It gets freshly re-randomized once this round is re-resolved.
+        var m = key.match(/^se-r(\d+)-(\d+)$/);
+        if(m && knState.seRounds){
+          var editedRound = +m[1];
+          var rounds = knSERounds(knState.players.length);
+          for(var nr=editedRound+1; nr<rounds.length; nr++) delete knState.seRounds[nr];
+        }
         knSaveState();
         knRender();
       });
@@ -9348,24 +9365,31 @@ function swInitTab(){ swRenderSetup(); }
     var lines = ['🥊 *GNL KNOCKOUT*'];
     lines.push('_Riftbound League'+(cityLbl ? ' — '+cityLbl : '')+'_');
     lines.push('');
-    var rounds = knSERounds(knState.bracketSize);
+    var rounds = knSERounds(knState.players.length);
     if(!rounds.length && !knState.de8){
       lines.push('_Top 8 reached — waiting to draw._');
     }
-    rounds.forEach(function(round){
-      lines.push('*Round of '+round.players+'*');
+    rounds.forEach(function(roundDef, r){
+      lines.push('*Round of '+roundDef.entering+'*');
+      var data = knSERoundData(r);
+      if(!data){
+        lines.push('_not started_');
+        lines.push('');
+        return;
+      }
       var any = false;
-      for(var i=0;i<round.matches;i++){
-        var key = knSEMatchKey(round.players, i);
-        var p = knSEPlayers(key), r = knSERes(key);
+      for(var i=0;i<data.pairs.length;i++){
+        var key = knSEMatchKey(r, i);
+        var p = knSEPlayers(key), res = knSERes(key);
         if(!p) continue;
-        if(p.a==='BYE' || p.b==='BYE'){
-          lines.push((p.a==='BYE'?p.b:p.a)+' — bye'); any = true;
-        } else if(r){
-          lines.push((r.a>r.b?p.a:p.b)+' def. '+(r.a>r.b?p.b:p.a)+' '+Math.max(r.a,r.b)+'–'+Math.min(r.a,r.b)); any = true;
+        if(res){
+          lines.push((res.a>res.b?p.a:p.b)+' def. '+(res.a>res.b?p.b:p.a)+' '+Math.max(res.a,res.b)+'–'+Math.min(res.a,res.b)); any = true;
         } else {
           lines.push(p.a+' vs '+p.b); any = true;
         }
+      }
+      if(data.byes.length){
+        lines.push((data.byes.length===1?'Bye: ':'Byes: ')+data.byes.join(', ')); any = true;
       }
       if(!any) lines.push('_not started_');
       lines.push('');
