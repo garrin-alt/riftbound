@@ -946,6 +946,9 @@
       <div class="sidebar-nav-item" id="snav-top16" onclick="showTab('top16'); closeSidebar()">
         <span class="sidebar-nav-icon">👑</span> GNL Top 16
       </div>
+      <div class="sidebar-nav-item" id="snav-knockout" onclick="showTab('knockout'); closeSidebar()">
+        <span class="sidebar-nav-icon">🥊</span> GNL Knockout
+      </div>
       <div class="sidebar-nav-item" id="snav-pstats" onclick="showTab('pstats'); closeSidebar()">
         <span class="sidebar-nav-icon">📊</span> Player Stats
       </div>
@@ -1601,6 +1604,13 @@
     <div id="t16Body"></div>
   </div>
 
+  <div class="panel" id="tab-knockout">
+    <div class="panel-title">GNL Knockout</div>
+    <p class="panel-desc">Blind-draw single elimination down to a Top 8, then double elimination for the finish</p>
+    <div class="divider"></div>
+    <div id="knBody"></div>
+  </div>
+
   <div class="panel" id="tab-pstats">
     <div class="panel-title">Player Stats</div>
     <p class="panel-desc">Season records for every player, computed from the saved head-to-head data</p>
@@ -1854,6 +1864,7 @@ function showTab(id) {
   if (id === 'infractions') initInfractionsPanel();
   if (id === 'swiss') swInitTab();
   if (id === 'top16' && typeof t16Init === 'function') t16Init();
+  if (id === 'knockout' && typeof knInit === 'function') knInit();
   if (id === 'pstats' && typeof pdInit === 'function') pdInit();
   if (id === 'judges' && typeof jdInit === 'function') jdInit();
 }
@@ -8752,6 +8763,407 @@ function swInitTab(){ swRenderSetup(); }
   window.t16Init = t16Init;
 })();
 // ==================== END GNL TOP 16 ====================
+// ==================== GNL KNOCKOUT ====================
+// Blind-draw single-elimination bracket (8-32 players, no seeding) that cuts down to exactly 8
+// survivors, then (see the next task) switches to a fresh double-elimination bracket for the
+// Top 8. Entirely independent of GNL Top 16 - separate data.knockout state, no shared bracket
+// code - the two tools' shapes don't overlap enough to make sharing worthwhile.
+(function(){
+  var knState = null; // { bracketSize, slots, seResults, de8, startedAt, updatedAt }
+  var knArmed = {};   // two-click confirms, keyed by action
+
+  function knEsc(s){
+    return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function knPair(a, b){ return (a && b) ? { a:a, b:b } : null; }
+
+  function knShuffle(arr){
+    var a = arr.slice();
+    for(var i=a.length-1;i>0;i--){
+      var j = Math.floor(Math.random()*(i+1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  // Bracket size is the next power of two >= names.length, floored at 8 (the minimum player
+  // count this tool accepts). byeCount is ALWAYS strictly less than the match count (bracketSize
+  // is the SMALLEST power of two >= names.length, so bracketSize/2 < names.length, i.e.
+  // matches < names.length, i.e. byeCount = bracketSize - names.length < matches) - so there is
+  // always a way to give every match at most one bye. A naive full-shuffle-then-pair approach
+  // does NOT guarantee this - it can randomly place two BYE placeholders in the same match by
+  // chance, which nothing downstream can resolve correctly. Instead: randomly choose which
+  // match-slots get a bye (byeCount of them, out of matches), guaranteeing no match ever pairs
+  // BYE against BYE, then randomize each pair's left/right order separately so byes aren't
+  // always in the same position.
+  function knBuildSlots(names){
+    var bracketSize = 8;
+    while(bracketSize < names.length) bracketSize *= 2;
+    var matches = bracketSize / 2;
+    var byeCount = bracketSize - names.length;
+    var shuffledNames = knShuffle(names);
+    var matchIdxsList = [];
+    for(var i=0;i<matches;i++) matchIdxsList.push(i);
+    var byeMatchIdxs = {};
+    var shuffledMatchIdxs = knShuffle(matchIdxsList);
+    for(var b=0;b<byeCount;b++) byeMatchIdxs[shuffledMatchIdxs[b]] = true;
+
+    var slots = new Array(bracketSize);
+    var cursor = 0;
+    for(var m=0;m<matches;m++){
+      if(byeMatchIdxs[m]){
+        slots[2*m] = shuffledNames[cursor++];
+        slots[2*m+1] = 'BYE';
+      } else {
+        slots[2*m] = shuffledNames[cursor++];
+        slots[2*m+1] = shuffledNames[cursor++];
+      }
+      if(Math.random() < 0.5){
+        var t = slots[2*m]; slots[2*m] = slots[2*m+1]; slots[2*m+1] = t;
+      }
+    }
+    return { bracketSize: bracketSize, slots: slots };
+  }
+
+  // ── SINGLE-ELIMINATION BRACKET ────────────────────────────────────────────
+  // Rounds continue only while MORE than 8 players remain - the last round pushed always
+  // produces exactly 8 winners. bracketSize:8 pushes zero rounds (already at the target).
+  function knSERounds(bracketSize){
+    var rounds = [];
+    var players = bracketSize;
+    while(players > 8){
+      rounds.push({ players: players, matches: players/2 });
+      players = players/2;
+    }
+    return rounds;
+  }
+  function knSEMatchKey(players, idx){ return 'se-'+players+'-'+(idx+1); }
+
+  // Who plays in an SE match. Round 1 pulls straight from knState.slots; every later round
+  // pulls from the previous round's winners. null = not yet determined (upstream unresolved).
+  function knSEPlayers(key){
+    if(!knState) return null;
+    var m = key.match(/^se-(\d+)-(\d+)$/);
+    if(!m) return null;
+    var players = +m[1], idx = +m[2] - 1;
+    var rounds = knSERounds(knState.bracketSize);
+    var roundIdx = -1;
+    for(var i=0;i<rounds.length;i++) if(rounds[i].players === players) roundIdx = i;
+    if(roundIdx === -1) return null;
+    if(roundIdx === 0){
+      return knPair(knState.slots[2*idx], knState.slots[2*idx+1]);
+    }
+    var prev = rounds[roundIdx-1];
+    return knPair(
+      knSEWinner(knSEMatchKey(prev.players, 2*idx)),
+      knSEWinner(knSEMatchKey(prev.players, 2*idx+1))
+    );
+  }
+  function knSERes(key){ return knState && knState.seResults && knState.seResults[key]; }
+  // A bye ("one side is literally BYE") resolves the instant the bracket is built - no result
+  // needs to be stored for it. Everything else needs a real recorded result.
+  function knSEWinnerLoser(key){
+    var p = knSEPlayers(key);
+    if(!p) return null;
+    if(p.a === 'BYE') return { winner:p.b, loser:null };
+    if(p.b === 'BYE') return { winner:p.a, loser:null };
+    var r = knSERes(key);
+    if(!r) return null;
+    return r.a > r.b ? { winner:p.a, loser:p.b } : { winner:p.b, loser:p.a };
+  }
+  function knSEWinner(key){ var wl = knSEWinnerLoser(key); return wl && wl.winner; }
+
+  function knSEComplete(){
+    if(!knState) return false;
+    var rounds = knSERounds(knState.bracketSize);
+    if(!rounds.length) return true; // bracketSize:8, no SE rounds needed at all
+    var last = rounds[rounds.length-1];
+    for(var i=0;i<last.matches;i++){
+      if(!knSEWinner(knSEMatchKey(last.players, i))) return false;
+    }
+    return true;
+  }
+  function knSESurvivors(){
+    if(!knState) return [];
+    var rounds = knSERounds(knState.bracketSize);
+    if(!rounds.length) return knState.slots.slice(); // bracketSize:8 -> the 8 slots are the survivors
+    var last = rounds[rounds.length-1];
+    var out = [];
+    for(var i=0;i<last.matches;i++) out.push(knSEWinner(knSEMatchKey(last.players, i)));
+    return out;
+  }
+
+  // Editing an SE match invalidates its own result plus every later-round match that depends on
+  // it (walked forward through the halving structure - match idx k in one round feeds match
+  // floor(k/2) in the next round).
+  function knSEDownstream(key){
+    if(!knState) return [];
+    var m = key.match(/^se-(\d+)-(\d+)$/);
+    if(!m) return [];
+    var players = +m[1], idx = +m[2] - 1;
+    var rounds = knSERounds(knState.bracketSize);
+    var roundIdx = -1;
+    for(var i=0;i<rounds.length;i++) if(rounds[i].players === players) roundIdx = i;
+    if(roundIdx === -1) return [];
+    var downstream = [], curIdx = idx;
+    for(var r=roundIdx+1; r<rounds.length; r++){
+      curIdx = Math.floor(curIdx/2);
+      downstream.push(knSEMatchKey(rounds[r].players, curIdx));
+    }
+    return downstream;
+  }
+
+  function knSaveState(){
+    knState.updatedAt = new Date().toISOString();
+    var data = load();
+    data.knockout = knState;
+    save(data); // persists locally AND syncs to the Gist
+  }
+
+  // ── RENDER ──────────────────────────────────────────────────────────────
+  function knRenderSetup(body){
+    var html = '<div class="card" style="margin-bottom:14px">'+
+      '<div class="card-label">⚙ Setup — Enter Players</div>'+
+      '<p style="font-size:0.76rem;color:rgba(245,237,214,0.4);margin-bottom:14px;line-height:1.6">'+
+        'Type each player\'s name on its own line — 8 to 32 players, no seeding, just a blind '+
+        'random draw. If the count isn\'t a power of two, extra bracket slots are filled with '+
+        'byes (a bye auto-advances, no match played), randomly placed.'+
+      '</p>'+
+      '<textarea id="knNamesInput" rows="10" placeholder="One player name per line" '+
+        'style="width:100%;background:rgba(201,146,42,0.05);border:1px solid rgba(201,146,42,0.25);'+
+        'color:var(--parchment);padding:10px;font-family:inherit;font-size:0.85rem;resize:vertical"></textarea>'+
+      '<div id="knNamesCount" style="font-size:0.7rem;color:rgba(245,237,214,0.35);margin-top:6px">0 players entered</div>'+
+      '<button class="btn" id="knDrawBtn" style="margin-top:14px">🎲 Draw Bracket</button>'+
+      '<div id="knSetupErr" style="font-size:0.74rem;color:#c0392b;margin-top:8px"></div>'+
+    '</div>';
+    body.innerHTML = html;
+    var ta = document.getElementById('knNamesInput');
+    var countEl = document.getElementById('knNamesCount');
+    function parseNames(){
+      return ta.value.split('\n').map(function(s){ return s.trim(); }).filter(function(s){ return s; });
+    }
+    ta.addEventListener('input', function(){
+      countEl.textContent = parseNames().length + ' players entered';
+    });
+    document.getElementById('knDrawBtn').addEventListener('click', function(){
+      var names = parseNames();
+      var errEl = document.getElementById('knSetupErr');
+      var lower = names.map(function(n){ return n.toLowerCase(); });
+      if(names.length < 8){ errEl.textContent = '⚠ Need at least 8 players.'; return; }
+      if(names.length > 32){ errEl.textContent = '⚠ 32 players maximum.'; return; }
+      if(new Set(lower).size !== names.length){ errEl.textContent = '⚠ Duplicate player names — all must be unique.'; return; }
+      var built = knBuildSlots(names);
+      knState = { bracketSize: built.bracketSize, slots: built.slots, seResults: {}, de8: null, startedAt: new Date().toISOString() };
+      knSaveState();
+      knRender();
+    });
+  }
+
+  function knRenderSEMatch(key){
+    var p = knSEPlayers(key);
+    var html = '<div style="padding:8px 0;border-bottom:1px solid rgba(201,146,42,0.08)">';
+    if(!p){
+      html += '<div style="font-size:0.78rem;color:rgba(245,237,214,0.25);font-style:italic">waiting on earlier results</div>';
+      html += '</div>';
+      return html;
+    }
+    if(p.a === 'BYE' || p.b === 'BYE'){
+      var real = p.a === 'BYE' ? p.b : p.a;
+      html += '<div style="font-size:0.82rem;color:rgba(245,237,214,0.55)">'+knEsc(real)+
+        ' <span style="color:#5ec88a;font-size:0.7rem">— bye, advances automatically</span></div>';
+      html += '</div>';
+      return html;
+    }
+    var r = knSERes(key);
+    if(r){
+      var aWon = r.a > r.b;
+      html += '<div style="display:flex;align-items:center;gap:8px;font-size:0.85rem;flex-wrap:wrap">'+
+        '<span style="'+(aWon?'color:var(--gold-light);font-weight:600':'opacity:0.5')+'">'+knEsc(p.a)+'</span>'+
+        '<span class="rv-score-gold">'+r.a+'–'+r.b+'</span>'+
+        '<span style="'+(!aWon?'color:var(--gold-light);font-weight:600':'opacity:0.5')+'">'+knEsc(p.b)+'</span>'+
+        '<button class="kn-se-edit" data-key="'+key+'" style="background:none;border:none;color:rgba(245,237,214,0.3);cursor:pointer;font-size:0.75rem;margin-left:auto">✎ edit</button>'+
+      '</div>';
+    } else {
+      html += '<div style="display:flex;align-items:center;gap:6px;font-size:0.82rem;flex-wrap:wrap">'+
+        '<span style="flex:1;min-width:80px">'+knEsc(p.a)+'</span>'+
+        '<input type="number" min="0" max="9" id="knSa-'+key+'" style="width:44px;background:rgba(201,146,42,0.05);border:1px solid rgba(201,146,42,0.25);color:var(--parchment);padding:5px;text-align:center;font-family:inherit"/>'+
+        '<span style="opacity:0.4">–</span>'+
+        '<input type="number" min="0" max="9" id="knSb-'+key+'" style="width:44px;background:rgba(201,146,42,0.05);border:1px solid rgba(201,146,42,0.25);color:var(--parchment);padding:5px;text-align:center;font-family:inherit"/>'+
+        '<span style="flex:1;min-width:80px;text-align:right">'+knEsc(p.b)+'</span>'+
+        '<button class="btn ghost kn-se-save" data-key="'+key+'" style="width:auto;padding:5px 12px;font-size:0.68rem">✓</button>'+
+      '</div>'+
+      '<div id="knErr-'+key+'" style="font-size:0.68rem;color:#c0392b;margin-top:3px"></div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function knRenderSEBracket(){
+    var rounds = knSERounds(knState.bracketSize);
+    var html = '';
+    rounds.forEach(function(round){
+      html += '<div class="card" style="margin-bottom:14px">';
+      html += '<div class="card-label">Round of '+round.players+'</div>';
+      for(var i=0;i<round.matches;i++){
+        html += knRenderSEMatch(knSEMatchKey(round.players, i));
+      }
+      html += '</div>';
+    });
+    return html;
+  }
+
+  function knRender(){
+    var body = document.getElementById('knBody');
+    if(!body) return;
+    knArmed = {};
+    if(!knState || !knState.slots) return knRenderSetup(body);
+
+    var html = '';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px">'+
+      '<span style="font-size:0.74rem;color:rgba(245,237,214,0.35);font-style:italic">'+
+        (knState.updatedAt ? 'Last updated '+new Date(knState.updatedAt).toLocaleString() : '')+'</span>'+
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
+        '<button class="btn ghost" id="knCopyBtn" style="width:auto;padding:7px 14px;font-size:0.7rem">📋 Copy Status for WhatsApp</button>'+
+        '<button class="btn ghost" id="knResetBtn" style="width:auto;padding:7px 14px;font-size:0.7rem;border-color:rgba(192,57,43,0.3);color:#c0392b">🗑 Reset Tournament</button>'+
+      '</div></div>';
+
+    html += knRenderSEBracket();
+    if(knSEComplete()){
+      html += '<div class="card" style="text-align:center">'+
+        '<div class="card-label">Top 8 Reached</div>'+
+        '<p style="font-size:0.78rem;color:rgba(245,237,214,0.4)">'+
+          knSESurvivors().map(knEsc).join(', ')+
+        '</p>'+
+      '</div>';
+    }
+
+    body.innerHTML = html;
+    knWire(body);
+  }
+
+  // ── WIRING ──────────────────────────────────────────────────────────────
+  function knWire(body){
+    body.querySelectorAll('.kn-se-save').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var key = btn.dataset.key;
+        var a = document.getElementById('knSa-'+key).value.trim();
+        var b = document.getElementById('knSb-'+key).value.trim();
+        var errEl = document.getElementById('knErr-'+key);
+        var na = Number(a), nb = Number(b);
+        if(a==='' || b==='' || !Number.isInteger(na) || !Number.isInteger(nb) || na<0 || nb<0){
+          errEl.textContent = '⚠ Enter both game scores'; return;
+        }
+        if(na === nb){ errEl.textContent = '⚠ No draws here — someone has to win'; return; }
+        knState.seResults[key] = { a:na, b:nb };
+        knSaveState();
+        knRender();
+      });
+    });
+    body.querySelectorAll('.kn-se-edit').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var key = btn.dataset.key;
+        var downstream = knSEDownstream(key).filter(function(k){ return !!knSERes(k); });
+        if(!knArmed[key] && downstream.length){
+          knArmed[key] = true;
+          btn.textContent = '⚠ clears '+downstream.length+' later result'+(downstream.length===1?'':'s')+' — click again';
+          btn.style.color = '#c0392b';
+          setTimeout(function(){
+            if(!knArmed[key]) return;
+            knArmed[key] = false;
+            btn.textContent = '✎ edit'; btn.style.color = 'rgba(245,237,214,0.3)';
+          }, 5000);
+          return;
+        }
+        knArmed[key] = false;
+        delete knState.seResults[key];
+        downstream.forEach(function(k){ delete knState.seResults[k]; });
+        knSaveState();
+        knRender();
+      });
+    });
+    var resetBtn = document.getElementById('knResetBtn');
+    if(resetBtn) resetBtn.addEventListener('click', function(){
+      if(!knArmed.reset){
+        knArmed.reset = true;
+        resetBtn.textContent = '⚠ Deletes the whole tournament — click again';
+        setTimeout(function(){
+          if(!knArmed.reset) return;
+          knArmed.reset = false;
+          resetBtn.textContent = '🗑 Reset Tournament';
+        }, 5000);
+        return;
+      }
+      knArmed.reset = false;
+      knState = null;
+      var data = load();
+      data.knockout = null;
+      save(data);
+      knRender();
+    });
+    var copyBtn = document.getElementById('knCopyBtn');
+    if(copyBtn) copyBtn.addEventListener('click', function(){
+      navigator.clipboard.writeText(knWhatsAppText());
+      copyBtn.textContent = '✓ Copied!';
+      setTimeout(function(){ copyBtn.textContent = '📋 Copy Status for WhatsApp'; }, 1800);
+    });
+  }
+
+  // ── WHATSAPP STATUS ─────────────────────────────────────────────────────
+  function knWhatsAppText(){
+    var cityLbl = '';
+    try { var cfg = getCityConfig(); cityLbl = cfg ? cfg.label : ''; } catch(e){}
+    var lines = ['🥊 *GNL KNOCKOUT*'];
+    lines.push('_Riftbound League'+(cityLbl ? ' — '+cityLbl : '')+'_');
+    lines.push('');
+    var rounds = knSERounds(knState.bracketSize);
+    if(!rounds.length){
+      lines.push('_Top 8 reached — waiting to draw._');
+    }
+    rounds.forEach(function(round){
+      lines.push('*Round of '+round.players+'*');
+      var any = false;
+      for(var i=0;i<round.matches;i++){
+        var key = knSEMatchKey(round.players, i);
+        var p = knSEPlayers(key), r = knSERes(key);
+        if(!p) continue;
+        if(p.a==='BYE' || p.b==='BYE'){
+          lines.push((p.a==='BYE'?p.b:p.a)+' — bye'); any = true;
+        } else if(r && p){
+          lines.push((r.a>r.b?p.a:p.b)+' def. '+(r.a>r.b?p.b:p.a)+' '+Math.max(r.a,r.b)+'–'+Math.min(r.a,r.b)); any = true;
+        }
+      }
+      if(!any) lines.push('_not started_');
+      lines.push('');
+    });
+    if(knSEComplete()){
+      lines.push('*Top 8:* '+knSESurvivors().join(', '));
+      lines.push('');
+    }
+    lines.push('');
+    lines.push('_May the best rival win._');
+    return lines.join('\n');
+  }
+
+  // ── INIT ────────────────────────────────────────────────────────────────
+  var knLoading = false;
+  async function knInit(){
+    var body = document.getElementById('knBody');
+    if(!body || knLoading) return;
+    knLoading = true;
+    if(!knState) body.innerHTML = '<p style="font-size:0.8rem;color:rgba(245,237,214,0.3);font-style:italic">⟳ Loading from Gist…</p>';
+    try {
+      var data = await loadFromGist();
+      knState = (data && data.knockout) || null; // clear, don't inherit another city's bracket
+    } catch(e){ /* offline — fall back to whatever is local */ }
+    if(!knState){
+      try { knState = load().knockout || null; } catch(e){}
+    }
+    knLoading = false;
+    knRender();
+  }
+  window.knInit = knInit;
+})();
+// ==================== END GNL KNOCKOUT ====================
 
 </script>
 </body>
