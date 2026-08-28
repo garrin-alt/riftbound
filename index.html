@@ -1827,8 +1827,8 @@ function lockOut() {
   sessionStorage.removeItem('rb_auth');
   sessionStorage.removeItem('rb_city');
   activeCity = null;
-  // Full reload, so no in-memory state (rivalry caches, Top 16 bracket, Player
-  // Stats, Swiss) can survive into the next city's session and be saved into
+  // Full reload, so no in-memory state (rivalry caches, Top 16 bracket, Knockout bracket,
+  // Player Stats, Swiss) can survive into the next city's session and be saved into
   // the wrong Gist. Without this, locking out of one city and signing into the
   // other in the same tab carries the previous city's data across.
   location.reload();
@@ -8765,9 +8765,9 @@ function swInitTab(){ swRenderSetup(); }
 // ==================== END GNL TOP 16 ====================
 // ==================== GNL KNOCKOUT ====================
 // Blind-draw single-elimination bracket (8-32 players, no seeding) that cuts down to exactly 8
-// survivors, then (see the next task) switches to a fresh double-elimination bracket for the
-// Top 8. Entirely independent of GNL Top 16 - separate data.knockout state, no shared bracket
-// code - the two tools' shapes don't overlap enough to make sharing worthwhile.
+// survivors, then switches to a fresh double-elimination bracket for the Top 8. Entirely
+// independent of GNL Top 16 - separate data.knockout state, no shared bracket code - the two
+// tools' shapes don't overlap enough to make sharing worthwhile.
 (function(){
   var knState = null; // { bracketSize, slots, seResults, de8, startedAt, updatedAt }
   var knArmed = {};   // two-click confirms, keyed by action
@@ -8930,8 +8930,13 @@ function swInitTab(){ swRenderSetup(); }
   var DE8_LB = [
     { k:'lb-r1-1', label:'LB Round 1 · Match 1', src:[{l:'wb-qf1'},{l:'wb-qf2'}] },
     { k:'lb-r1-2', label:'LB Round 1 · Match 2', src:[{l:'wb-qf3'},{l:'wb-qf4'}] },
-    { k:'lb-r2-1', label:'LB Round 2 · Match 1', src:[{w:'lb-r1-1'},{l:'wb-sf1'}] },
-    { k:'lb-r2-2', label:'LB Round 2 · Match 2', src:[{w:'lb-r1-2'},{l:'wb-sf2'}] },
+    // Crossed (lb-r1-1 pairs with wb-sf2's loser, not wb-sf1's) so a Round 2 LB match can never
+    // be an immediate rematch: lb-r1-1 holds the wb-qf1/wb-qf2 losers, and wb-sf1's loser is one
+    // of THOSE SAME two players' conqueror (winner of qf1 or qf2) - pairing them again would risk
+    // replaying a match that just happened. wb-sf2's loser comes from the wb-qf3/wb-qf4 side
+    // entirely, so neither lb-r2 match can ever repeat a pairing from earlier in the bracket.
+    { k:'lb-r2-1', label:'LB Round 2 · Match 1', src:[{w:'lb-r1-1'},{l:'wb-sf2'}] },
+    { k:'lb-r2-2', label:'LB Round 2 · Match 2', src:[{w:'lb-r1-2'},{l:'wb-sf1'}] },
     { k:'lb-sf',   label:'LB Semifinal',         src:[{w:'lb-r2-1'},{w:'lb-r2-2'}] },
     { k:'lb-f',    label:'LB Final',             src:[{w:'lb-sf'},{l:'wb-f'}] }
   ];
@@ -9015,8 +9020,11 @@ function swInitTab(){ swRenderSetup(); }
   }
 
   // Re-shuffles the 8 SE survivors (their single-elimination path only decided WHO made the
-  // cut, not their double-elimination seeding) into a brand-new bracket.
+  // cut, not their double-elimination seeding) into a brand-new bracket. Guarded even though the
+  // button that calls this is only ever rendered once knSEComplete() is true - defends a future
+  // render change from ever building a de8 with fewer than 8 real players.
   function knDrawTop8(){
+    if(!knSEComplete()) return;
     knState.de8 = { players: knShuffle(knSESurvivors()), results: {}, drawnAt: new Date().toISOString() };
     knSaveState();
     knRender();
@@ -9061,6 +9069,7 @@ function swInitTab(){ swRenderSetup(); }
       if(names.length < 8){ errEl.textContent = '⚠ Need at least 8 players.'; return; }
       if(names.length > 32){ errEl.textContent = '⚠ 32 players maximum.'; return; }
       if(new Set(lower).size !== names.length){ errEl.textContent = '⚠ Duplicate player names — all must be unique.'; return; }
+      if(lower.indexOf('bye') !== -1){ errEl.textContent = '⚠ "BYE" is reserved and can\'t be used as a player name.'; return; }
       var built = knBuildSlots(names);
       knState = { bracketSize: built.bracketSize, slots: built.slots, seResults: {}, de8: null, startedAt: new Date().toISOString() };
       knSaveState();
@@ -9184,6 +9193,7 @@ function swInitTab(){ swRenderSetup(); }
         (knState.updatedAt ? 'Last updated '+new Date(knState.updatedAt).toLocaleString() : '')+'</span>'+
       '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
         '<button class="btn ghost" id="knCopyBtn" style="width:auto;padding:7px 14px;font-size:0.7rem">📋 Copy Status for WhatsApp</button>'+
+        (knState.de8 ? '<button class="btn ghost" id="knUndoDrawBtn" style="width:auto;padding:7px 14px;font-size:0.7rem;border-color:rgba(192,57,43,0.3);color:#c0392b">↩ Undo the Draw</button>' : '')+
         '<button class="btn ghost" id="knResetBtn" style="width:auto;padding:7px 14px;font-size:0.7rem;border-color:rgba(192,57,43,0.3);color:#c0392b">🗑 Reset Tournament</button>'+
       '</div></div>';
 
@@ -9312,6 +9322,23 @@ function swInitTab(){ swRenderSetup(); }
       copyBtn.textContent = '✓ Copied!';
       setTimeout(function(){ copyBtn.textContent = '📋 Copy Status for WhatsApp'; }, 1800);
     });
+    var undoBtn = document.getElementById('knUndoDrawBtn');
+    if(undoBtn) undoBtn.addEventListener('click', function(){
+      if(!knArmed.undoDraw){
+        knArmed.undoDraw = true;
+        undoBtn.textContent = '⚠ Discards all Top 8 results — click again';
+        setTimeout(function(){
+          if(!knArmed.undoDraw) return;
+          knArmed.undoDraw = false;
+          undoBtn.textContent = '↩ Undo the Draw';
+        }, 5000);
+        return;
+      }
+      knArmed.undoDraw = false;
+      knState.de8 = null;
+      knSaveState();
+      knRender();
+    });
   }
 
   // ── WHATSAPP STATUS ─────────────────────────────────────────────────────
@@ -9334,8 +9361,10 @@ function swInitTab(){ swRenderSetup(); }
         if(!p) continue;
         if(p.a==='BYE' || p.b==='BYE'){
           lines.push((p.a==='BYE'?p.b:p.a)+' — bye'); any = true;
-        } else if(r && p){
+        } else if(r){
           lines.push((r.a>r.b?p.a:p.b)+' def. '+(r.a>r.b?p.b:p.a)+' '+Math.max(r.a,r.b)+'–'+Math.min(r.a,r.b)); any = true;
+        } else {
+          lines.push(p.a+' vs '+p.b); any = true;
         }
       }
       if(!any) lines.push('_not started_');
@@ -9350,12 +9379,15 @@ function swInitTab(){ swRenderSetup(); }
       DE8_WB.concat(DE8_LB).forEach(function(def){
         var p = knDEPlayers(def.k), r = knDERes(def.k);
         if(r && p) lines.push(def.label+': *'+(r.a>r.b?p.a:p.b)+'* def. '+(r.a>r.b?p.b:p.a)+' '+Math.max(r.a,r.b)+'–'+Math.min(r.a,r.b));
+        else if(p) lines.push(def.label+': '+p.a+' vs '+p.b);
       });
       var gfP = knDEPlayers('gf'), gfR = knDERes('gf');
       if(gfR && gfP) lines.push('Grand Final: *'+(gfR.a>gfR.b?gfP.a:gfP.b)+'* def. '+(gfR.a>gfR.b?gfP.b:gfP.a)+' '+Math.max(gfR.a,gfR.b)+'–'+Math.min(gfR.a,gfR.b));
+      else if(gfP) lines.push('Grand Final: '+gfP.a+' vs '+gfP.b);
       if(knNeedsReset()){
         var gf2P = knDEPlayers('gf2'), gf2R = knDERes('gf2');
         if(gf2R && gf2P) lines.push('Grand Final Reset: *'+(gf2R.a>gf2R.b?gf2P.a:gf2P.b)+'* def. '+(gf2R.a>gf2R.b?gf2P.b:gf2P.a)+' '+Math.max(gf2R.a,gf2R.b)+'–'+Math.min(gf2R.a,gf2R.b));
+        else if(gf2P) lines.push('Grand Final Reset: '+gf2P.a+' vs '+gf2P.b);
       }
       var champ = knChampion();
       if(champ){ lines.push(''); lines.push('🏆 *GNL CHAMPION: '+champ+'* 🏆'); }
