@@ -1596,7 +1596,7 @@
 
   <div class="panel" id="tab-top16">
     <div class="panel-title">GNL Top 16</div>
-    <p class="panel-desc">GSL group stage into Top 8 single-elimination playoffs — the season's championship bracket</p>
+    <p class="panel-desc">GSL group stage into single-elimination playoffs — the season's championship bracket</p>
     <div class="divider"></div>
     <div id="t16Body"></div>
   </div>
@@ -8274,12 +8274,12 @@ function swInitTab(){ swRenderSetup(); }
 // ==================== END JUDGES ====================
 
 // ==================== GNL TOP 16 ====================
-// GSL group stage (4 groups of 4, double-elim within group) feeding a fixed
-// cross-group Top 8 single-elimination bracket. Seeded pairings: within a
-// group, Match 1 = Seed 1 vs Seed 4, Match 2 = Seed 2 vs Seed 3.
+// GSL group stage (4 or 8 groups of 4, double-elim within group) feeding a
+// Top 8 or Top 16 single-elimination cross-group bracket (selectable at
+// setup). Seeded pairings: within a group, Match 1 = Seed 1 vs Seed 4,
+// Match 2 = Seed 2 vs Seed 3.
 // State lives in data.top16 and syncs to the Gist like everything else.
 (function(){
-  var GROUPS = ['A','B','C','D'];
   var GROUP_MATCHES = [
     { k:'m1', label:'Match 1' },
     { k:'m2', label:'Match 2' },
@@ -8287,32 +8287,132 @@ function swInitTab(){ swRenderSetup(); }
     { k:'l',  label:'Losers Match' },
     { k:'d',  label:'Decider Match' }
   ];
-  var PLAYOFFS = [
-    { k:'qf1', label:'QF1', srcLabel:['1st Group A','2nd Group B'] },
-    { k:'qf2', label:'QF2', srcLabel:['1st Group C','2nd Group D'] },
-    { k:'qf3', label:'QF3', srcLabel:['1st Group B','2nd Group A'] },
-    { k:'qf4', label:'QF4', srcLabel:['1st Group D','2nd Group C'] },
-    { k:'sf1', label:'Semifinal 1', srcLabel:['Winner QF1','Winner QF2'] },
-    { k:'sf2', label:'Semifinal 2', srcLabel:['Winner QF3','Winner QF4'] },
-    { k:'f',   label:'Grand Final', srcLabel:['Winner SF1','Winner SF2'] }
-  ];
-  // Editing a match invalidates everything that fed off its result
-  var ALL_PLAYOFF_KEYS = ['qf1','qf2','qf3','qf4','sf1','sf2','f'];
+
+  // Letters A, B, C... for however many groups this tournament uses (4 or 8).
+  function t16GroupLetters(groupCount){
+    var letters = [];
+    for(var i=0;i<groupCount;i++) letters.push(String.fromCharCode(65+i));
+    return letters;
+  }
+  // Groups for the ACTIVE tournament — falls back to 4 before a tournament exists, or for any
+  // tournament saved before groupCount existed, matching the tool's original only-ever-4 behavior.
+  function t16ActiveGroups(){
+    return t16GroupLetters((t16State && t16State.groupCount) === 8 ? 8 : 4);
+  }
+
+  // Assigns key/label/srcLabel to every match in one already-built round. keyPrefix is 'qf',
+  // 'sf', 'r16-' or 'f'; a single-match round gets the bare prefix as its key (e.g. 'f'),
+  // multi-match rounds get prefix+1-based-index (e.g. 'qf1', 'r16-3').
+  function t16LabelRound(round, keyPrefix, labelFn){
+    round.forEach(function(m, i){
+      m.key = round.length === 1 ? keyPrefix : (keyPrefix + (i + 1));
+      m.label = labelFn(i);
+    });
+    round.forEach(function(m){
+      m.srcLabel = [m.srcA, m.srcB].map(function(src){
+        if(src.group != null) return (src.seed === 0 ? '1st' : '2nd') + ' Group ' + src.group;
+        return 'Winner ' + src.key.toUpperCase();
+      });
+    });
+    return round;
+  }
+
+  // The playoff bracket for a given group count (4 or 8), as an array of rounds; each round is
+  // an array of match defs { key, label, srcA, srcB, srcLabel }. src.group/seed points at a
+  // group-stage result (seed 0 = 1st place, seed 1 = 2nd place); src.key points at an earlier
+  // playoff match's winner.
+  //
+  // Two independent "streams" run through the whole bracket — primary and mirror. For each
+  // group pair (X,Y) taken two letters at a time: the primary stream's first match is
+  // 1st(X) v 2nd(Y); the mirror stream's is 1st(Y) v 2nd(X). Each stream is single-eliminated
+  // entirely on its own; the two streams' champions meet ONLY in the Grand Final — a group's own
+  // two qualifiers always land one in each stream, so they can never face each other before the
+  // Final. For podCount:2 (groupCount:4) this reproduces the tool's original hardcoded PLAYOFFS
+  // array exactly, key-for-key and label-for-label — verified during design. podCount:4
+  // (groupCount:8) adds one earlier round (r16-1..r16-8) ahead of the same qf/sf/f shape.
+  function t16BuildBracket(groupCount){
+    var letters = t16GroupLetters(groupCount);
+    var podCount = groupCount / 2; // 2 for groupCount:4, 4 for groupCount:8
+    var pods = [];
+    for(var p=0;p<podCount;p++) pods.push({ gx:letters[p*2], gy:letters[p*2+1] });
+
+    function podMatch(pod, mirrored){
+      var hi = mirrored ? pod.gy : pod.gx, lo = mirrored ? pod.gx : pod.gy;
+      return { srcA:{group:hi, seed:0}, srcB:{group:lo, seed:1} };
+    }
+
+    if(podCount === 2){
+      var qf = [ podMatch(pods[0], false), podMatch(pods[1], false),
+                 podMatch(pods[0], true),  podMatch(pods[1], true) ];
+      var sf = [ { srcA:{key:'qf1'}, srcB:{key:'qf2'} },
+                 { srcA:{key:'qf3'}, srcB:{key:'qf4'} } ];
+      var f  = [ { srcA:{key:'sf1'}, srcB:{key:'sf2'} } ];
+      return [
+        t16LabelRound(qf, 'qf', function(i){ return 'QF'+(i+1); }),
+        t16LabelRound(sf, 'sf', function(i){ return 'Semifinal '+(i+1); }),
+        t16LabelRound(f,  'f',  function(){ return 'Grand Final'; })
+      ];
+    }
+
+    var r16 = [ podMatch(pods[0], false), podMatch(pods[1], false), podMatch(pods[2], false), podMatch(pods[3], false),
+                podMatch(pods[0], true),  podMatch(pods[1], true),  podMatch(pods[2], true),  podMatch(pods[3], true) ];
+    var qf2 = [ { srcA:{key:'r16-1'}, srcB:{key:'r16-2'} }, { srcA:{key:'r16-3'}, srcB:{key:'r16-4'} },
+                { srcA:{key:'r16-5'}, srcB:{key:'r16-6'} }, { srcA:{key:'r16-7'}, srcB:{key:'r16-8'} } ];
+    var sf2 = [ { srcA:{key:'qf1'}, srcB:{key:'qf2'} }, { srcA:{key:'qf3'}, srcB:{key:'qf4'} } ];
+    var f2  = [ { srcA:{key:'sf1'}, srcB:{key:'sf2'} } ];
+    return [
+      t16LabelRound(r16, 'r16-', function(i){ return 'R16 Match '+(i+1); }),
+      t16LabelRound(qf2, 'qf',  function(i){ return 'QF'+(i+1); }),
+      t16LabelRound(sf2, 'sf',  function(i){ return 'Semifinal '+(i+1); }),
+      t16LabelRound(f2,  'f',   function(){ return 'Grand Final'; })
+    ];
+  }
+  // Bracket for the ACTIVE tournament (same fallback rule as t16ActiveGroups).
+  function t16ActiveBracket(){
+    return t16BuildBracket((t16State && t16State.groupCount) === 8 ? 8 : 4);
+  }
+  // Find one match's def anywhere in a bracket, by key.
+  function t16MatchDef(key, bracket){
+    for(var r=0;r<bracket.length;r++)
+      for(var m=0;m<bracket[r].length;m++)
+        if(bracket[r][m].key === key) return bracket[r][m];
+    return null;
+  }
+
+  // Editing a match invalidates everything that fed off its result — built from the same
+  // bracket structure t16Players/t16WhatsAppText use, so it can never drift out of sync with them.
   function t16Downstream(key){
-    var m = key.match(/^([A-D])-(m1|m2|w|l|d)$/);
+    var m = key.match(/^([A-H])-(m1|m2|w|l|d)$/);
+    var bracket = t16ActiveBracket();
     if(m){
       var g = m[1];
       var chain = { m1:['w','l','d'], m2:['w','l','d'], w:['d'], l:['d'], d:[] }[m[2]]
         .map(function(k){ return g+'-'+k; });
-      return chain.concat(ALL_PLAYOFF_KEYS);
+      var allPlayoffKeys = [];
+      bracket.forEach(function(round){ round.forEach(function(mm){ allPlayoffKeys.push(mm.key); }); });
+      return chain.concat(allPlayoffKeys);
     }
-    if(key==='qf1'||key==='qf2') return ['sf1','f'];
-    if(key==='qf3'||key==='qf4') return ['sf2','f'];
-    if(key==='sf1'||key==='sf2') return ['f'];
-    return [];
+    // Reverse-dependency map: key -> keys that directly reference it as a source.
+    var dependents = {};
+    bracket.forEach(function(round){
+      round.forEach(function(mm){
+        [mm.srcA, mm.srcB].forEach(function(src){
+          if(src.key != null) (dependents[src.key] = dependents[src.key] || []).push(mm.key);
+        });
+      });
+    });
+    var downstream = [], seen = {}, queue = (dependents[key] || []).slice();
+    while(queue.length){
+      var k = queue.shift();
+      if(seen[k]) continue;
+      seen[k] = true;
+      downstream.push(k);
+      (dependents[k] || []).forEach(function(k2){ queue.push(k2); });
+    }
+    return downstream;
   }
 
-  var t16State = null; // { groups:{A:[4 names],...}, results:{key:{a,b}}, startedAt, updatedAt }
+  var t16State = null; // { groups:{A:[4 names],...}, results:{key:{a,b}}, startedAt, updatedAt, groupCount }
   var t16Armed = {};   // two-click confirms, keyed by action
 
   function t16Esc(s){
@@ -8326,11 +8426,19 @@ function swInitTab(){ swRenderSetup(); }
   }
   function t16Winner(key){ var wl = t16WinnerLoser(key); return wl && wl.winner; }
   function t16Loser(key){ var wl = t16WinnerLoser(key); return wl && wl.loser; }
+  function t16Pair(a, b){ return (a && b) ? { a:a, b:b } : null; }
+
+  // Resolve one playoff match's source: a group-stage placement (seed 0 = 1st = winner of
+  // group+'-w', seed 1 = 2nd = winner of group+'-d') or an earlier playoff match's winner.
+  function t16ResolveSrc(src){
+    if(src.group != null) return t16Winner(src.group + (src.seed === 0 ? '-w' : '-d'));
+    return t16Winner(src.key);
+  }
 
   // Who plays in a match, derived from seeds + upstream results. null side = TBD.
   function t16Players(key){
     if(!t16State) return null;
-    var m = key.match(/^([A-D])-(m1|m2|w|l|d)$/);
+    var m = key.match(/^([A-H])-(m1|m2|w|l|d)$/);
     if(m){
       var g = t16State.groups[m[1]];
       if(!g) return null;
@@ -8342,21 +8450,13 @@ function swInitTab(){ swRenderSetup(); }
         case 'd':  return t16Pair(t16Loser(m[1]+'-w'),   t16Winner(m[1]+'-l'));
       }
     }
-    switch(key){
-      case 'qf1': return t16Pair(t16Winner('A-w'), t16Winner('B-d'));
-      case 'qf2': return t16Pair(t16Winner('C-w'), t16Winner('D-d'));
-      case 'qf3': return t16Pair(t16Winner('B-w'), t16Winner('A-d'));
-      case 'qf4': return t16Pair(t16Winner('D-w'), t16Winner('C-d'));
-      case 'sf1': return t16Pair(t16Winner('qf1'), t16Winner('qf2'));
-      case 'sf2': return t16Pair(t16Winner('qf3'), t16Winner('qf4'));
-      case 'f':   return t16Pair(t16Winner('sf1'), t16Winner('sf2'));
-    }
-    return null;
+    var def = t16MatchDef(key, t16ActiveBracket());
+    if(!def) return null;
+    return t16Pair(t16ResolveSrc(def.srcA), t16ResolveSrc(def.srcB));
   }
-  function t16Pair(a, b){ return (a && b) ? { a:a, b:b } : null; }
 
   function t16GroupDone(g){ return !!t16Res(g+'-d'); }
-  function t16AllGroupsDone(){ return GROUPS.every(t16GroupDone); }
+  function t16AllGroupsDone(){ return t16ActiveGroups().every(t16GroupDone); }
 
   function t16SaveState(){
     t16State.updatedAt = new Date().toISOString();
@@ -8381,30 +8481,36 @@ function swInitTab(){ swRenderSetup(); }
         '<button class="btn ghost" id="t16ResetBtn" style="width:auto;padding:7px 14px;font-size:0.7rem;border-color:rgba(192,57,43,0.3);color:#c0392b">🗑 Reset Tournament</button>'+
       '</div></div>';
 
+    var t16Groups = t16ActiveGroups();
+    var t16Bracket = t16ActiveBracket();
+    var t16PlayoffSize = t16Bracket[0].length * 2; // 8 (Top 8) or 16 (Top 16)
+
     // Group stage
     html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-bottom:24px">';
-    GROUPS.forEach(function(g){ html += t16RenderGroup(g); });
+    t16Groups.forEach(function(g){ html += t16RenderGroup(g); });
     html += '</div>';
 
     // Playoffs
     html += '<div class="card">';
-    html += '<div class="card-label">👑 Top 8 Playoffs — Single Elimination</div>';
+    html += '<div class="card-label">👑 Top '+t16PlayoffSize+' Playoffs — Single Elimination</div>';
     if(!t16AllGroupsDone()){
-      var remaining = GROUPS.filter(function(g){ return !t16GroupDone(g); });
+      var remaining = t16Groups.filter(function(g){ return !t16GroupDone(g); });
       html += '<p style="font-size:0.76rem;color:rgba(245,237,214,0.35);font-style:italic">Unlocks when every group has a Decider result — waiting on Group'+(remaining.length>1?'s':'')+' '+remaining.join(', ')+'.</p>';
     } else {
       html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px">';
-      html += '<div>'+['qf1','qf2','qf3','qf4'].map(function(k){ return t16RenderMatch(k, t16PlayoffDef(k)); }).join('')+'</div>';
-      html += '<div>'+['sf1','sf2'].map(function(k){ return t16RenderMatch(k, t16PlayoffDef(k)); }).join('')+'</div>';
-      html += '<div>'+t16RenderMatch('f', t16PlayoffDef('f'));
-      var champ = t16Winner('f');
-      if(champ){
-        html += '<div style="margin-top:14px;padding:18px;text-align:center;border:1px solid rgba(201,146,42,0.5);background:rgba(201,146,42,0.08)">'+
-          '<div style="font-family:\'IBM Plex Sans\',serif;font-size:0.68rem;letter-spacing:0.2em;color:var(--gold);text-transform:uppercase;margin-bottom:6px">GNL Champion</div>'+
-          '<div style="font-family:\'IBM Plex Sans\',serif;font-size:1.3rem;font-weight:700;color:var(--gold-light)">🏆 '+t16Esc(champ)+'</div>'+
-        '</div>';
-      }
-      html += '</div>';
+      t16Bracket.forEach(function(round, ri){
+        html += '<div>'+round.map(function(m){ return t16RenderMatch(m.key, m); }).join('');
+        if(ri === t16Bracket.length - 1){
+          var champ = t16Winner('f');
+          if(champ){
+            html += '<div style="margin-top:14px;padding:18px;text-align:center;border:1px solid rgba(201,146,42,0.5);background:rgba(201,146,42,0.08)">'+
+              '<div style="font-family:\'IBM Plex Sans\',serif;font-size:0.68rem;letter-spacing:0.2em;color:var(--gold);text-transform:uppercase;margin-bottom:6px">GNL Champion</div>'+
+              '<div style="font-family:\'IBM Plex Sans\',serif;font-size:1.3rem;font-weight:700;color:var(--gold-light)">🏆 '+t16Esc(champ)+'</div>'+
+            '</div>';
+          }
+        }
+        html += '</div>';
+      });
       html += '</div>';
     }
     html += '</div>';
@@ -8413,21 +8519,26 @@ function swInitTab(){ swRenderSetup(); }
     t16Wire(body);
   }
 
-  function t16PlayoffDef(k){
-    for(var i=0;i<PLAYOFFS.length;i++) if(PLAYOFFS[i].k===k) return PLAYOFFS[i];
-  }
+  var t16SetupSize = 16; // 16 or 32 — which format the setup screen is currently building
 
   function t16RenderSetup(body){
+    var groupCount = t16SetupSize === 32 ? 8 : 4;
+    var groups = t16GroupLetters(groupCount);
     var saved = (t16State && t16State.groups) || {};
     var html = '<div class="card" style="margin-bottom:14px">'+
-      '<div class="card-label">⚙ Setup — Enter the Top 16</div>'+
+      '<div class="card-label">⚙ Setup — Enter the Top '+t16SetupSize+'</div>'+
+      '<div class="jd-seg" style="margin-bottom:14px">'+
+        [16,32].map(function(n){
+          return '<button data-size="'+n+'" aria-pressed="'+(t16SetupSize===n)+'" style="--sel:var(--gold-light)">'+n+' players</button>';
+        }).join('')+
+      '</div>'+
       '<p style="font-size:0.76rem;color:rgba(245,237,214,0.4);margin-bottom:14px;line-height:1.6">'+
-        'Type the 16 qualified players into their groups. Order matters: within each group, '+
+        'Type the '+t16SetupSize+' qualified players into their groups. Order matters: within each group, '+
         '<strong style="color:rgba(245,237,214,0.6)">Match 1 = Seed 1 vs Seed 4</strong> and '+
         '<strong style="color:rgba(245,237,214,0.6)">Match 2 = Seed 2 vs Seed 3</strong>, so put the higher league finisher in the higher seed.'+
       '</p>'+
       '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">'+
-      GROUPS.map(function(g){
+      groups.map(function(g){
         return '<div class="card" style="margin:0">'+
           '<div class="card-label">Group '+g+'</div>'+
           [0,1,2,3].map(function(i){
@@ -8441,17 +8552,24 @@ function swInitTab(){ swRenderSetup(); }
       '<div id="t16SetupErr" style="font-size:0.74rem;color:#c0392b;margin-top:8px"></div>'+
     '</div>';
     body.innerHTML = html;
-    document.getElementById('t16StartBtn').addEventListener('click', function(){
-      var groups = {}, all = [], err = '';
-      GROUPS.forEach(function(g){
-        groups[g] = [0,1,2,3].map(function(i){ return document.getElementById('t16In-'+g+i).value.trim(); });
-        groups[g].forEach(function(n){ if(n) all.push(n.toLowerCase()); });
+    body.querySelectorAll('.jd-seg button').forEach(function(b){
+      b.addEventListener('click', function(){
+        t16SetupSize = Number(b.dataset.size);
+        t16RenderSetup(body);
       });
-      var flat = GROUPS.reduce(function(acc,g){ return acc.concat(groups[g]); }, []);
-      if(flat.some(function(n){ return !n; })) err = '⚠ All 16 slots must be filled.';
-      else if(new Set(all).size !== 16) err = '⚠ Duplicate player names — all 16 must be unique.';
+    });
+    document.getElementById('t16StartBtn').addEventListener('click', function(){
+      var playerGroups = {}, all = [], err = '';
+      groups.forEach(function(g){
+        playerGroups[g] = [0,1,2,3].map(function(i){ return document.getElementById('t16In-'+g+i).value.trim(); });
+        playerGroups[g].forEach(function(n){ if(n) all.push(n.toLowerCase()); });
+      });
+      var flat = groups.reduce(function(acc,g){ return acc.concat(playerGroups[g]); }, []);
+      var total = groupCount * 4;
+      if(flat.some(function(n){ return !n; })) err = '⚠ All '+total+' slots must be filled.';
+      else if(new Set(all).size !== total) err = '⚠ Duplicate player names — all '+total+' must be unique.';
       if(err){ document.getElementById('t16SetupErr').textContent = err; return; }
-      t16State = { groups: groups, results: {}, startedAt: new Date().toISOString() };
+      t16State = { groups: playerGroups, results: {}, groupCount: groupCount, startedAt: new Date().toISOString() };
       t16SaveState();
       t16Render();
     });
@@ -8578,10 +8696,13 @@ function swInitTab(){ swRenderSetup(); }
   function t16WhatsAppText(){
     var cityLbl = '';
     try { var cfg = getCityConfig(); cityLbl = cfg ? cfg.label : ''; } catch(e){}
-    var lines = ['👑 *GNL TOP 16*'];
+    var groups = t16ActiveGroups();
+    var bracket = t16ActiveBracket();
+    var playoffSize = bracket[0].length * 2;
+    var lines = ['👑 *GNL TOP '+(groups.length*4)+'*'];
     lines.push('_Riftbound League'+(cityLbl ? ' — '+cityLbl : '')+'_');
     lines.push('');
-    GROUPS.forEach(function(g){
+    groups.forEach(function(g){
       lines.push('*Group '+g+'*');
       if(t16GroupDone(g)){
         lines.push('🥇 '+t16Winner(g+'-w')+' · 🥈 '+t16Winner(g+'-d')+' advance');
@@ -8595,11 +8716,13 @@ function swInitTab(){ swRenderSetup(); }
       lines.push('');
     });
     if(t16AllGroupsDone()){
-      lines.push('*Top 8 Playoffs*');
-      PLAYOFFS.forEach(function(pf){
-        var p = t16Players(pf.k), r = t16Res(pf.k);
-        if(r && p) lines.push(pf.label+': *'+(r.a>r.b?p.a:p.b)+'* def. '+(r.a>r.b?p.b:p.a)+' '+Math.max(r.a,r.b)+'–'+Math.min(r.a,r.b));
-        else if(p) lines.push(pf.label+': '+p.a+' vs '+p.b);
+      lines.push('*Top '+playoffSize+' Playoffs*');
+      bracket.forEach(function(round){
+        round.forEach(function(pf){
+          var p = t16Players(pf.key), r = t16Res(pf.key);
+          if(r && p) lines.push(pf.label+': *'+(r.a>r.b?p.a:p.b)+'* def. '+(r.a>r.b?p.b:p.a)+' '+Math.max(r.a,r.b)+'–'+Math.min(r.a,r.b));
+          else if(p) lines.push(pf.label+': '+p.a+' vs '+p.b);
+        });
       });
       var champ = t16Winner('f');
       if(champ){ lines.push(''); lines.push('🏆 *GNL CHAMPION: '+champ+'* 🏆'); }
