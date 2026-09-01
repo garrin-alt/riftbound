@@ -1590,6 +1590,21 @@
               No League Points recorded yet — process event results to populate GNL: Vendetta
             </div>
 
+            <div class="divider" style="margin:20px 0 14px"></div>
+            <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic;margin-bottom:10px">
+              <strong style="color:var(--gold-light);font-style:normal">Excluded players</strong> —
+              kept off GNL: Vendetta standings and off Awards (never a winner, runner-up, or named
+              in a pairing award). Their real matches still count in full for whoever they played.
+            </p>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+              <div style="position:relative;max-width:340px;flex:1;min-width:220px">
+                <input class="lb-search" type="text" id="rvVdExInput" placeholder="Add player to exclude…" autocomplete="off" style="width:100%"/>
+                <div class="ac-list" id="rvVdExAc"></div>
+              </div>
+              <span id="rvVdExStatus" style="font-size:0.72rem;color:rgba(245,237,214,0.3)"></span>
+            </div>
+            <div id="rvVdExList" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+
           </div>
 
         </div>
@@ -2116,12 +2131,25 @@ function rvDeriveFromLedger(hist, opts) {
   return { h2h: Object.values(h2h), totals: totals, events: evs };
 }
 
+// Excluded players are an organiser correction to GNL: Vendetta only ("overlap" cases —
+// e.g. a name that shouldn't be scored in this league's standings/awards) — never a
+// general ledger concept. They still keep their effect on opponents: a real win over an
+// excluded player still counts for whoever won it. This is why the exclusion is applied
+// here (and in rvComputeAwards) as a late filter on the already-built candidate rows,
+// never upstream in rvDeriveFromLedger, which has no notion of it.
+function rvVendettaExcludedSet(rivalry) {
+  var set = {};
+  ((rivalry && rivalry.vendettaExcluded) || []).forEach(function (n) { set[n] = true; });
+  return set;
+}
+
 // The GNL: Vendetta leaderboard's totals-to-ranked-rows step, factored out so the render
 // (rvLoadLeaderboard) and the persisted snapshot (save(), for the external League Points Gist)
 // compute byte-identical results from a single pass — never two copies that can drift.
 // Rivalry is not a competitive input, so it appears nowhere here — not as a column, not as a
 // tiebreak. Ties break on match results alone.
-function rvComputeLeaguePoints(hist) {
+function rvComputeLeaguePoints(hist, rivalry) {
+  var excluded = rvVendettaExcludedSet(rivalry);
   var totals = rvDeriveFromLedger(hist, { counted: true }).totals;
   return Object.keys(totals).map(function (name) {
     var t = totals[name];
@@ -2131,7 +2159,7 @@ function rvComputeLeaguePoints(hist) {
       w: t.mw || 0, d: t.draws || 0, l: t.ml || 0,
       eventCount: t.eventCount || 0
     };
-  }).filter(function (r) { return r.points > 0 || r.w > 0 || r.d > 0 || r.l > 0; })
+  }).filter(function (r) { return !excluded[r.player] && (r.points > 0 || r.w > 0 || r.d > 0 || r.l > 0); })
     .sort(function (a, b) { return b.points - a.points || b.w - a.w || a.l - b.l; })
     .map(function (r, i) { r.rank = i + 1; return r; });
 }
@@ -2481,6 +2509,15 @@ function rvComputeAwards(rivalry, hist) {
   var points = rivalry.rivalryPoints || {};
   var stored = rivalry.awards || {};
   var overrides = stored.overrides || {};
+  // Organiser-excluded players (GNL: Vendetta "overlap" corrections — see
+  // rvVendettaExcludedSet). Applied only as a late filter on each award's finished
+  // candidate list, right before a winner/runner-up is picked — never upstream in the
+  // aggregate (P) or ledger totals themselves, so an excluded player's real matches still
+  // count in full toward whichever opponent they played. A pairing award (Mirror Match,
+  // godlike rivalry, ebb & flow) is dropped entirely if EITHER side is excluded, since
+  // those display both names together, not just a single winner.
+  var vdExcluded = rvVendettaExcludedSet(rivalry);
+  function vdOk(n) { return !vdExcluded[n]; }
 
   // Awards are scoped to whichever events the organiser has explicitly flagged as
   // "counts toward League" in League History — never an automatic set filter, and never
@@ -2564,7 +2601,7 @@ function rvComputeAwards(rivalry, hist) {
   }
 
   // ── Giant-slaying ──
-  var slayer = Object.values(P).filter(function (p) { return !isGiant[p.name]; }).map(function (p) {
+  var slayer = Object.values(P).filter(function (p) { return !isGiant[p.name] && vdOk(p.name); }).map(function (p) {
     var wins = 0, over = {};
     h2h.forEach(function (r) {
       var i = r.players.indexOf(p.name);
@@ -2599,6 +2636,7 @@ function rvComputeAwards(rivalry, hist) {
     var lowWins  = lowIsA ? (r.matchWinsA||0) : (r.matchWinsB||0);
     var highWins = lowIsA ? (r.matchWinsB||0) : (r.matchWinsA||0);
     if (lowWins <= highWins) return; // the underdog must actually own the series
+    if (!vdOk(low.name) || !vdOk(high.name)) return; // detail names both players
     mortal.push({ name:low.name, gap: high.rate - low.rate, high:high, low:low,
                   score: lowWins + '–' + highWins, meetings: r.meetings });
   });
@@ -2611,7 +2649,8 @@ function rvComputeAwards(rivalry, hist) {
 
   // ── Rivalries ──
   var mirror = h2h.filter(function (r) {
-    return (r.meetings||0) >= 4 && (r.matchWinsA||0) === (r.matchWinsB||0) && (r.matchWinsA||0) > 0;
+    return (r.meetings||0) >= 4 && (r.matchWinsA||0) === (r.matchWinsB||0) && (r.matchWinsA||0) > 0 &&
+           vdOk(r.players[0]) && vdOk(r.players[1]);
   }).sort(function (a, b) { return (b.meetings-a.meetings) || ((b.close||0)-(a.close||0)); });
   function pairCard(r, detail) { return { name: r.players[0] + ' & ' + r.players[1], detail: detail }; }
   add('mirror',
@@ -2623,7 +2662,8 @@ function rvComputeAwards(rivalry, hist) {
 
   var godlike = h2h.filter(function (r) {
     var g = (r.winsA||0) + (r.winsB||0);
-    return g >= 5 && ((r.winsA||0) === 0 || (r.winsB||0) === 0);
+    return g >= 5 && ((r.winsA||0) === 0 || (r.winsB||0) === 0) &&
+           vdOk(r.players[0]) && vdOk(r.players[1]);
   }).map(function (r) {
     var aWon = (r.winsA||0) > 0;
     return { name: r.players[aWon?0:1], loser: r.players[aWon?1:0],
@@ -2638,7 +2678,7 @@ function rvComputeAwards(rivalry, hist) {
   // swings is order-dependent, so the ledger's chronological count is the correct one
   // wherever the ledger reaches. Falls back to the aggregate, which counts in upload order.
   var swingSrc = led ? led.h2h : h2h;
-  var ebb = swingSrc.filter(function (r) { return (r.swings||0) > 0; })
+  var ebb = swingSrc.filter(function (r) { return (r.swings||0) > 0 && vdOk(r.players[0]) && vdOk(r.players[1]); })
                     .sort(function (a, b) { return (b.swings-a.swings) || ((b.meetings||0)-(a.meetings||0)); });
   add('ebbflow',
       ebb[0] && pairCard(ebb[0], ebb[0].swings + ' lead change' + (ebb[0].swings===1?'':'s') +
@@ -2649,7 +2689,7 @@ function rvComputeAwards(rivalry, hist) {
       { source: led ? 'ledger' : 'aggregate' });
 
   // ── Achievements ──
-  var ho = best(Object.values(P), function (x) { return x.opponents || null; }, function (x) {
+  var ho = best(Object.values(P).filter(function (x) { return vdOk(x.name); }), function (x) { return x.opponents || null; }, function (x) {
     return { name:x.name, detail: x.opponents + ' distinct opponents faced' };
   });
   add('hound', ho[0], ho[1], 'The widest circle — most distinct opponents faced.');
@@ -2668,7 +2708,7 @@ function rvComputeAwards(rivalry, hist) {
       });
     });
   });
-  var att = Object.keys(curSetAttendance).map(function (n) { return { name:n, n:Object.keys(curSetAttendance[n]).length }; });
+  var att = Object.keys(curSetAttendance).filter(vdOk).map(function (n) { return { name:n, n:Object.keys(curSetAttendance[n]).length }; });
   var ca = best(att, function (x) { return x.n || null; }, function (x) {
     return { name:x.name, detail: x.n + ' event' + (x.n===1?'':'s') + ' attended' };
   });
@@ -2679,7 +2719,7 @@ function rvComputeAwards(rivalry, hist) {
   // stays all-time rather than fabricating a boundary that isn't there. This is now the
   // ONE award inconsistent with the rest of Awards being counted-events-scoped — flagged
   // here so a future reader doesn't take it for an oversight.
-  var vd = best(Object.keys(points).map(function (n) { return { name:n, n:points[n].vendettaWins||0 }; }),
+  var vd = best(Object.keys(points).filter(vdOk).map(function (n) { return { name:n, n:points[n].vendettaWins||0 }; }),
     function (x) { return x.n || null; },
     function (x) { return { name:x.name, detail: x.n + ' grudge' + (x.n===1?'':'s') + ' settled' }; });
   add('vendetta', vd[0], vd[1], 'Most declared Vendettas won. Worth no League Points — only the story.');
@@ -2690,8 +2730,8 @@ function rvComputeAwards(rivalry, hist) {
     add('executioner', null, null, 'The best record when the Top Cut starts.', { blocked:true });
   } else {
     var names = {};
-    h2h.forEach(function (r) { r.players.forEach(function (p) { names[p] = 1; }); });
-    (hist.players || []).forEach(function (p) { names[p] = 1; });
+    h2h.forEach(function (r) { r.players.forEach(function (p) { if (vdOk(p)) names[p] = 1; }); });
+    (hist.players || []).forEach(function (p) { if (vdOk(p)) names[p] = 1; });
 
     var risers = Object.keys(names).map(function (n) {
       // rvDerivePlayer always returns a player's whole career, every event — it has
@@ -2718,7 +2758,7 @@ function rvComputeAwards(rivalry, hist) {
         'The biggest rise in win rate from the first half of a career to the second. 4+ events, 3+ decisive matches in each half.',
         { source:'ledger' });
 
-    var cut = Object.keys(led.totals).map(function (n) {
+    var cut = Object.keys(led.totals).filter(vdOk).map(function (n) {
       var t = led.totals[n];
       return { name:n, w:t.playoffW||0, l:t.playoffL||0, n:(t.playoffW||0)+(t.playoffL||0) };
     }).filter(function (x) { return x.n >= 3; });
@@ -2810,7 +2850,7 @@ async function rvSyncLeagueMirror(data, hist) {
     if (!activeCity) return;
     const token = getToken();
     if (!token) return;
-    const points = rvComputeLeaguePoints(hist);
+    const points = rvComputeLeaguePoints(hist, (data && data.rivalry) || {});
     // rvComputeAwards returns {awards, giants, ...}, not a bare array — .awards here, not a
     // direct .filter(), which threw and silently killed this whole write (points included,
     // since both are in the same try block) from when this line was first added until now.
@@ -5575,7 +5615,7 @@ function swInitTab(){ swRenderSetup(); }
       // fallback to unfiltered lifetime data when nothing is flagged. Same function
       // save() uses to persist the external League Points Gist snapshot, so the two
       // never disagree.
-      var rows = rvComputeLeaguePoints(hist);
+      var rows = rvComputeLeaguePoints(hist, rvSavedSeasonData);
 
       empty.style.display = rows.length ? 'none' : 'block';
       body.innerHTML = rows.map(function(r){
@@ -5588,11 +5628,109 @@ function swInitTab(){ swRenderSetup(); }
         '</tr>';
       }).join('');
       rvLbCache.main = rows;
+      rvRenderExcludedBox(hist);
     } catch(e){
       body.innerHTML = '';
       empty.style.display = 'block';
       rvLbCache.main = [];
     }
+  }
+
+  // ── EXCLUDED PLAYERS (GNL: Vendetta) ────────────────────────────────────
+  // Organiser-only correction for "overlap" cases (see rvVendettaExcludedSet): a player
+  // kept off GNL: Vendetta standings and Awards without erasing their matches — those
+  // still count in full for whoever they played. Every add/remove here saves immediately,
+  // the same trivially-reversible un-confirmed-write pattern as the Awards overrides
+  // toggle — this isn't the kind of destructive action either of the app's two confirm
+  // patterns (native confirm() / two-click arm) are for.
+  function rvVdExSetStatus(msg, color){
+    var el = document.getElementById('rvVdExStatus');
+    if(el){ el.textContent = msg; el.style.color = color || 'rgba(245,237,214,0.3)'; }
+  }
+
+  function rvRenderExcludedBox(hist){
+    var list = document.getElementById('rvVdExList');
+    if(!list) return;
+    var excluded = ((rvSavedSeasonData && rvSavedSeasonData.vendettaExcluded) || []).slice().sort();
+    if(!excluded.length){
+      list.innerHTML = '<span style="font-size:0.75rem;color:rgba(245,237,214,0.25);font-style:italic">None excluded.</span>';
+      return;
+    }
+    list.innerHTML = excluded.map(function(n){
+      return '<span style="display:inline-flex;align-items:center;gap:7px;background:#1f170c;'+
+        'border:1px solid rgba(201,146,42,0.3);border-radius:14px;padding:5px 8px 5px 12px;'+
+        'font-size:0.78rem;color:rgba(245,237,214,0.75)">'+rvEsc(n)+
+        '<button data-vdex-remove="'+rvEsc(n)+'" style="background:none;border:none;color:rgba(245,237,214,0.3);'+
+        'cursor:pointer;font-size:0.85rem;line-height:1;padding:0" title="Un-exclude">✕</button></span>';
+    }).join('');
+    list.querySelectorAll('[data-vdex-remove]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var target = btn.getAttribute('data-vdex-remove');
+        rvVdExApply(function(names){
+          var i = names.indexOf(target);
+          if(i !== -1) names.splice(i, 1);
+        });
+      });
+    });
+  }
+
+  // Read-modify-write against the live Gist copy (via load()), not the leaderboard's
+  // possibly-stale in-memory rvSavedSeasonData — same load()-then-save() shape the Awards
+  // save button uses. Re-runs rvLoadLeaderboard() on success so standings, the excluded
+  // list, and rvSavedSeasonData all land back in agreement in one round trip.
+  async function rvVdExApply(mutate){
+    if(!getToken()){ rvVdExSetStatus('⚠ No Gist token set (Settings tab)', '#c0392b'); return; }
+    rvVdExSetStatus('⟳ Saving…', 'rgba(201,146,42,0.7)');
+    try {
+      var data = load();
+      var rivalry = data.rivalry || { h2h: [], savedPairs: [], eventLog: [], rivalryPoints: {} };
+      var names = (rivalry.vendettaExcluded || []).slice();
+      mutate(names);
+      rivalry.vendettaExcluded = names;
+      data.rivalry = rivalry;
+      if(!(await save(data))){
+        rvVdExSetStatus('✗ Not saved — the Gist rejected the write.', '#c0392b');
+        return;
+      }
+      rvVdExSetStatus('✓ Saved', '#4caf50');
+      setTimeout(function(){ rvVdExSetStatus('', ''); }, 2500);
+      await rvLoadLeaderboard();
+    } catch(e){
+      rvVdExSetStatus('✗ Save failed', '#c0392b');
+    }
+  }
+
+  var vdExInput = document.getElementById('rvVdExInput');
+  var vdExAc = document.getElementById('rvVdExAc');
+  function vdExCloseAc(){ if(vdExAc){ vdExAc.classList.remove('open'); vdExAc.innerHTML=''; } }
+  function vdExPick(name){
+    vdExCloseAc();
+    vdExInput.value = '';
+    rvVdExApply(function(names){ if(names.indexOf(name) === -1) names.push(name); });
+  }
+  if(vdExInput){
+    vdExInput.addEventListener('input', function(){
+      var q = vdExInput.value.trim().toLowerCase();
+      if(!q){ vdExCloseAc(); return; }
+      var hist = loadHist();
+      var already = {};
+      ((rvSavedSeasonData && rvSavedSeasonData.vendettaExcluded) || []).forEach(function(n){ already[n] = true; });
+      var names = (hist.players || [])
+        .filter(function(n){ return !already[n] && n.toLowerCase().indexOf(q) !== -1; })
+        .sort().slice(0, 8);
+      if(!names.length){ vdExCloseAc(); return; }
+      vdExAc.innerHTML = names.map(function(n){ return '<div class="ac-opt" data-player="'+rvEsc(n)+'">'+rvEsc(n)+'</div>'; }).join('');
+      vdExAc.classList.add('open');
+      vdExAc.querySelectorAll('.ac-opt').forEach(function(opt){
+        opt.addEventListener('mousedown', function(e){ e.preventDefault(); vdExPick(opt.dataset.player); });
+      });
+    });
+    vdExInput.addEventListener('keydown', function(e){
+      if(e.key !== 'Enter') return;
+      var first = vdExAc && vdExAc.querySelector('.ac-opt');
+      if(first) vdExPick(first.dataset.player);
+    });
+    vdExInput.addEventListener('blur', function(){ setTimeout(vdExCloseAc, 150); });
   }
 
 
