@@ -143,8 +143,9 @@ history never PATCHed alone) before writing. Read that skill before hand-rolling
   counter because the ledger has no per-match "was this a declared Vendetta" marker to scope by —
   the Vendetta award is therefore the one award that stays all-time regardless of what's flagged.
 - **Awards** (`rvComputeAwards`) are recomputed every render and never stored as truth; only
-  organiser overrides and custom awards persist. Ties are named ("shared with X"), never broken by
-  object-key order.
+  organiser overrides and custom awards persist. Ties on an award's score are broken by GNL:
+  Vendetta League Points (`best()`, and the detail text says "ahead of X on League Points"); players
+  still level on both are named ("shared with X"), never broken by object-key order.
 - **Judges**: Riot Name is the identity, matched case-insensitively, with an internal id underneath.
   A judge can only be created by being logged on a night. One event per night per city; any number
   of judges per night. Rank derives from shift count alone (1/5/10/20/40/80 → Bronze…Challenger) and

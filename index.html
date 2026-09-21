@@ -2573,27 +2573,48 @@ function rvComputeAwards(rivalry, hist) {
     }
     out.push(card);
   }
+  // GNL: Vendetta League Points (counted events only, excluded players omitted) — the
+  // tiebreak between players level on an award's own score. Anyone with no counted
+  // matches simply has 0.
+  var lpBy = {};
+  if (ledgerEvents.length) {
+    rvComputeLeaguePoints(hist, rivalry).forEach(function (r) { lpBy[r.player] = r.points; });
+  }
+  function lp(x) { return lpBy[x.name] || 0; }
+
   // Pick the best of a scored list, and the next one down for the runner-up line.
   //
-  // Ties are named rather than silently broken. Counting awards tie constantly — two
+  // Players level on the award's score are split by League Points. Anyone still level on
+  // both is named rather than silently broken. Counting awards tie constantly — two
   // players on nine wins, three on a five-event streak — and picking one by object key
   // order would hand a title out by accident and quietly change holder whenever the data
-  // is re-saved. The order is made deterministic by name, and co-holders are stated.
+  // is re-saved. The final order is deterministic by name, and both co-holders and a
+  // points-decided tie are stated in the detail text so neither is hidden.
   function best(list, score, detail) {
     var ranked = list.filter(function (x) { return score(x) != null; })
                      .sort(function (a, b) {
-                       return score(b) - score(a) ||
+                       return score(b) - score(a) || lp(b) - lp(a) ||
                               String(a.name || '').localeCompare(String(b.name || ''));
                      });
     if (!ranked.length) return [null, null];
     var top = score(ranked[0]);
-    var tied = ranked.filter(function (x) { return score(x) === top; });
+    var level = ranked.filter(function (x) { return score(x) === top; });
+    var topPts = lp(ranked[0]);
+    var tied = level.filter(function (x) { return lp(x) === topPts; });
     var w = detail(ranked[0]);
     if (w && tied.length > 1) {
       var others = tied.slice(1).map(function (x) { return x.name; });
       w.detail += ' — shared with ' + (others.length <= 2 ? others.join(' and ')
                                                           : others.length + ' others');
       w.shared = others;
+    }
+    if (w && level.length > tied.length) {
+      var beaten = level.slice(tied.length);
+      var levelBelow = beaten.every(function (x) { return lp(x) === lp(beaten[0]); });
+      w.detail += ' — ahead of ' + (beaten.length <= 2 ? beaten.map(function (x) { return x.name; }).join(' and ')
+                                                        : beaten.length + ' others') +
+                  ' on League Points (' + topPts + ' vs ' + (levelBelow ? '' : 'at most ') + lp(beaten[0]) + ')';
+      w.beatenOnPoints = beaten.map(function (x) { return x.name; });
     }
     // The runner-up line is only interesting below the tie, not inside it
     var next = ranked[tied.length];
