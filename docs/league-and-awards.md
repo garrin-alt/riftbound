@@ -132,9 +132,13 @@ Awards tie constantly (e.g. two players both on nine Giant-slaying wins). Rather
 picking a winner by object-key order — which would hand out a title by accident and could quietly
 change who holds it whenever the data is re-saved — ties are:
 
-1. Broken deterministically by name (alphabetical) purely to pick a stable "headline" holder for
-   display.
-2. **Named explicitly** — the winner's detail text says "— shared with X" (or "shared with N others"
+1. **Broken by GNL: Vendetta League Points** (counted events only, the same number as the
+   leaderboard). The player with more points holds the award, and the detail text says so — "— ahead
+   of X on League Points (27 vs 24)" — so a points-decided tie is never hidden. This applies to every
+   single-player award; the pair awards (Mirror Image, Godlike, Ebb & Flow) keep their own tiebreaks.
+2. Players still level on both the award and League Points are broken deterministically by name
+   (alphabetical) purely to pick a stable "headline" holder for display.
+3. **Named explicitly** — the winner's detail text says "— shared with X" (or "shared with N others"
    if more than two are tied), so co-holders are never hidden.
 
 ### Organiser overrides & custom awards
