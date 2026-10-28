@@ -1,7 +1,8 @@
 # Gulf Nexus League (GNL) — Season Framework
 
-> **Status:** agreed framework, ingested 2026-10-28 as supplied by the organiser. **Not yet implemented in `index.html`.**
-> The app still scores 3 per match win / 1 per draw / 0 per loss (see `league-and-awards.md`). Nothing below is read by the app.
+> **Status:** agreed framework, ingested 2026-10-28 as supplied by the organiser. **Implemented in `index.html`**
+> (the `GNL 2.0 SCORING` block, shown on the GNL tab). The finals, LCQ and group-stage parts are not app features.
+> Awards were scrapped. The old 3/1/0 scoring is described only in `league-and-awards.md` as history.
 >
 > **Organiser decisions, 2026-10-28 (not part of the supplied text):**
 > - Events from **16 Oct 2026** (Radiance start) through 8 Nov are part of GNL 2.0, although the framework's season dates start 9 Nov.
@@ -13,7 +14,14 @@
 > - A player who **drops** forfeits participation points. Participation = completing the Nexus Night, or completing **all** Swiss rounds of a Skirmish.
 > - Designated Nexus Nights are **always 3-round** events.
 > - **Tie-break sequence (agreed):** 1) GNL score; 2) Skirmish raw points (best 4); 3) total Swiss match wins across counted events; 4) head-to-head, if they played each other; 5) a playoff or organiser decision. Cutoff and LCQ dates are irrelevant to the app, since every event is harvested.
-> - **Home emirate (interim rule):** the emirate where the player has played more events. To be revisited. Dubai data is being fixed by the organiser, so Dubai work waits.
+> - **Home emirate (interim rule):** the emirate where the player has played more *eligible* events (tie: the emirate of their most recent one). To be revisited. Dubai data is being fixed by the organiser, so Dubai work waits.
+>
+> **How the app implements the open points (decided during the build):**
+> - Byes are stored in the ledger (`b`) and score as wins; an event with no bye record is flagged on the GNL tab.
+> - Participation = a result (match or bye) in every Swiss round of that event; a Skirmish with fewer than 5 rounds is still eligible and simply scores less (no normalisation).
+> - Skirmish placement is read from the ledger's top-cut rounds by round size (≤8 = Top 8, ≤4 = Top 4, 2 = Final, last one-match round's winner = champion).
+> - The Nexus Night undefeated bonus is "won every Swiss round", flagged if the event isn't 3 rounds.
+> - Head-to-head uses every counted match between the tied players; players still level share a rank and are flagged "unresolved".
 
 **Season:** November 9, 2026 – January 16, 2027  
 **Regions:** Abu Dhabi and Dubai  
