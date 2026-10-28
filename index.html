@@ -1051,6 +1051,9 @@
                 <p style="font-size:0.73rem;margin-top:3px;opacity:0.6">One file per round / bracket — same export format as your tournament platform</p>
               </div>
               <div id="rvPeFileList"></div>
+              <label style="display:flex;align-items:center;gap:8px;font-size:0.78rem;color:rgba(245,237,214,0.6);margin-top:10px">
+                Event type <select id="rvPeTypeSelect" style="background:#1f170c;border:1px solid rgba(201,146,42,0.25);color:rgba(245,237,214,0.7);font-family:inherit;font-size:0.78rem;padding:4px 6px"></select>
+              </label>
               <label style="display:flex;align-items:center;gap:8px;font-size:0.78rem;color:rgba(245,237,214,0.6);cursor:pointer;margin-top:10px">
                 <input type="checkbox" id="rvPeCountsCheckbox" checked style="accent-color:var(--gold);cursor:pointer"/> Counts toward Awards &amp; GNL: Vendetta
               </label>
@@ -1997,6 +2000,18 @@ function rvHistResolve(hist, name) {
   return (hist.aliases && hist.aliases[name]) || name;
 }
 
+// A ledger event's `type` reuses Judges' codes (JD_TYPES: NN, PR, C, S) so the two programs can
+// never disagree about what a Nexus Night is. JD_TYPES is declared further down the file; both
+// helpers only read it at call time, so the order doesn't matter.
+function rvEventTypeOk(t) {
+  return !!t && JD_TYPES.some(function (x) { return x.code === t; });
+}
+function rvEventTypeOptions(selected) {
+  return '<option value="">— type</option>' + JD_TYPES.map(function (t) {
+    return '<option value="' + t.code + '"' + (t.code === selected ? ' selected' : '') + '>' + t.code + ' · ' + t.name + '</option>';
+  }).join('');
+}
+
 // Upsert an event and keep `events` sorted. Replacing wholesale rather than merging is
 // what makes a re-upload structurally incapable of double-counting.
 //   ev = { id, set, date, label, src, rounds: [ { n, type, matches:[{playerA,playerB,winsA,winsB}] } ] }
@@ -2015,6 +2030,11 @@ function rvHistRecordEvent(hist, ev) {
   if (ev.counts) row.counts = true;
 
   var at = hist.events.findIndex(function (e) { return e.id === row.id; });
+  // Event type (NN / PR / C / S, the same codes Judges uses) is organiser-set metadata, not
+  // something a CSV carries. A re-upload replaces the whole event, so carry the existing type
+  // over or every re-upload would silently wipe it. Omitted when unset, like `counts`.
+  var evType = rvEventTypeOk(ev.type) ? ev.type : (at !== -1 && rvEventTypeOk(hist.events[at].type) ? hist.events[at].type : null);
+  if (evType) row.type = evType;
   if (at === -1) hist.events.push(row); else hist.events[at] = row;
 
   // Sorted at write so every order-dependent derivation downstream is a single forward
@@ -5911,6 +5931,9 @@ function swInitTab(){ swRenderSetup(); }
     }
   });
 
+  var peTypeSelectEl = document.getElementById('rvPeTypeSelect');
+  if(peTypeSelectEl) peTypeSelectEl.innerHTML = rvEventTypeOptions('');
+
   var peProcessBtn = document.getElementById('rvPeProcessBtn');
   if(peProcessBtn) peProcessBtn.addEventListener('click', async function(){
     var files = rvPeUsableFiles();
@@ -6151,6 +6174,19 @@ function swInitTab(){ swRenderSetup(); }
       setTimeout(function(){ peSaveBtn.textContent = '☁ Save to Gist'; }, 2500);
       return;
     }
+    // GNL scoring depends on the event type, so an event can't be flagged as counting without one.
+    // Checked before anything is touched: nothing has been written and rvPePending is intact.
+    var peCountsOn = document.getElementById('rvPeCountsCheckbox');
+    var peTypeOn = document.getElementById('rvPeTypeSelect');
+    if(peCountsOn && peCountsOn.checked && !(peTypeOn && rvEventTypeOk(peTypeOn.value))){
+      peSaveBtn.textContent = '⚠ Pick an event type, or untick Counts';
+      if(peTypeOn) peTypeOn.style.borderColor = '#c0392b';
+      setTimeout(function(){
+        peSaveBtn.textContent = '☁ Save to Gist';
+        if(peTypeOn) peTypeOn.style.borderColor = 'rgba(201,146,42,0.25)';
+      }, 3000);
+      return;
+    }
     peSaveBtn.disabled = true;
     peSaveBtn.textContent = '⟳ Saving…';
     try {
@@ -6183,12 +6219,15 @@ function swInitTab(){ swRenderSetup(); }
       });
       var wroteHist = false;
       var peCountsChecked = !!(document.getElementById('rvPeCountsCheckbox') && document.getElementById('rvPeCountsCheckbox').checked);
+      var peTypeEl = document.getElementById('rvPeTypeSelect');
+      var peType = peTypeEl ? peTypeEl.value : '';
       Object.keys(byEvent).forEach(function(id){
         rvHistRecordEvent(hist, {
           id: id, set: rvHistCurrentSet(hist),
           date: new Date().toISOString().slice(0,10),
           src: 'postevent', rounds: byEvent[id],
-          counts: peCountsChecked
+          counts: peCountsChecked,
+          type: peType   // blank falls back to a type already on the event, see rvHistRecordEvent
         });
         wroteHist = true;
       });
@@ -6395,9 +6434,13 @@ function swInitTab(){ swRenderSetup(); }
     list.innerHTML = events.map(function(e){
       var setName = ((hist.sets||[]).filter(function(s){ return s.id===e.set; })[0]||{}).name || e.set || '—';
       return '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid rgba(201,146,42,0.08);font-size:0.78rem">'+
-        '<input type="checkbox" data-counthist="'+rvEsc(e.id)+'" '+(e.counts?'checked':'')+' title="Counts toward Awards and GNL: Vendetta" style="accent-color:var(--gold);cursor:pointer;flex-shrink:0"/>'+
+        // Disabled until the event has a type (see the guard in the click handler). An event that is
+        // ALREADY counted stays untickable-off, so a typeless counted event can still be unflagged.
+        '<input type="checkbox" data-counthist="'+rvEsc(e.id)+'" '+(e.counts?'checked':'')+((e.counts||rvEventTypeOk(e.type))?'':' disabled')+
+          ' title="'+((e.counts||rvEventTypeOk(e.type))?'Counts toward GNL':'Pick an event type first')+'" style="accent-color:var(--gold);cursor:pointer;flex-shrink:0"/>'+
         '<span class="td-mono" style="color:rgba(245,237,214,0.5);min-width:64px">'+rvDdmmyy(e.date)+'</span>'+
         '<span style="color:rgba(245,237,214,0.4);min-width:100px">'+rvEsc(setName)+'</span>'+
+        '<select data-typehist="'+rvEsc(e.id)+'" title="Event type (same codes as Judges)" style="background:#1f170c;border:1px solid rgba(201,146,42,0.25);color:rgba(245,237,214,0.7);font-family:inherit;font-size:0.72rem;padding:3px 4px;flex-shrink:0">'+rvEventTypeOptions(e.type)+'</select>'+
         '<span style="flex:1;color:rgba(245,237,214,0.6)">'+rvEsc(e.label||('Event '+e.id))+'</span>'+
         '<span class="td-mono" style="color:rgba(245,237,214,0.28);font-size:0.7rem">'+(e.m||[]).length+' matches</span>'+
         '<button data-rmhist="'+rvEsc(e.id)+'" style="background:none;border:none;color:rgba(245,237,214,0.3);cursor:pointer;font-size:0.8rem">✕</button>'+
@@ -6417,6 +6460,35 @@ function swInitTab(){ swRenderSetup(); }
         });
       });
     });
+    // Same third-category pattern as the counts checkbox: an un-confirmed click that writes
+    // immediately, because it is trivially reversible and an organiser sets it down a whole list.
+    list.querySelectorAll('[data-typehist]').forEach(function(sel){
+      var prevType = sel.value;
+      sel.addEventListener('change', function(){
+        var next = sel.value;
+        sel.disabled = true;
+        var freshHist = loadHist();
+        var ev = (freshHist.events||[]).find(function(e){ return e.id === sel.dataset.typehist; });
+        if(!ev){ sel.disabled = false; sel.value = prevType; return; }
+        // A counted event must keep a type, so the type can't be cleared out from under it.
+        if(!rvEventTypeOk(next) && ev.counts){
+          sel.disabled = false; sel.value = prevType;
+          sel.style.borderColor = '#c0392b'; sel.title = 'Untick Counts before clearing the type';
+          setTimeout(function(){ sel.style.borderColor = 'rgba(201,146,42,0.25)'; sel.title = 'Event type (same codes as Judges)'; }, 3000);
+          return;
+        }
+        if(rvEventTypeOk(next)) ev.type = next; else delete ev.type;
+        var data = load();
+        save(data, freshHist).then(function(ok){
+          sel.disabled = false;
+          if(!ok){ sel.value = prevType; return; }   // revert to reflect the failed write
+          prevType = next;
+          // Setting a type is what unlocks the Counts checkbox on this row.
+          var cbRow = list.querySelector('[data-counthist="'+sel.dataset.typehist+'"]');
+          if(cbRow && !cbRow.checked){ cbRow.disabled = !rvEventTypeOk(next); cbRow.title = rvEventTypeOk(next) ? 'Counts toward GNL' : 'Pick an event type first'; }
+        });
+      });
+    });
     list.querySelectorAll('[data-counthist]').forEach(function(cb){
       cb.addEventListener('click', function(){
         cb.disabled = true;
@@ -6424,6 +6496,8 @@ function swInitTab(){ swRenderSetup(); }
         var ev = (freshHist.events||[]).find(function(e){ return e.id === cb.dataset.counthist; });
         if(!ev){ cb.disabled = false; return; }
         var turningOn = cb.checked;
+        // Belt and braces: the checkbox is disabled without a type, but the ledger is the authority.
+        if(turningOn && !rvEventTypeOk(ev.type)){ cb.checked = false; cb.disabled = true; cb.title = 'Pick an event type first'; return; }
         if(turningOn) ev.counts = true; else delete ev.counts;
         var data = load();
         save(data, freshHist).then(function(ok){
