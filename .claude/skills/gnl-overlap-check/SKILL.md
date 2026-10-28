@@ -1,20 +1,20 @@
 ---
 name: gnl-overlap-check
-description: Check for players who appear on BOTH Abu Dhabi's and Dubai's live GNL: Vendetta standings, and detect cross-added events that inflate the overlap. Use when asked to check/find/report an overlap between the two cities' players, leaderboards, or standings, or to investigate why the same names show up ranked in both cities.
+description: Check for players who appear on BOTH Abu Dhabi's and Dubai's live GNL standings, and detect cross-added events that inflate the overlap. Use when asked to check/find/report an overlap between the two cities' players, leaderboards, or standings, or to investigate why the same names show up ranked in both cities.
 ---
 
-# GNL: Vendetta cross-city overlap check
+# GNL cross-city overlap check
 
 Abu Dhabi and Dubai are two entirely separate leagues, but many players attend events in both
 cities. That alone is not a problem worth reporting - a player having their own name in both
 cities' historical ledgers is common and expected (roughly two-thirds of Abu Dhabi's roster also
 appears somewhere in Dubai's ledger, lifetime). **What actually matters is who is currently
-*ranked* on both cities' live GNL: Vendetta boards** - that's a much smaller, much more
+*ranked* on both cities' live GNL boards** - that's a much smaller, much more
 actionable number, and it's the one an organiser asking for "the overlap" almost always means.
 
-**Scope this to counted events, never the raw ledger.** GNL: Vendetta standings are driven
+**Scope this to counted events, never the raw ledger.** GNL standings are driven
 entirely by `rvComputeLeaguePoints(hist, rivalry)`, which only counts events flagged
-`counts: true` (see CLAUDE.md's "GNL: Vendetta and Awards only count events the organiser has
+`counts: true` (see CLAUDE.md's "GNL and Awards only count events the organiser has
 explicitly flagged"). Checking for shared names across the *full* lifetime ledger instead answers
 a different, far less interesting question and inflates the number dramatically - confirmed live:
 96 shared names across full lifetime ledgers, only 29 of those on both current boards, and after
@@ -40,7 +40,7 @@ worth acting on.
 
 This is entirely **read-only reporting**. Nothing here writes to either Gist. If the organiser
 wants to act on what you find - excluding specific players from one city's standings - that's the
-separate `rivalry.vendettaExcluded` feature (see CLAUDE.md's GNL: Vendetta section and the
+separate `rivalry.vendettaExcluded` feature (see CLAUDE.md's GNL section and the
 "Excluded players" box under the leaderboard in Rivalry Analyzer); do that as its own explicit,
 confirmed step, never bundled into this check.
 

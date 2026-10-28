@@ -1,4 +1,4 @@
-// Compute the real GNL: Vendetta standings overlap between the two cities, using the app's
+// Compute the real GNL standings overlap between the two cities, using the app's
 // own rvComputeLeaguePoints - never a hand-rolled reimplementation (see CLAUDE.md's "Never
 // reimplement the aggregate": a PowerShell/JS copy of the scoring will silently diverge the
 // moment anything about the real function changes).
