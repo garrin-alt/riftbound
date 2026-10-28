@@ -20,9 +20,9 @@ That's the entire scoring rule (`rvScoreRound`, `WIN_POINTS = 3, DRAW_POINTS = 1
 (a round, e.g. best-of-3), not per game within the match. There is no separate bonus for winning a
 Vendetta grudge match — it scores exactly like any other match. Byes never score.
 
-### GNL: Vendetta — the ladder
+### GNL — the ladder
 
-**GNL: Vendetta** is the league's actual leaderboard — cumulative **League Points (LP)**, plus each
+**GNL** is the league's actual leaderboard — cumulative **League Points (LP)**, plus each
 player's running Match Wins / Draws / Losses and events attended. It's rebuilt from `rivalry.rivalryPoints`
 in the Gist and is the only thing that determines standing.
 
@@ -30,7 +30,7 @@ in the Gist and is the only thing that determines standing.
 - History uploads (backfilling past events into the ledger) **never award LP** and never touch this
   board — only live "Record Results" processing does. Re-uploading history is always safe to repeat
   because of this.
-- An organiser can **clear GNL: Vendetta** (resets LP and the event log) without losing any of the
+- An organiser can **clear GNL** (resets LP and the event log) without losing any of the
   underlying match history (`h2h`) — the two are stored and cleared independently.
 
 ### Vendettas — the narrative layer
@@ -94,7 +94,7 @@ played under; the Rivalry Analyzer can slice stats down to a single set.
 Awards are a **season-long recognition layer**, separate from the ladder:
 
 - They carry **no League Points**.
-- They **never appear on GNL: Vendetta**.
+- They **never appear on GNL**.
 - **Every player is eligible**, regardless of rank — each award has its own threshold rather than a
   single global gate, so a newcomer can hold one the first time they qualify.
 - They are **recomputed on every render**, not stored as truth — only an organiser's manual
@@ -132,7 +132,7 @@ Awards tie constantly (e.g. two players both on nine Giant-slaying wins). Rather
 picking a winner by object-key order — which would hand out a title by accident and could quietly
 change who holds it whenever the data is re-saved — ties are:
 
-1. **Broken by GNL: Vendetta League Points** (counted events only, the same number as the
+1. **Broken by GNL League Points** (counted events only, the same number as the
    leaderboard). The player with more points holds the award, and the detail text says so — "— ahead
    of X on League Points (27 vs 24)" — so a points-decided tie is never hidden. This applies to every
    single-player award; the pair awards (Mirror Image, Godlike, Ebb & Flow) keep their own tiebreaks.

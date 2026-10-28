@@ -924,7 +924,7 @@
       <button class="sidebar-close" onclick="closeSidebar()">✕</button>
     </div>
     <nav class="sidebar-nav">
-      <div class="sidebar-nav-item active" id="snav-league" onclick="showTab('league'); closeSidebar()">
+      <div class="sidebar-nav-item" id="snav-league" onclick="showTab('league'); closeSidebar()">
         <span class="sidebar-nav-icon">🏆</span> Event Day
       </div>
       <div class="sidebar-nav-item" id="snav-tcg" onclick="showTab('tcg'); closeSidebar()">
@@ -940,8 +940,8 @@
       <div class="sidebar-nav-item" id="snav-swiss" onclick="showTab('swiss'); closeSidebar()">
         <span class="sidebar-nav-icon">&#9876;</span> Swiss Tournament
       </div>
-      <div class="sidebar-nav-item" id="snav-rivalry" onclick="showTab('rivalry'); closeSidebar()">
-        <span class="sidebar-nav-icon">⚔️</span> Rivalry Analyzer
+      <div class="sidebar-nav-item active" id="snav-rivalry" onclick="showTab('rivalry'); closeSidebar()">
+        <span class="sidebar-nav-icon">⚔️</span> GNL
       </div>
       <div class="sidebar-nav-item" id="snav-top16" onclick="showTab('top16'); closeSidebar()">
         <span class="sidebar-nav-icon">👑</span> GNL Top 16
@@ -972,9 +972,9 @@
     <div style="width:60px"></div>
   </div>
 
-  <!-- LEAGUE: GNL: VENDETTA EVENT DAY -->
-  <div class="panel active" id="tab-league">
-    <div class="panel-title">GNL: Vendetta — Event Day</div>
+  <!-- LEAGUE: GNL EVENT DAY -->
+  <div class="panel" id="tab-league">
+    <div class="panel-title">GNL — Event Day</div>
     <p class="panel-desc">Declare Vendettas, record live results, or process a past event</p>
     <div class="divider"></div>
             <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic;margin-bottom:14px;line-height:1.6">
@@ -1055,7 +1055,7 @@
                 Event type <select id="rvPeTypeSelect" style="background:#1f170c;border:1px solid rgba(201,146,42,0.25);color:rgba(245,237,214,0.7);font-family:inherit;font-size:0.78rem;padding:4px 6px"></select>
               </label>
               <label style="display:flex;align-items:center;gap:8px;font-size:0.78rem;color:rgba(245,237,214,0.6);cursor:pointer;margin-top:10px">
-                <input type="checkbox" id="rvPeCountsCheckbox" checked style="accent-color:var(--gold);cursor:pointer"/> Counts toward Awards &amp; GNL: Vendetta
+                <input type="checkbox" id="rvPeCountsCheckbox" checked style="accent-color:var(--gold);cursor:pointer"/> Counts toward Awards &amp; GNL
               </label>
               <div style="display:flex;gap:8px;margin-top:10px">
                 <button class="btn" id="rvPeProcessBtn" style="flex:1" disabled>Process Event</button>
@@ -1359,8 +1359,8 @@
   </div>
 
   <!-- RIVALRY ANALYZER -->
-  <div class="panel" id="tab-rivalry">
-    <div class="panel-title">Rivalry Analyzer</div>
+  <div class="panel active" id="tab-rivalry">
+    <div class="panel-title">GNL</div>
     <p class="panel-desc">Upload historical round CSVs to generate rivalry pairings from real match data</p>
     <div class="divider"></div>
 
@@ -1443,7 +1443,7 @@
             <div class="rv-tab" data-rvtab="pairings">Suggested Pairings</div>
             <div class="rv-tab" data-rvtab="history">📜 League History</div>
             <div class="rv-tab" data-rvtab="awards">🏅 Awards</div>
-            <div class="rv-tab" data-rvtab="leaderboard">⚔ GNL: Vendetta</div>
+            <div class="rv-tab" data-rvtab="leaderboard">⚔ GNL</div>
             <!-- Board/point display names are also published to the gist (rivalry.display) so a public site can read them -->
 
           </div>
@@ -1538,7 +1538,7 @@
           <!-- AWARDS -->
           <div class="rv-tab-panel" id="rvtab-awards">
             <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic;margin-bottom:14px;line-height:1.6">
-              Season-long titles for the things the ladder doesn't measure. Awards are <strong style="color:rgba(245,237,214,0.6)">recognition, not competition</strong> — they carry <strong style="color:rgba(245,237,214,0.6)">no League Points</strong>, never appear on GNL: Vendetta, and every player is eligible regardless of rank.
+              Season-long titles for the things the ladder doesn't measure. Awards are <strong style="color:rgba(245,237,214,0.6)">recognition, not competition</strong> — they carry <strong style="color:rgba(245,237,214,0.6)">no League Points</strong>, never appear on GNL, and every player is eligible regardless of rank.
               <br/>Each one has its own threshold, so a newcomer can hold a title. Holders are recomputed from the record every time you open this tab — pin a different one below where the story needs a human.
             </p>
             <div id="rvAwardsMeta" style="margin-bottom:14px"></div>
@@ -1568,7 +1568,7 @@
           <!-- LEADERBOARD -->
           <div class="rv-tab-panel" id="rvtab-leaderboard">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-              <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic"><strong style="color:var(--gold-light);font-style:normal">⚔ GNL: Vendetta</strong> — cumulative League Points (LP) — 3 per win, 1 per draw, 0 per loss. Rivalries don't score.</p>
+              <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic"><strong style="color:var(--gold-light);font-style:normal">⚔ GNL</strong> — cumulative League Points (LP) — 3 per win, 1 per draw, 0 per loss. Rivalries don't score.</p>
               <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                 <span id="rvLbStatus" style="font-size:0.72rem;color:rgba(245,237,214,0.3)"></span>
                 <button class="btn ghost" id="rvLbExportCSV" style="width:auto;padding:7px 14px;font-size:0.7rem">⬇ Export CSV</button>
@@ -1590,13 +1590,13 @@
             </table>
             <div id="rvLeaderboardEmpty" class="rv-empty" style="display:none">
               <div class="rv-empty-icon">🏆</div>
-              No League Points recorded yet — process event results to populate GNL: Vendetta
+              No League Points recorded yet — process event results to populate GNL
             </div>
 
             <div class="divider" style="margin:20px 0 14px"></div>
             <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic;margin-bottom:10px">
               <strong style="color:var(--gold-light);font-style:normal">Excluded players</strong> —
-              kept off GNL: Vendetta standings and off Awards (never a winner, runner-up, or named
+              kept off GNL standings and off Awards (never a winner, runner-up, or named
               in a pairing award). Their real matches still count in full for whoever they played.
             </p>
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px">
@@ -1954,7 +1954,7 @@ function loadHist() {
 // board and which rivalryPoints field backs the currency. Display only — the
 // stored data keys (rivalryPoints, points) are unchanged.
 var RV_DISPLAY = {
-  vendetta: { board: 'GNL: Vendetta', points: 'League Points', abbr: 'LP', field: 'points',
+  vendetta: { board: 'GNL', points: 'League Points', abbr: 'LP', field: 'points',
                desc: '3 per match win, 1 per draw, 0 per loss. Rivalries are narrative only and score nothing.' }
 };
 function rvStampDisplay(rivalry) { if (rivalry) rivalry.display = RV_DISPLAY; return rivalry; }
@@ -2151,7 +2151,7 @@ function rvDeriveFromLedger(hist, opts) {
   return { h2h: Object.values(h2h), totals: totals, events: evs };
 }
 
-// Excluded players are an organiser correction to GNL: Vendetta only ("overlap" cases —
+// Excluded players are an organiser correction to GNL only ("overlap" cases —
 // e.g. a name that shouldn't be scored in this league's standings/awards) — never a
 // general ledger concept. They still keep their effect on opponents: a real win over an
 // excluded player still counts for whoever won it. This is why the exclusion is applied
@@ -2163,7 +2163,7 @@ function rvVendettaExcludedSet(rivalry) {
   return set;
 }
 
-// The GNL: Vendetta leaderboard's totals-to-ranked-rows step, factored out so the render
+// The GNL leaderboard's totals-to-ranked-rows step, factored out so the render
 // (rvLoadLeaderboard) and the persisted snapshot (save(), for the external League Points Gist)
 // compute byte-identical results from a single pass — never two copies that can drift.
 // Rivalry is not a competitive input, so it appears nowhere here — not as a column, not as a
@@ -2501,7 +2501,7 @@ function jdCompute(d) {
 
 // ── AWARDS ────────────────────────────────────────────
 // Recognition, not competition. Awards never touch League Points, never appear on
-// GNL: Vendetta, and every player is eligible regardless of rank. They are season-long
+// GNL, and every player is eligible regardless of rank. They are season-long
 // standing holders, recomputed on every render so they track the record with no
 // staleness — only the organiser's overrides and hand-written customs are ever stored.
 //
@@ -2529,7 +2529,7 @@ function rvComputeAwards(rivalry, hist) {
   var points = rivalry.rivalryPoints || {};
   var stored = rivalry.awards || {};
   var overrides = stored.overrides || {};
-  // Organiser-excluded players (GNL: Vendetta "overlap" corrections — see
+  // Organiser-excluded players (GNL "overlap" corrections — see
   // rvVendettaExcludedSet). Applied only as a late filter on each award's finished
   // candidate list, right before a winner/runner-up is picked — never upstream in the
   // aggregate (P) or ledger totals themselves, so an excluded player's real matches still
@@ -2593,7 +2593,7 @@ function rvComputeAwards(rivalry, hist) {
     }
     out.push(card);
   }
-  // GNL: Vendetta League Points (counted events only, excluded players omitted) — the
+  // GNL League Points (counted events only, excluded players omitted) — the
   // tiebreak between players level on an award's own score. Anyone with no counted
   // matches simply has 0.
   var lpBy = {};
@@ -3002,7 +3002,7 @@ document.getElementById('adminPwInput').addEventListener('keydown', e => {
   if (e.key === 'Escape') closeAdminModal();
 });
 
-function renderAll() { /* replaced by the GNL: Vendetta Event Day init, added in a follow-up task */ }
+function renderAll() { /* replaced by the GNL Event Day init, added in a follow-up task */ }
 
 // Init
 async function initApp() {
@@ -3011,6 +3011,11 @@ async function initApp() {
     localStorage.setItem(getCityConfig()?.localKey || 'rb_league_abudhabi', JSON.stringify(data));
   }
   renderAll();
+  // Land on GNL (the Rivalry Analyzer module) after sign-in. Clicking its nav item rather than
+  // calling showTab('rivalry') directly, because the season-data auto-load that fills the panel
+  // is attached to that click, not to showTab.
+  const landingNav = document.getElementById('snav-rivalry');
+  if (landingNav) landingNav.click();
 }
 if (sessionStorage.getItem('rb_auth') === '1') initApp();
 // Set version display
@@ -4633,7 +4638,7 @@ function swInitTab(){ swRenderSetup(); }
   // Clear ALL rivalry data from the Gist (h2h, pairings, points, event log) — and the
   // history ledger with it. Leaving the ledger behind would make the button a lie: one
   // "Rebuild lifetime H2H from ledger" would resurrect everything it claims to delete.
-  // (The narrower "Clear GNL: Vendetta" button, which only resets points, keeps both.)
+  // (The narrower "Clear GNL" button, which only resets points, keeps both.)
   // Two-click confirm: first click arms it, second click (within 5s) executes.
   var clearGistBtn = document.getElementById('rvClearGist');
   var rvClearArmed = false;
@@ -5191,7 +5196,7 @@ function swInitTab(){ swRenderSetup(); }
 
     return new Promise(function(resolve){
       c.toBlob(function(blob){
-        rvDownloadFile(URL.createObjectURL(blob), 'gnl-vendetta.png');
+        rvDownloadFile(URL.createObjectURL(blob), 'gnl-leaderboard.png');
         resolve(true);
       }, 'image/png');
     });
@@ -5347,7 +5352,7 @@ function swInitTab(){ swRenderSetup(); }
       return rivalry.rivalryPoints[player];
     }
 
-    // points/matchWins/draws/losses are no longer read by anything — GNL: Vendetta now
+    // points/matchWins/draws/losses are no longer read by anything — GNL now
     // derives League Points fresh from rvDeriveFromLedger(hist, {counted:true}) each
     // render (see rvLoadLeaderboard). The object shape is kept as-is (all five fields,
     // zeroed) to avoid touching every other rvEntry() call site; only the dead
@@ -5528,7 +5533,7 @@ function swInitTab(){ swRenderSetup(); }
       rows.map(function(r){
         return [r.rank, rvCsvCell(r.player), r.points, r.w, r.d, r.l, r.eventCount].join(',');
       }));
-    rvDownloadFile(URL.createObjectURL(new Blob([out.join('\n')],{type:'text/csv'})), 'gnl-vendetta.csv');
+    rvDownloadFile(URL.createObjectURL(new Blob([out.join('\n')],{type:'text/csv'})), 'gnl-leaderboard.csv');
     return true;
   }
 
@@ -5565,7 +5570,7 @@ function swInitTab(){ swRenderSetup(); }
     x.fillText('R I F T B O U N D   L E A G U E', S/2, 118);
     x.fillStyle = accent;
     x.font = '700 58px "IBM Plex Sans", Georgia, serif';
-    x.fillText('⚔ GNL: VENDETTA', S/2, 196);
+    x.fillText('⚔ GNL', S/2, 196);
     var dg = x.createLinearGradient(S/2-220,0,S/2+220,0);
     dg.addColorStop(0, accentRGBA+'0)'); dg.addColorStop(0.5, accentRGBA+'0.9)'); dg.addColorStop(1, accentRGBA+'0)');
     x.fillStyle = dg; x.fillRect(S/2-220,222,440,2);
@@ -5618,7 +5623,7 @@ function swInitTab(){ swRenderSetup(); }
 
     return new Promise(function(resolve){
       c.toBlob(function(blob){
-        rvDownloadFile(URL.createObjectURL(blob), 'gnl-vendetta.png');
+        rvDownloadFile(URL.createObjectURL(blob), 'gnl-leaderboard.png');
         resolve(true);
       }, 'image/png');
     });
@@ -5677,9 +5682,9 @@ function swInitTab(){ swRenderSetup(); }
     }
   }
 
-  // ── EXCLUDED PLAYERS (GNL: Vendetta) ────────────────────────────────────
+  // ── EXCLUDED PLAYERS (GNL) ────────────────────────────────────
   // Organiser-only correction for "overlap" cases (see rvVendettaExcludedSet): a player
-  // kept off GNL: Vendetta standings and Awards without erasing their matches — those
+  // kept off GNL standings and Awards without erasing their matches — those
   // still count in full for whoever they played. Every add/remove here saves immediately,
   // the same trivially-reversible un-confirmed-write pattern as the Awards overrides
   // toggle — this isn't the kind of destructive action either of the app's two confirm
@@ -6060,7 +6065,7 @@ function swInitTab(){ swRenderSetup(); }
   }
 
   // ── FINAL STANDINGS REPORT ──────────────────────────────────────────────
-  // Built once at save time: event summary, GNL: Vendetta with this event's
+  // Built once at save time: event summary, GNL with this event's
   // deltas, and the key vendetta highlights.
   function rvPeBuildReport(rivalry, prevPoints, pending){
     var cityLbl = '';
@@ -6115,7 +6120,7 @@ function swInitTab(){ swRenderSetup(); }
 
     if(rep.ladder.length){
       lines.push('');
-      lines.push('⚔ *GNL: Vendetta*');
+      lines.push('⚔ *GNL*');
       rep.ladder.slice(0, 10).forEach(function(r, i){
         var e = r.entry;
         lines.push((i+1)+'. *'+r.player+'* — '+r.pts+' LP'+
@@ -6150,7 +6155,7 @@ function swInitTab(){ swRenderSetup(); }
     out.push('Vendettas Settled,'+rep.settled.length);
     if(rep.lateEntrants.length) out.push('Late Entrants (no Vendetta drawn),'+rvCsvCell(rep.lateEntrants.join(', ')));
     out.push('');
-    out.push('GNL: VENDETTA');
+    out.push('GNL');
     out.push('Rank,Player,League Points (LP),Event Delta,Match Wins,Draws,Losses,Vendetta Wins');
     rep.ladder.forEach(function(r, i){
       var e = r.entry;

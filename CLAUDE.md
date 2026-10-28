@@ -150,14 +150,14 @@ Rules for any hand-written ledger edit (a script, not the app), each learned the
 - **Scoring is 3 per match win, 1 per draw, 0 per loss, and nothing else** (`rvScoreRound`).
   Rivalries/Vendettas are narrative only and score zero; byes never score. The ladder sorts on
   points → match wins → fewer losses. Do not reintroduce a rivalry term into any tiebreak.
-- **GNL: Vendetta and Awards only count events the organiser has explicitly flagged.** Every
+- **GNL and Awards only count events the organiser has explicitly flagged.** Every
   ledger event has an optional `counts: true` (omitted, not `false`, when off — treat absence as
   off everywhere, never assume the key exists). The flag is set per-event from a checkbox in
   League History and is the *only* scoping mechanism for these two features — there is no
   automatic "current set" filter and no fallback to unfiltered lifetime data when nothing is
   flagged (both correctly show empty/Unclaimed in that case). `rvDeriveFromLedger(hist, {set,
   from, to, counted})` is the shared filter; pass `{counted: true}` to get only flagged events.
-  **GNL: Vendetta League Points are derived fresh from this filter on every render**
+  **GNL League Points are derived fresh from this filter on every render**
   (`rvLoadLeaderboard`, via `rvDeriveFromLedger(...).totals`) — `rivalry.rivalryPoints` is no
   longer read for points/W/D/L (those fields are still zero-initialized by `rvEntry()` but never
   incremented); the one field still live in that object is `vendettaWins`, kept as an all-time
@@ -172,7 +172,7 @@ Rules for any hand-written ledger edit (a script, not the app), each learned the
   whole event. Nothing scores from it yet: it is groundwork for GNL 2.0, whose agreed framework is in
   `docs/gnl-2.0-season-framework.md` and is **not implemented** — the app still scores 3/1/0.
 - **Excluded players** (`rivalry.vendettaExcluded`, read through `rvVendettaExcludedSet`; edited in the
-  "Excluded players" box under the GNL: Vendetta leaderboard) are the organiser's fix for players
+  "Excluded players" box under the GNL leaderboard) are the organiser's fix for players
   ranked in both cities. The exclusion is a *late* filter: `rvComputeLeaguePoints` drops the player
   from the ranking, and `rvComputeAwards` drops them from each award's candidate list (a pair award
   is dropped if either side is excluded). It is never applied to the aggregate or ledger totals, so an
@@ -205,7 +205,10 @@ Rules for any hand-written ledger edit (a script, not the app), each learned the
 ### Module boundaries
 
 Large features are IIFEs (`RIVALRY ANALYZER`, `PLAYER STATS`, `JUDGES`, `SWISS`, `GNL TOP 16`,
-`GNL KNOCKOUT`), delimited by `// ==================== NAME ====================` banners. Only
+`GNL KNOCKOUT`). The Rivalry Analyzer module is shown to users simply as **GNL** (sidebar item
+`#snav-rivalry`, panel `#tab-rivalry`) and is the landing panel after sign-in (`initApp` clicks its
+nav item, which also triggers its season-data auto-load); the code, banners and ids keep the old
+name. They are delimited by `// ==================== NAME ====================` banners. Only
 `window.pdInit`, `window.jdInit`, `window.t16Init` and `window.knInit` are exported from inside those
 IIFEs; everything else declared
 *inside* one is unreachable from `page.evaluate` in tests or from the console.
