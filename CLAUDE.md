@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-The Gulf Nexus League (GNL) Riftbound TCG league site: **one ~8,500-line `index.html`** containing
+The Gulf Nexus League (GNL) Riftbound TCG league site: **one ~9,600-line `index.html`** containing
 the whole application — markup, CSS and JavaScript. No build step, no package manager, no
 dependencies. Vanilla ES5-style JS (`var`, `function`, no modules) inside IIFEs. Typography is a
 single family, IBM Plex Sans, loaded via the Google Fonts `<link>` in `<head>`.
@@ -33,9 +33,12 @@ const re=/<script[^>]*>([\s\S]*?)<\/script>/g;let m,i=0;
 while((m=re.exec(h))){i++;try{new Function(m[1]);}catch(e){console.log('BLOCK '+i+' ERROR: '+e.message);}}
 console.log(i+' script blocks checked');"
 
-# Run one test (see Testing below — tests are not committed)
+# Run one test (see Testing below — tests are not committed, so this only works if the user supplies them)
 node test-judges.js
 ```
+
+On the Windows dev machine `node` (v24) and `gh` are installed, and Playwright is not. PRs are made with
+`gh pr create`, and a merge to `main` is the deploy.
 
 ## Testing
 
@@ -53,8 +56,9 @@ Every test follows the same shape, and new ones should:
 4. Drive the real UI with clicks, then assert with a bare `ok(label, condition)` helper that prints
    `✓`/`✗ FAIL`. Put the observed value in the label so a failure reads as a finding.
 
-Playwright and Chromium are pre-installed (`PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers`); do not run
-`playwright install`.
+In the original Linux sandbox Playwright and Chromium were pre-installed
+(`PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers`; do not run `playwright install` there). They are not
+installed on the Windows machine, so check before assuming a test can run.
 
 **Verify a new test actually bites** by reverting the fix and confirming it fails. Several bugs in
 this codebase were introduced by tests that passed vacuously.
@@ -101,7 +105,7 @@ Key rules, each of which has caused a real bug:
 
 This is the central design decision and it is deliberate:
 
-- **`rivalry.h2h`** — a flat lifetime aggregate, 760 pairs, no dates. Answers *"how do these two
+- **`rivalry.h2h`** — a flat lifetime aggregate, well over a thousand pairs, no dates. Answers *"how do these two
   compare"*. Still mutated in place by `rvApplyRoundToRivalry`.
 - **The ledger** (`riftbound_history.json`) — every match in chronological order, dictionary-encoded
   (`"roundSlot,playerAIdx,playerBIdx,winsA,winsB"`), grouped by event, tagged with the Riftbound set.
@@ -124,6 +128,23 @@ recovers events by reading the locator's pages directly (a browser is required; 
 server-rendered) and replicates the same ledger invariants (append-only `players`, byes dropped,
 history never PATCHed alone) before writing. Read that skill before hand-rolling anything similar.
 
+A second skill, `.claude/skills/gnl-overlap-check/`, is read-only: it finds players ranked on both
+cities' boards and events cross-added into both ledgers. A handful of event IDs genuinely sit in
+both ledgers, so any UAE-wide count must dedupe by event id and attribute an event to its venue's
+city, not to whichever ledger holds it.
+
+Rules for any hand-written ledger edit (a script, not the app), each learned the hard way:
+
+- `players` is append-only and a player's identity is their display-name string. A renamed player is
+  merged through `hist.aliases` (`{"old name": "canonical name"}`, applied by `rvHistResolve` inside
+  `rvHistRecordEvent`). Fix a split identity by re-pointing the existing match rows to the canonical
+  index and adding the alias. Never delete or reorder `players`, and a script that bypasses the app
+  must resolve aliases itself or it recreates the split.
+- Writing a ledger does not refresh `rivalry.h2h` or `rivalry.attendance`. The app's **♻ Rebuild
+  lifetime H2H from ledger** button must be clicked afterwards. Never reimplement `rvHistScorePairs`:
+  it reads live slider weights.
+- Leave `counts` unset on harvested events; the organiser flags them.
+
 ### Domain rules encoded in code
 
 - **Scoring is 3 per match win, 1 per draw, 0 per loss, and nothing else** (`rvScoreRound`).
@@ -142,6 +163,20 @@ history never PATCHed alone) before writing. Read that skill before hand-rolling
   incremented); the one field still live in that object is `vendettaWins`, kept as an all-time
   counter because the ledger has no per-match "was this a declared Vendetta" marker to scope by —
   the Vendetta award is therefore the one award that stays all-time regardless of what's flagged.
+- **Event type** (`type` on a ledger event: `NN` / `PR` / `C` / `S`, the same codes as Judges'
+  `JD_TYPES`; omitted when unset, validated by `rvEventTypeOk`) is set by the organiser, only for
+  events that are meant to count — there is deliberately no back-fill. **An event can't be flagged
+  `counts` without a type** (League History disables the checkbox until one is set and refuses to
+  clear the type on a counted event; Post-Event Processing refuses to save with Counts ticked and no
+  type). `rvHistRecordEvent` carries an existing type across a re-upload, which otherwise replaces the
+  whole event. Nothing scores from it yet: it is groundwork for GNL 2.0, whose agreed framework is in
+  `docs/gnl-2.0-season-framework.md` and is **not implemented** — the app still scores 3/1/0.
+- **Excluded players** (`rivalry.vendettaExcluded`, read through `rvVendettaExcludedSet`; edited in the
+  "Excluded players" box under the GNL: Vendetta leaderboard) are the organiser's fix for players
+  ranked in both cities. The exclusion is a *late* filter: `rvComputeLeaguePoints` drops the player
+  from the ranking, and `rvComputeAwards` drops them from each award's candidate list (a pair award
+  is dropped if either side is excluded). It is never applied to the aggregate or ledger totals, so an
+  excluded player's real matches still count in full for whoever they played.
 - **Awards** (`rvComputeAwards`) are recomputed every render and never stored as truth; only
   organiser overrides and custom awards persist. Ties on an award's score are broken by GNL:
   Vendetta League Points (`best()`, and the detail text says "ahead of X on League Points"); players
@@ -169,9 +204,10 @@ history never PATCHed alone) before writing. Read that skill before hand-rolling
 
 ### Module boundaries
 
-Large features are IIFEs (`RIVALRY ANALYZER`, `PLAYER STATS`, `JUDGES`, `SWISS`, `GNL TOP 16`),
-delimited by `// ==================== NAME ====================` banners. Only `window.pdInit`,
-`window.jdInit` and `window.t16Init` are exported from inside those IIFEs; everything else declared
+Large features are IIFEs (`RIVALRY ANALYZER`, `PLAYER STATS`, `JUDGES`, `SWISS`, `GNL TOP 16`,
+`GNL KNOCKOUT`), delimited by `// ==================== NAME ====================` banners. Only
+`window.pdInit`, `window.jdInit`, `window.t16Init` and `window.knInit` are exported from inside those
+IIFEs; everything else declared
 *inside* one is unreachable from `page.evaluate` in tests or from the console.
 
 **Don't assume a function's physical location matches its scope.** `saveJudges`, `jdIsFile`,
