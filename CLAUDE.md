@@ -154,8 +154,8 @@ Rules for any hand-written ledger edit (a script, not the app), each learned the
   +4, Final = +4, win = +5; max 37). Only Swiss matches earn win/draw points. **A bye is a win.**
   **Participation needs a result (match or bye) in every Swiss round of the event**, so a player who drops
   early forfeits it but keeps the wins already earned. GNL score = best 4 Skirmishes (from the player's
-  FIRST 8) / 148 * 120 + best 6 Nexus Nights / 60 * 80, max 200. Compare scores as the exact integer
-  `90*S + 148*N` (`gnlKey`), never as a float, so ties are real. Tie-break order: GNL score → Skirmish
+  FIRST 8) + best 6 Nexus Nights, in natural raw points (max 148 + 60 = 208). **The framework's 60/40
+  weighting was dropped by the organiser on 2026-10-29**; the score is an integer, `gnlKey` is just S + N. Tie-break order: GNL score → Skirmish
   raw → total Swiss match wins → head-to-head → shared rank flagged "unresolved" for the organiser.
   Rivalries/Vendettas are narrative only and score zero. Do not reintroduce a rivalry term anywhere.
   The old 3/1/0 League Points function `rvComputeLeaguePoints` is legacy and unused by the app (the
@@ -194,7 +194,7 @@ Rules for any hand-written ledger edit (a script, not the app), each learned the
   ledger, so an excluded player's real matches still count in full for whoever they played.
 - **The external League Points Gist** (`LEAGUE_POINTS_GIST_ID`) is mirrored after saves by
   `rvSyncLeagueMirror`: `points` rows keep the old shape (rank / player / points / w / d / l / eventCount) but
-  `points` is now the GNL score out of 200 (plus `skirmishRaw`, `nexusRaw`, `tied`), `awards` is always `[]`,
+  `points` is now the GNL score in raw points, max 208 (plus `skirmishRaw`, `nexusRaw`, `tied`), `awards` is always `[]`,
   and `scoring: 'gnl-2.0'` marks the new rules. It only uses the other emirate's ledger if already loaded.
 - **Judges**: Riot Name is the identity, matched case-insensitively, with an internal id underneath.
   A judge can only be created by being logged on a night. One event per night per city; any number

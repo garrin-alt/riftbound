@@ -1537,7 +1537,7 @@
           <!-- LEADERBOARD -->
           <div class="rv-tab-panel active" id="rvtab-leaderboard">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:12px;flex-wrap:wrap">
-              <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic;line-height:1.6;flex:1;min-width:240px"><strong style="color:var(--gold-light);font-style:normal">⚔ GNL</strong> — standings out of 200: best 4 Skirmishes (60%) plus best 6 Nexus Nights (40%), for the players whose home emirate is this city. Only events flagged as counting, and typed NN or S, score.</p>
+              <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic;line-height:1.6;flex:1;min-width:240px"><strong style="color:var(--gold-light);font-style:normal">⚔ GNL</strong> — standings by raw points: best 4 Skirmishes plus best 6 Nexus Nights (max 208), for the players whose home emirate is this city. Only events flagged as counting, and typed NN or S, score.</p>
               <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                 <span id="rvLbStatus" style="font-size:0.72rem;color:rgba(245,237,214,0.3)"></span>
                 <button class="btn ghost" id="rvLbExportCSV" style="width:auto;padding:7px 14px;font-size:0.7rem">⬇ Export CSV</button>
@@ -2498,20 +2498,20 @@ function jdCompute(d) {
 //   a result (match or bye) in EVERY Swiss round of the event, so dropping early forfeits it, but the
 //   wins already earned still count.
 //
-//   GNL score = best-4 Skirmish raw (from the player's FIRST 8 Skirmishes) / 148 * 120
-//             + best-6 Nexus Night raw / 60 * 80                                (max 200, 60/40)
+//   GNL score = best-4 Skirmish raw (from the player's FIRST 8 Skirmishes)
+//             + best-6 Nexus Night raw                                          (max 148 + 60 = 208)
 //
-// The score is compared as the exact integer 90*S + 148*N (= score * 111), never as a float, so ties
-// are real ties. No rounding is applied; the UI only formats for display.
+// Natural raw points: the organiser dropped the framework's 60/40 weighting (120/200 and 80/200), so
+// a Skirmish point and a Nexus Night point are worth the same. The score is therefore an integer and
+// ties are exact. `gnlKey` is kept as the single comparison key so callers don't change.
 var GNL_RULES = {
   nnBest: 6, skBest: 4, skPool: 8,
-  nnMax: 60, skMax: 148, nnWeight: 80, skWeight: 120,
+  nnMax: 60, skMax: 148,
   nnRounds: 3
 };
 
-// score * 111 as an integer: S*120/148 + N*80/60 = S*30/37 + N*4/3 = (90*S + 148*N)/111
-function gnlKey(skSum, nnSum) { return 90 * skSum + 148 * nnSum; }
-function gnlScoreOf(key) { return key / 111; }
+function gnlKey(skSum, nnSum) { return skSum + nnSum; }
+function gnlScoreOf(key) { return key; }
 
 function gnlIsEligible(ev) {
   return !!ev && ev.counts === true && (ev.type === 'NN' || ev.type === 'S');
@@ -2766,7 +2766,7 @@ async function rvSyncLeagueMirror(data, hist) {
     if (!token) return;
     // GNL 2.0 standings for this emirate, in the row shape the external reader already knows
     // (rank / player / points / w / d / l / eventCount) plus the new fields. `points` is now the
-    // GNL score out of 200. Awards are scrapped, so `awards` is always an empty list rather than
+    // GNL score (raw points, max 208). Awards are scrapped, so `awards` is always an empty list rather than
     // a missing key, which keeps an older reader from breaking on undefined.
     // Uses the other emirate's ledger only if it is already loaded and fresh: this runs
     // fire-and-forget after every save and must not add a network call of its own.
@@ -5430,7 +5430,7 @@ function swInitTab(){ swRenderSetup(); }
     if(!rows.length) return false;
     var out = ['Rank,Player,GNL Score,Skirmish Raw (best 4),Nexus Night Raw (best 6),Skirmish Events,Nexus Night Events,Swiss Wins,Tie-break'].concat(
       rows.map(function(r){
-        return [r.rank, rvCsvCell(r.player), r.score.toFixed(2), r.skSum, r.nnSum, r.sk.length, r.nn.length, r.swissWins,
+        return [r.rank, rvCsvCell(r.player), r.score, r.skSum, r.nnSum, r.sk.length, r.nn.length, r.swissWins,
                 r.tieBreak ? (r.tied ? 'unresolved' : 'head-to-head') : ''].join(',');
       }));
     rvDownloadFile(URL.createObjectURL(new Blob([out.join('\n')],{type:'text/csv'})), 'gnl-leaderboard.csv');
@@ -5512,7 +5512,7 @@ function swInitTab(){ swRenderSetup(); }
       // score
       x.fillStyle = accent;
       x.font = '700 34px "IBM Plex Sans", Georgia, serif';
-      x.fillText(r.score.toFixed(1), right-22, y+40);
+      x.fillText(String(r.score), right-22, y+40);
     });
 
     // Footer
@@ -5573,7 +5573,7 @@ function swInitTab(){ swRenderSetup(); }
       var html = '<tr data-lbrow="'+rvEsc(r.player)+'" style="cursor:pointer">'+
         '<td class="c td-mono">'+r.rank+(r.tied ? '=' : '')+'</td>'+
         '<td>'+(open ? '▾ ' : '▸ ')+rvEsc(r.player)+(r.tieBreak==='head-to-head' ? ' <span style="font-size:0.66rem;color:rgba(245,237,214,0.35)" title="Level on score, Skirmish points and wins; separated by head-to-head">H2H</span>' : '')+'</td>'+
-        '<td class="c"><span class="rv-score-gold">'+r.score.toFixed(2)+'</span></td>'+
+        '<td class="c"><span class="rv-score-gold">'+r.score+'</span></td>'+
         '<td class="c td-mono">'+r.skSum+'</td>'+
         '<td class="c td-mono">'+r.nnSum+'</td>'+
         '<td class="c td-mono">'+r.sk.length+' · '+r.nn.length+'</td>'+
