@@ -4,6 +4,10 @@
 > (the `GNL 2.0 SCORING` block, shown on the GNL tab). The finals, LCQ and group-stage parts are not app features.
 > Awards were scrapped. The old 3/1/0 scoring is described only in `league-and-awards.md` as history.
 >
+> **Superseded 2026-10-29: the 60/40 weighting in section 4 was removed by the organiser.** The app scores
+> natural raw points: GNL score = best-4 Skirmish raw (of the first 8) + best-6 Nexus Night raw, max 208.
+> Everything else in section 4 (counted results, tie-breaks) is unchanged.
+>
 > **Organiser decisions, 2026-10-28 (not part of the supplied text):**
 > - Events from **16 Oct 2026** (Radiance start) through 8 Nov are part of GNL 2.0, although the framework's season dates start 9 Nov.
 > - Eligible events are designated with the existing per-event **counts** flag.
