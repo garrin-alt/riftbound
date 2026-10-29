@@ -1,5 +1,10 @@
 # Gulf Nexus League (GNL) — How It Works & Awards
 
+> **Superseded (2026-10-28).** The app now scores **GNL 2.0** (see `gnl-2.0-season-framework.md`):
+> Nexus Night / Skirmish raw points, best-6 / best-4-of-first-8, weighted to 200, per home emirate.
+> **Awards have been removed from the app entirely.** Everything below describes the *previous* 3/1/0
+> League Points scoring and the old Awards system, kept only as history of how past seasons were run.
+
 This documents two things: how the league itself scores and runs (League Points, Vendettas,
 sets/seasons), and the season-long Awards system. Both live entirely inside `index.html` — there is
 no backend; everything below is computed client-side from the two Gist files per city.

@@ -40,6 +40,9 @@ because that is exactly how one league ends up writing into the other's file.
       "date": "2025-11-06",
       "src": "locator",
       "label": "Thursday Evening Nexus Nights - 1v1",
+      "type": "NN",
+      "counts": true,
+      "b": ["0,5", "2,9"],
       "r": [[1,"s"],[2,"s"],[3,"s"],[4,"s"]],
       "m": ["0,0,1,2,0", "0,2,3,2,0", "1,0,4,1,2"]
     }
@@ -74,9 +77,15 @@ Each of these encodes a bug that already happened.
 3. **Re-recording an event replaces it wholesale.** `rvHistRecordEvent` upserts by id. Replacing
    rather than merging is what makes a re-upload structurally incapable of double-counting.
 
-4. **Byes are dropped at parse time.** `"BYE"` in any dressing (`"*** Bye ***"`, `"- bye -"`) is a
-   placeholder, not a player. Byes never score and never count as attendance. Note the platform
-   *does* count a bye as a match win in its standings — account for that when corroborating.
+4. **Byes are never matches, and never go in `m`.** `"BYE"` in any dressing (`"*** Bye ***"`, `"- bye -"`)
+   is a placeholder, not a player, and does not count as attendance. The platform *does* count a bye as a
+   match win in its standings — account for that when corroborating. **GNL 2.0 also counts a bye as a win and
+   needs to tell a bye from a dropped player, so when the harvest knows the byes they are stored in the
+   event's `b` field** as `"slot,playerIdx"` strings (`slot` = index into `r`, same player dictionary).
+   `b` is present — even if empty — only when byes were actually recorded; **absent means "unknown"**, and the
+   app flags such an event rather than guessing. Never write `b: []` unless you really know there were none.
+   Top-cut rounds must be tagged `'p'` in `r` (Skirmish placement points come from them). `type`
+   (`NN`/`PR`/`C`/`S`) and `counts` are set by the organiser in the app, never by a harvest script.
 
 5. **The history file is never PATCHed alone.** `syncToGist` sends both keys in one body. Writing
    history by itself will desynchronise it from the main file.

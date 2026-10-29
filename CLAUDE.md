@@ -15,7 +15,7 @@ a change is visible.
 
 `Riftbound_Card_Database.txt` and `Riftbound_Official_Rules_Reference.txt` are game reference data,
 not used by the app. `vendetta-guide/` holds player-facing scoring explainer assets (see its README);
-regenerate them when the scoring rules change. `docs/league-and-awards.md` documents scoring, GNL:
+regenerate them when the scoring rules change. `docs/league-and-awards.md` documents the OLD scoring, GNL:
 Vendetta, and the awards system for humans — not used by the app, and may lag behind the per-event
 counted-events model described below; check it against the code before trusting it on that point.
 `docs/superpowers/specs/` and `docs/superpowers/plans/` hold design docs and implementation plans
@@ -147,40 +147,55 @@ Rules for any hand-written ledger edit (a script, not the app), each learned the
 
 ### Domain rules encoded in code
 
-- **Scoring is 3 per match win, 1 per draw, 0 per loss, and nothing else** (`rvScoreRound`).
-  Rivalries/Vendettas are narrative only and score zero; byes never score. The ladder sorts on
-  points → match wins → fewer losses. Do not reintroduce a rivalry term into any tiebreak.
-- **GNL and Awards only count events the organiser has explicitly flagged.** Every
-  ledger event has an optional `counts: true` (omitted, not `false`, when off — treat absence as
-  off everywhere, never assume the key exists). The flag is set per-event from a checkbox in
-  League History and is the *only* scoping mechanism for these two features — there is no
-  automatic "current set" filter and no fallback to unfiltered lifetime data when nothing is
-  flagged (both correctly show empty/Unclaimed in that case). `rvDeriveFromLedger(hist, {set,
-  from, to, counted})` is the shared filter; pass `{counted: true}` to get only flagged events.
-  **GNL League Points are derived fresh from this filter on every render**
-  (`rvLoadLeaderboard`, via `rvDeriveFromLedger(...).totals`) — `rivalry.rivalryPoints` is no
-  longer read for points/W/D/L (those fields are still zero-initialized by `rvEntry()` but never
-  incremented); the one field still live in that object is `vendettaWins`, kept as an all-time
-  counter because the ledger has no per-match "was this a declared Vendetta" marker to scope by —
-  the Vendetta award is therefore the one award that stays all-time regardless of what's flagged.
+- **GNL scoring is GNL 2.0** (agreed framework: `docs/gnl-2.0-season-framework.md`; engine: the `GNL 2.0
+  SCORING` block of pure functions near the top of the script, `gnlComputeStandings` and friends,
+  tested in isolation). Nexus Night raw = 2 participation + 2/win + 1/draw + 2 undefeated (max 10, always
+  3 rounds); Skirmish raw = 3 participation + 3/win + 1/draw + cumulative top-cut bonus (Top 8 = 6, Top 4 =
+  +4, Final = +4, win = +5; max 37). Only Swiss matches earn win/draw points. **A bye is a win.**
+  **Participation needs a result (match or bye) in every Swiss round of the event**, so a player who drops
+  early forfeits it but keeps the wins already earned. GNL score = best 4 Skirmishes (from the player's
+  FIRST 8) / 148 * 120 + best 6 Nexus Nights / 60 * 80, max 200. Compare scores as the exact integer
+  `90*S + 148*N` (`gnlKey`), never as a float, so ties are real. Tie-break order: GNL score → Skirmish
+  raw → total Swiss match wins → head-to-head → shared rank flagged "unresolved" for the organiser.
+  Rivalries/Vendettas are narrative only and score zero. Do not reintroduce a rivalry term anywhere.
+  The old 3/1/0 League Points function `rvComputeLeaguePoints` is legacy and unused by the app (the
+  `gnl-overlap-check` skill still calls it); do not extend it. **Awards are scrapped**: the tab,
+  `rvComputeAwards`, the editor and exports are gone (any stored `rivalry.awards` is left untouched in
+  the Gists, just never read).
+- **Only events the organiser has flagged `counts: true` AND typed NN or S score.** Every ledger event has
+  an optional `counts: true` (omitted, not `false`, when off — treat absence as off everywhere, never
+  assume the key exists), set from a checkbox in League History (or Post-Event Processing). There is no
+  automatic "current set" filter and no fallback to unfiltered lifetime data when nothing is flagged
+  (the board shows empty). `rvDeriveFromLedger(hist, {set, from, to, counted})` is the shared filter for the
+  per-player stats surfaces. Pre-Rift (`PR`), Casuals (`C`) and untyped events never score, however they
+  are flagged; the standings say how many flagged events score nothing for that reason.
+  `rivalry.rivalryPoints` is not read for points: its fields are zero-initialised by `rvEntry()` and never
+  incremented, except `vendettaWins` (an all-time counter of settled grudges).
 - **Event type** (`type` on a ledger event: `NN` / `PR` / `C` / `S`, the same codes as Judges'
-  `JD_TYPES`; omitted when unset, validated by `rvEventTypeOk`) is set by the organiser, only for
-  events that are meant to count — there is deliberately no back-fill. **An event can't be flagged
-  `counts` without a type** (League History disables the checkbox until one is set and refuses to
-  clear the type on a counted event; Post-Event Processing refuses to save with Counts ticked and no
-  type). `rvHistRecordEvent` carries an existing type across a re-upload, which otherwise replaces the
-  whole event. Nothing scores from it yet: it is groundwork for GNL 2.0, whose agreed framework is in
-  `docs/gnl-2.0-season-framework.md` and is **not implemented** — the app still scores 3/1/0.
+  `JD_TYPES`; omitted when unset, validated by `rvEventTypeOk`) is set by the organiser, only for events
+  that are meant to count — there is deliberately no back-fill. **An event can't be flagged `counts`
+  without a type** (League History disables the checkbox until one is set and refuses to clear the type on
+  a counted event; Post-Event Processing refuses to save with Counts ticked and no type).
+  `rvHistRecordEvent` carries an existing type across a re-upload, which otherwise replaces the whole event.
+- **Byes are stored in the ledger as `b`** (`["slot,playerIdx", ...]`, same dictionary as `m`) because GNL 2.0
+  needs to tell a bye from a dropped player. `b` is present — even if empty — only when byes were actually
+  recorded; **absent means "unknown"**, which the standings flag per event rather than guess. CSV uploads
+  drop byes at parse time and so never record any; the portal harvest (`Propose-RGN.js`) always does.
+  Top-cut rounds must be tagged `'p'` in `r`: Skirmish placement points are read from them, by round
+  *size* (a round of ≤8 players = Top 8, ≤4 = Top 4, 2 = the Final, the last one-match round's winner = champion).
+- **Home emirate (interim rule, to be revisited):** a player belongs to the emirate where they have played
+  more *eligible* events (tie → the emirate of their most recent one). Standings for the signed-in city list
+  the players whose home is that city and count their eligible events from **both** emirates, so
+  `rvLoadLeaderboard` also reads the other city's ledger (`gnlLoadOtherLedger`: read-only, 60 s cache, never
+  written to localStorage, failure shown rather than hidden). An event id present in both ledgers counts once.
 - **Excluded players** (`rivalry.vendettaExcluded`, read through `rvVendettaExcludedSet`; edited in the
-  "Excluded players" box under the GNL leaderboard) are the organiser's fix for players
-  ranked in both cities. The exclusion is a *late* filter: `rvComputeLeaguePoints` drops the player
-  from the ranking, and `rvComputeAwards` drops them from each award's candidate list (a pair award
-  is dropped if either side is excluded). It is never applied to the aggregate or ledger totals, so an
-  excluded player's real matches still count in full for whoever they played.
-- **Awards** (`rvComputeAwards`) are recomputed every render and never stored as truth; only
-  organiser overrides and custom awards persist. Ties on an award's score are broken by GNL:
-  Vendetta League Points (`best()`, and the detail text says "ahead of X on League Points"); players
-  still level on both are named ("shared with X"), never broken by object-key order.
+  "Excluded players" box under the GNL standings) are the organiser's interim fix for a player who belongs to
+  the other emirate. The exclusion is a *late* filter on the finished standings. It is never applied to the
+  ledger, so an excluded player's real matches still count in full for whoever they played.
+- **The external League Points Gist** (`LEAGUE_POINTS_GIST_ID`) is mirrored after saves by
+  `rvSyncLeagueMirror`: `points` rows keep the old shape (rank / player / points / w / d / l / eventCount) but
+  `points` is now the GNL score out of 200 (plus `skirmishRaw`, `nexusRaw`, `tied`), `awards` is always `[]`,
+  and `scoring: 'gnl-2.0'` marks the new rules. It only uses the other emirate's ledger if already loaded.
 - **Judges**: Riot Name is the identity, matched case-insensitively, with an internal id underneath.
   A judge can only be created by being logged on a night. One event per night per city; any number
   of judges per night. Rank derives from shift count alone (1/5/10/20/40/80 → Bronze…Challenger) and
@@ -221,7 +236,7 @@ much later in the file. This has already cost real effort: two separate implemen
 `saveJudges` was IIFE-scoped and built unnecessary indirection to work around it. If in doubt, check
 `typeof window.fnName` rather than inferring from surrounding comments. Other reachable top-level
 functions: `load`, `loadHist`, `loadJudges`, `loadJudgesFromGist`, `loadFromGist`,
-`rvDeriveFromLedger`, `rvDerivePlayer`, `rvComputeAwards`, `jdCompute`, `jdTierOf` — this is why the
+`rvDeriveFromLedger`, `rvDerivePlayer`, `gnlComputeStandings`, `jdCompute`, `jdTierOf` — this is why the
 pure logic lives there.
 
 `showTab(id)` swaps panels and calls the relevant `init` — so **`pdInit`/`jdInit` run on every tab
