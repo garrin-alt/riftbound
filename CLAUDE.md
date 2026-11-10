@@ -149,12 +149,12 @@ Rules for any hand-written ledger edit (a script, not the app), each learned the
 
 - **GNL scoring is GNL 2.0** (agreed framework: `docs/gnl-2.0-season-framework.md`; engine: the `GNL 2.0
   SCORING` block of pure functions near the top of the script, `gnlComputeStandings` and friends,
-  tested in isolation). Nexus Night raw = 2 participation + 2/win + 1/draw + 2 undefeated (max 10, always
-  3 rounds); Skirmish raw = 3 participation + 3/win + 1/draw + cumulative top-cut bonus (Top 8 = 6, Top 4 =
-  +4, Final = +4, win = +5; max 37). Only Swiss matches earn win/draw points. **A bye is a win.**
+  tested in isolation). Nexus Night raw = 3 participation + 2/win + 1/draw + 2 undefeated (max 11, always
+  3 rounds); Skirmish raw = 4 participation + 3/win + 1/draw + cumulative top-cut bonus (Top 8 = 6, Top 4 =
+  +4, Final = +4, win = +5; max 38). Participation was 2 / 3 until 2026-11-10 and is now 3 / 4 in both cities. Only Swiss matches earn win/draw points. **A bye is a win.**
   **Participation needs a result (match or bye) in every Swiss round of the event**, so a player who drops
   early forfeits it but keeps the wins already earned. GNL score = best 4 Skirmishes (from the player's
-  FIRST 8) + best 6 Nexus Nights, in natural raw points (max 148 + 60 = 208). **The framework's 60/40
+  FIRST 8) + best 6 Nexus Nights, in natural raw points (max 152 + 66 = 218). **The framework's 60/40
   weighting was dropped by the organiser on 2026-10-29**; the score is an integer, `gnlKey` is just S + N. Tie-break order: GNL score → Skirmish
   raw → total Swiss match wins → head-to-head → shared rank flagged "unresolved" for the organiser.
   Rivalries/Vendettas are narrative only and score zero. Do not reintroduce a rivalry term anywhere.
@@ -162,6 +162,15 @@ Rules for any hand-written ledger edit (a script, not the app), each learned the
   `gnl-overlap-check` skill still calls it); do not extend it. **Awards are scrapped**: the tab,
   `rvComputeAwards`, the editor and exports are gone (any stored `rivalry.awards` is left untouched in
   the Gists, just never read).
+- **Scoring differs per emirate, keyed by the city the EVENT was held in** (`GNL_CITY_RULES`), never by a
+  player's home emirate or the board being viewed. A city not listed keeps the original rules. Dubai: of a
+  player's Dubai-held Nexus Nights only the best in each Mon-Sun week (by event date) is eligible, then best 6
+  (`gnlNnPool`; lesser nights get `weekSkipped`); Dubai and Abu Dhabi nights never compete. Dubai-held events also
+  use the same 3 / 4 participation as everywhere (`gnlParticipation` still reads a per-city override from the
+  table if one is ever added). Events carry no
+  venue field, so an event's city is the ledger holding it; an id eligible in both ledgers is attributed
+  deterministically (alphabetical city) with a warning, never by source order. Anything new that differs by
+  city belongs in that table, never an `if (city === ...)` in the scoring code.
 - **Only events the organiser has flagged `counts: true` AND typed NN or S score.** Every ledger event has
   an optional `counts: true` (omitted, not `false`, when off — treat absence as off everywhere, never
   assume the key exists), set from a checkbox in League History (or Post-Event Processing). There is no
@@ -194,7 +203,7 @@ Rules for any hand-written ledger edit (a script, not the app), each learned the
   ledger, so an excluded player's real matches still count in full for whoever they played.
 - **The external League Points Gist** (`LEAGUE_POINTS_GIST_ID`) is mirrored after saves by
   `rvSyncLeagueMirror`: `points` rows keep the old shape (rank / player / points / w / d / l / eventCount) but
-  `points` is now the GNL score in raw points, max 208 (plus `skirmishRaw`, `nexusRaw`, `tied`), `awards` is always `[]`,
+  `points` is now the GNL score in raw points, max 218 (plus `skirmishRaw`, `nexusRaw`, `tied`), `awards` is always `[]`,
   and `scoring: 'gnl-2.0'` marks the new rules. It only uses the other emirate's ledger if already loaded.
 - **Judges**: Riot Name is the identity, matched case-insensitively, with an internal id underneath.
   A judge can only be created by being logged on a night. One event per night per city; any number

@@ -1537,7 +1537,7 @@
           <!-- LEADERBOARD -->
           <div class="rv-tab-panel active" id="rvtab-leaderboard">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:12px;flex-wrap:wrap">
-              <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic;line-height:1.6;flex:1;min-width:240px"><strong style="color:var(--gold-light);font-style:normal">⚔ GNL</strong> — standings by raw points: best 4 Skirmishes plus best 6 Nexus Nights (max 208), for the players whose home emirate is this city. Only events flagged as counting, and typed NN or S, score.</p>
+              <p style="font-size:0.78rem;color:rgba(245,237,214,0.35);font-style:italic;line-height:1.6;flex:1;min-width:240px"><strong style="color:var(--gold-light);font-style:normal">⚔ GNL</strong> — standings by raw points: best 4 Skirmishes plus best 6 Nexus Nights (max 218), for the players whose home emirate is this city. Only events flagged as counting, and typed NN or S, score. Nexus Nights held in Dubai: only a player's best Dubai night in each week (Monday to Sunday) scores.</p>
               <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                 <span id="rvLbStatus" style="font-size:0.72rem;color:rgba(245,237,214,0.3)"></span>
                 <button class="btn ghost" id="rvLbExportCSV" style="width:auto;padding:7px 14px;font-size:0.7rem">⬇ Export CSV</button>
@@ -2491,27 +2491,77 @@ function jdCompute(d) {
 // Which events count: ONLY events the organiser flagged `counts: true` AND typed NN or S. Pre-Rift,
 // Casuals and untyped events never score, however they are flagged (see rvEventTypeOk).
 //
-//   Nexus Night  raw = 2 participation + 2/win + 1/draw + 2 for going undefeated      (max 10, 3 rounds)
-//   Skirmish     raw = 3 participation + 3/win + 1/draw + cumulative top-cut bonus    (max 37, 5 rounds)
+//   Nexus Night  raw = 3 participation + 2/win + 1/draw + 2 for going undefeated      (max 11, 3 rounds)
+//   Skirmish     raw = 4 participation + 3/win + 1/draw + cumulative top-cut bonus    (max 38, 5 rounds)
+//   (participation was 2 and 3 until 2026-11-10; see GNL_CITY_RULES for what differs by venue city)
 //                top-cut bonus: Top 8 = 6, Top 4 = +4, Final = +4, win = +5  (19 in all)
 //   Only Swiss matches earn win/draw points. A bye is a win. Participation needs the player to have
 //   a result (match or bye) in EVERY Swiss round of the event, so dropping early forfeits it, but the
 //   wins already earned still count.
 //
 //   GNL score = best-4 Skirmish raw (from the player's FIRST 8 Skirmishes)
-//             + best-6 Nexus Night raw                                          (max 148 + 60 = 208)
+//             + best-6 Nexus Night raw                                          (max 152 + 66 = 218)
 //
 // Natural raw points: the organiser dropped the framework's 60/40 weighting (120/200 and 80/200), so
 // a Skirmish point and a Nexus Night point are worth the same. The score is therefore an integer and
 // ties are exact. `gnlKey` is kept as the single comparison key so callers don't change.
 var GNL_RULES = {
   nnBest: 6, skBest: 4, skPool: 8,
-  nnMax: 60, skMax: 148,
-  nnRounds: 3
+  nnRounds: 3,
+  nnParticipation: 3, skParticipation: 4,         // raised from 2 / 3 on 2026-11-10, for both cities
+  nnMax: 66, skMax: 152
 };
+
+// Per-emirate variations on the rules above, keyed by the city an EVENT was held in (never the player's
+// home emirate, never the board being viewed). A city not listed here (Abu Dhabi) keeps the original
+// scoring untouched, so a new rule can only ever change events held in the city it is named for.
+//   nnWeeklyBest: of a player's Nexus Nights held in that city, only the best one in each calendar week
+//                 (Mon-Sun) is eligible to score; the best-6 cap then applies across what is left.
+//   nnParticipation / skParticipation: participation points for completing a Nexus Night / Skirmish held in
+//                 that city, in place of the GNL_RULES defaults.
+// An event has no venue field of its own: its city is the ledger that holds it (see gnlComputeStandings).
+var GNL_CITY_RULES = { dubai: { nnWeeklyBest: true } };
+function gnlRulesFor(city) { return GNL_CITY_RULES[city] || {}; }
+function gnlParticipation(type, city) {
+  var r = gnlRulesFor(city), key = type === 'NN' ? 'nnParticipation' : 'skParticipation';
+  return r[key] != null ? r[key] : GNL_RULES[key];
+}
 
 function gnlKey(skSum, nnSum) { return skSum + nnSum; }
 function gnlScoreOf(key) { return key; }
+
+// The Monday (ISO date) of the Mon-Sun week containing `iso`, or null if it isn't a real date. Dates are
+// the ledger's ISO YYYY-MM-DD (the venue's local day), so no timezone maths is involved.
+function gnlWeekKey(iso) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+  if (!m) return null;
+  var t = Date.UTC(+m[1], +m[2] - 1, +m[3]);
+  if (isNaN(t)) return null;
+  var sinceMonday = (new Date(t).getUTCDay() + 6) % 7;
+  return new Date(t - sinceMonday * 86400000).toISOString().slice(0, 10);
+}
+
+// Which of one player's Nexus Night results (each carrying the `city` it was held in) are eligible to
+// score. A night held in a city with nnWeeklyBest competes only against that player's other nights in
+// the same city and the same week: the highest scorer is kept (an earlier night wins a tie) and the rest
+// are flagged `weekSkipped` so the breakdown can say why. Nights held in any other city are always kept.
+// A night with no usable date is its own week rather than being lumped with the others.
+function gnlNnPool(nn) {
+  function slot(e) {
+    var k = gnlRulesFor(e.city).nnWeeklyBest ? gnlWeekKey(e.date) : null;
+    return k ? e.city + '|' + k : null;
+  }
+  var bestOf = {};
+  nn.slice().sort(gnlByDateId).forEach(function (e) {
+    var s = slot(e);
+    if (s && (!bestOf[s] || e.pts > bestOf[s].pts)) bestOf[s] = e;
+  });
+  return nn.filter(function (e) {
+    var s = slot(e);
+    e.weekSkipped = !!s && bestOf[s] !== e;
+    return !e.weekSkipped;
+  });
+}
 
 function gnlIsEligible(ev) {
   return !!ev && ev.counts === true && (ev.type === 'NN' || ev.type === 'S');
@@ -2579,14 +2629,15 @@ function gnlReadEvent(hist, ev) {
 }
 
 // Raw points for one player in one event, with the breakdown kept for display.
-function gnlEventPoints(type, P, swissRounds) {
+// `city` is the city the event was held in, which decides the participation points.
+function gnlEventPoints(type, P, swissRounds, city) {
   var parts = { participation: 0, wins: 0, draws: 0, bonus: 0, placement: 0 };
   if (type === 'NN') {
-    if (P.complete) parts.participation = 2;
+    if (P.complete) parts.participation = gnlParticipation('NN', city);
     parts.wins = 2 * P.w; parts.draws = P.d;
     if (P.complete && P.w === swissRounds && P.d === 0 && P.l === 0) parts.bonus = 2;   // undefeated
   } else {
-    if (P.complete) parts.participation = 3;
+    if (P.complete) parts.participation = gnlParticipation('S', city);
     parts.wins = 3 * P.w; parts.draws = P.d;
     parts.placement = gnlPlacementPoints(P.cutSize, P.champion);
   }
@@ -2608,16 +2659,30 @@ function gnlByDateId(a, b) {
 // events; a tie goes to the emirate of their most recent eligible event.
 function gnlComputeStandings(sources, opts) {
   opts = opts || {};
-  var seen = {}, evs = [];
-  (sources || []).forEach(function (src) {            // an event id sitting in both ledgers is one event
+  // An event's city is the ledger that holds it (events carry no venue of their own), and an event id
+  // sitting in both ledgers is still one event. Only a copy that is itself eligible counts, so a copy
+  // flagged in one ledger wins over an unflagged twin whichever board is being built. If both copies
+  // are eligible the choice must not depend on which board is open (the city decides the Nexus Night
+  // rule), so it is fixed (alphabetical city) and the organiser is told to remove the wrong copy.
+  var warnings = [], cand = {}, ids = [], evs = [];
+  (sources || []).forEach(function (src) {
     ((src.hist && src.hist.events) || []).forEach(function (ev) {
-      if (!gnlIsEligible(ev) || seen[ev.id]) return;
-      seen[ev.id] = true; evs.push({ city: src.city, hist: src.hist, ev: ev });
+      if (!gnlIsEligible(ev)) return;
+      if (!cand[ev.id]) { cand[ev.id] = []; ids.push(ev.id); }
+      cand[ev.id].push({ city: src.city, hist: src.hist, ev: ev });
     });
+  });
+  ids.forEach(function (id) {
+    var c = cand[id];
+    if (c.length > 1) {
+      c.sort(function (x, y) { return String(x.city).localeCompare(String(y.city)); });
+      warnings.push((c[0].ev.label || ('Event ' + id)) + ' (' + c[0].ev.date + '): flagged as counting in both cities\' ledgers, so it is scored once, as a ' + c[0].city + ' event. Remove it from the ledger of the city that did not host it.');
+    }
+    evs.push(c[0]);
   });
   evs.sort(function (x, y) { return gnlByDateId(x.ev, y.ev); });
 
-  var by = {}, h2h = {}, warnings = [], eventSummary = [];
+  var by = {}, h2h = {}, eventSummary = [];
   evs.forEach(function (x) {
     var ev = x.ev, rd = gnlReadEvent(x.hist, ev);
     var label = ev.label || ('Event ' + ev.id);
@@ -2626,7 +2691,7 @@ function gnlComputeStandings(sources, opts) {
     if (ev.type === 'NN' && rd.swissRounds && rd.swissRounds !== GNL_RULES.nnRounds) warnings.push(label + ' (' + ev.date + '): Nexus Nights are 3 rounds but this one has ' + rd.swissRounds + '.');
     if (!rd.hasByeInfo) warnings.push(label + ' (' + ev.date + '): byes were not recorded for this event, so anyone who had a bye shows as missing a round (no participation points, bye win not counted).');
     Object.keys(rd.players).forEach(function (n) {
-      var P = rd.players[n], pts = gnlEventPoints(ev.type, P, rd.swissRounds);
+      var P = rd.players[n], pts = gnlEventPoints(ev.type, P, rd.swissRounds, x.city);
       var rec = by[n] || (by[n] = { player: n, events: [], cityCount: {}, swissWins: 0, lastCity: null });
       rec.events.push({ id: ev.id, date: ev.date, label: label, type: ev.type, city: x.city, pts: pts.pts, parts: pts.parts,
                         w: P.w, d: P.d, l: P.l, byes: P.byes, complete: P.complete, cutSize: P.cutSize, champion: P.champion });
@@ -2652,10 +2717,11 @@ function gnlComputeStandings(sources, opts) {
     var nn = rec.events.filter(function (e) { return e.type === 'NN'; });
     var sk = rec.events.filter(function (e) { return e.type === 'S'; }).sort(gnlByDateId);
     var skPool = sk.slice(0, GNL_RULES.skPool);
-    var nnSum = gnlSumTop(nn.map(function (e) { return e.pts; }), GNL_RULES.nnBest);
+    var nnPool = gnlNnPool(nn);
+    var nnSum = gnlSumTop(nnPool.map(function (e) { return e.pts; }), GNL_RULES.nnBest);
     var skSum = gnlSumTop(skPool.map(function (e) { return e.pts; }), GNL_RULES.skBest);
     var key = gnlKey(skSum, nnSum);
-    return { player: n, home: home, nn: nn, sk: sk, nnSum: nnSum, skSum: skSum, nnCounted: Math.min(nn.length, GNL_RULES.nnBest),
+    return { player: n, home: home, nn: nn, nnPool: nnPool, sk: sk, nnSum: nnSum, skSum: skSum, nnCounted: Math.min(nnPool.length, GNL_RULES.nnBest),
              skCounted: Math.min(skPool.length, GNL_RULES.skBest), skBeyondPool: Math.max(0, sk.length - GNL_RULES.skPool),
              key: key, score: gnlScoreOf(key), swissWins: rec.swissWins, tied: false, tieBreak: null };
   }).filter(function (r) {
@@ -2766,7 +2832,7 @@ async function rvSyncLeagueMirror(data, hist) {
     if (!token) return;
     // GNL 2.0 standings for this emirate, in the row shape the external reader already knows
     // (rank / player / points / w / d / l / eventCount) plus the new fields. `points` is now the
-    // GNL score (raw points, max 208). Awards are scrapped, so `awards` is always an empty list rather than
+    // GNL score (raw points, max 218). Awards are scrapped, so `awards` is always an empty list rather than
     // a missing key, which keeps an older reader from breaking on undefined.
     // Uses the other emirate's ledger only if it is already loaded and fresh: this runs
     // fire-and-forget after every save and must not add a network call of its own.
@@ -5549,7 +5615,7 @@ function swInitTab(){ swRenderSetup(); }
   // first 8 Skirmishes), so the breakdown can show it rather than make anyone work it out.
   function rvLbCounted(r){
     var set = {};
-    r.nn.slice().sort(function(a,b){ return b.pts - a.pts; }).slice(0, GNL_RULES.nnBest).forEach(function(e){ set[e.id] = true; });
+    r.nnPool.slice().sort(function(a,b){ return b.pts - a.pts; }).slice(0, GNL_RULES.nnBest).forEach(function(e){ set[e.id] = true; });
     r.sk.slice(0, GNL_RULES.skPool).sort(function(a,b){ return b.pts - a.pts; }).slice(0, GNL_RULES.skBest).forEach(function(e){ set[e.id] = true; });
     return set;
   }
@@ -5587,7 +5653,7 @@ function swInitTab(){ swRenderSetup(); }
             '<span class="td-mono" style="min-width:64px">'+rvDdmmyy(e.date)+'</span>'+
             '<span style="min-width:30px;color:var(--gold-light)">'+e.type+'</span>'+
             '<span style="flex:1">'+rvEsc(e.label)+' <span style="opacity:0.7">— '+rvEsc(rvLbPartsText(e))+'</span></span>'+
-            '<span class="td-mono" style="min-width:90px;text-align:right">'+e.pts+' pts'+(counted[e.id] ? ' ✓' : (inPool ? '' : ' (not in first 8)'))+'</span>'+
+            '<span class="td-mono" style="min-width:90px;text-align:right">'+e.pts+' pts'+(counted[e.id] ? ' ✓' : (e.weekSkipped ? ' (not that week\'s best)' : (inPool ? '' : ' (not in first 8)')))+'</span>'+
           '</div>';
         }).join('')+'</td></tr>';
       }
