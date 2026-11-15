@@ -8,6 +8,21 @@
 > natural raw points: GNL score = best-4 Skirmish raw (of the first 8) + best-6 Nexus Night raw, max 208.
 > Everything else in section 4 (counted results, tie-breaks) is unchanged.
 >
+> **Participation raised 2026-11-10, both cities:** participation is now **3** for a Nexus Night (was 2) and
+> **4** for a Skirmish (was 3). A Nexus Night tops out at 11, a Skirmish at 38, and a season at **218** (not
+> 208, so the "max 208" above and the tables below describe the old values). Win/draw points, the undefeated
+> bonus, the top-cut bonus and the participation-needs-every-round rule are unchanged.
+>
+> **Per-emirate scoring (added 2026-11-10): Nexus Nights held in Dubai differ from those held in Abu Dhabi.**
+> Of a player's Nexus Nights **held in Dubai**, only the **best one in each calendar week (Monday to Sunday,
+> by the event's date)** is eligible to score; their other Dubai nights that week score nothing. Nights held
+> in Abu Dhabi keep the original rule (every night eligible), and a Dubai night and an Abu Dhabi night never
+> compete with each other. The best-6 cap then applies across whatever is eligible. Skirmishes and
+> tie-breaks are identical everywhere. The rule follows the **venue's city**, not the player's home emirate
+> and not the board being viewed. An event has no venue field: its city is the ledger that
+> holds it. An event flagged as counting in *both* ledgers is scored once, as an Abu Dhabi event, and the
+> GNL tab warns so the organiser can remove it from the wrong ledger. In code: `GNL_CITY_RULES`, `gnlNnPool`.
+>
 > **Organiser decisions, 2026-10-28 (not part of the supplied text):**
 > - Events from **16 Oct 2026** (Radiance start) through 8 Nov are part of GNL 2.0, although the framework's season dates start 9 Nov.
 > - Eligible events are designated with the existing per-event **counts** flag.
